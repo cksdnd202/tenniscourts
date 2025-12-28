@@ -1,65 +1,59 @@
-import Image from "next/image";
+import { supabase } from "@/lib/supabase";
+import { CourtFilter } from "./CourtFilter";
 
-export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+// DB 레코드 타입 정의(테이블 컬럼만 적당히)
+type Court = {
+  id: string;
+  court_name: string | null;
+  owner_type: string | null;
+  address: string | null;
+  map_link: string | null;
+  region: string | null;
+  city: string | null;
+  opentime_owner: string | null;
+  opentime_normal: string | null;
+  reservation_time: string | null;
+  time_of_use: string | null;
+  court_count_hard_indoor: number | null;
+  court_count_hard_outdoor: number | null;
+  court_count_grass_indoor: number | null;
+  court_count_grass_outdoor: number | null;
+  court_count_clay_indoor: number | null;
+  court_count_clay_outdoor: number | null;
+  reserve_link: string | null;
+  
+};
+
+export default async function Home() {
+  // 타입 지정
+  const { data, error } = await supabase
+    .from("courtinfo")
+    .select("id, court_name, owner_type, address, region, city, opentime_owner, opentime_normal, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, reserve_link, map_link")
+    .order("court_name", { ascending: true })
+    .limit(50);
+  
+  const typedData = data as Court[] | null;
+
+  if (error) {
+    return (
+      <main className="max-w-3xl mx-auto p-6">
+        <h1 className="text-2xl font-bold mb-4">🎾 Ground Korea</h1>
+        <p className="text-red-8600">에러: {error.message}</p>
       </main>
-    </div>
+    );
+  }
+
+  const list = typedData ?? []; // 안전하게 기본값
+
+  // 디버깅: opentime_normal 데이터 확인
+  if (list.length > 0) {
+    console.log("첫 번째 코트 데이터:", list[0]);
+    console.log("opentime_normal 값:", list[0]?.opentime_normal);
+  }
+
+  return (
+    <main className="w-auto mx-auto h-max">
+      <CourtFilter courts={list} />
+    </main>
   );
 }
