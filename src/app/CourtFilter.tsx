@@ -29,18 +29,18 @@ type Props = {
 };
 
 const courtitemstyle = 
-"grid border rounded-xl border-[#D9E5DE] p-5 bg-[#ffffff] gap-2 transition duration-300 ease-in-out hover:-translate-y-1 hover:bg-[#DEF4E0]";
-const courtitem_courtname = "font-semibold text-[#4CA375] text-xl w-full md:w-auto";
+"grid border rounded-xl border-[#D9E5DE] p-5 bg-[#ffffff] gap-2 transition duration-300 ease-in-out hover:-translate-y-1 hover:bg-[#DEF4E0] overflow-hidden min-w-0";
+const courtitem_courtname = "font-semibold text-[#4CA375] text-xl w-full md:w-auto flex-1 min-w-0 truncate";
 const courtitem_courtownertype =
-  "rounded text-xs font-medium text-[#4F8065] pt-1 pb-1 pl-1.5 pr-1.5 bg-[#D4E0D6]";
+  "rounded text-xs font-medium text-[#4F8065] pt-1 pb-1 pl-1.5 pr-1.5 bg-[#D4E0D6] flex-shrink-0 whitespace-nowrap";
 const courtitem_courtopentime = "text-sm font-bold text-zinc-700";
 const courtitem_courtopentime_text = "text-sm font-normal text-zinc-700";
 const courtitem_courtaddress = "font-light text-sm text-[#686868] mr-2";
 const courtitem_courtmaplink = "text-sm font-light text-zinc-400 underline";
 const th =
-  "border border-gray-200 bg-[#F5FBEA] px-1 py-1 text-center font-normal text-zinc-600 text-xs";
+  "border border-gray-200 bg-[#F5FBEA] px-1 py-1 text-center font-normal text-zinc-600 text-xs overflow-hidden";
 const td =
-  "border border-gray-200 px-1 py-1 text-center text-zinc-600 font-normal text-xs bg-white";
+  "border border-gray-200 px-1 py-1 text-center text-zinc-600 font-normal text-xs bg-white overflow-hidden";
 const tdIcon =
   "border border-gray-200 bg-[#F5FBEA] px-1 py-1 text-center text-xs";
 
@@ -53,10 +53,19 @@ export function CourtFilter({ courts }: Props) {
     console.log("CourtFilter - opentime_normal:", courts[0]?.opentime_normal);
   }
 
+  // 실제 필터 상태 (필터링에 사용)
   const [selectedRegion, setSelectedRegion] = useState<string>("");
   const [selectedCity, setSelectedCity] = useState<string>("");
   const [selectedCourtTypes, setSelectedCourtTypes] = useState<string[]>([]);
   const [selectedOwnerTypes, setSelectedOwnerTypes] = useState<string[]>([]);
+  
+  // 팝업에서 사용할 임시 필터 상태
+  const [tempRegion, setTempRegion] = useState<string>("");
+  const [tempCity, setTempCity] = useState<string>("");
+  const [tempCourtTypes, setTempCourtTypes] = useState<string[]>([]);
+  const [tempOwnerTypes, setTempOwnerTypes] = useState<string[]>([]);
+  
+  const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
 
   // 시/도 목록
   const regions = useMemo(() => {
@@ -145,31 +154,102 @@ export function CourtFilter({ courts }: Props) {
     selectedOwnerTypes,
   ]);
 
-  return (
-    <div className="flex gap-4">
-      {/* 좌측 필터 영역 */}
-      <aside className="w-full max-w-xs min-h-screen border-r border-[#EEEEEE] p-7.5 bg-[#ffffff]">
-        <h2 className="mb-6 text-2xl font-black text-zinc-900">
-          GROUND KOREA
-        </h2>
+  // 팝업 열 때 임시 상태를 현재 상태로 초기화
+  const handleOpenFilter = () => {
+    setTempRegion(selectedRegion);
+    setTempCity(selectedCity);
+    setTempCourtTypes([...selectedCourtTypes]);
+    setTempOwnerTypes([...selectedOwnerTypes]);
+    setIsFilterOpen(true);
+  };
 
+  // 확인 버튼 클릭 시 임시 상태를 실제 상태에 적용
+  const handleConfirmFilter = () => {
+    setSelectedRegion(tempRegion);
+    setSelectedCity(tempCity);
+    setSelectedCourtTypes([...tempCourtTypes]);
+    setSelectedOwnerTypes([...tempOwnerTypes]);
+    setIsFilterOpen(false);
+  };
+
+  // X 버튼 클릭 시 팝업만 닫기 (임시 상태는 버림)
+  const handleCloseFilter = () => {
+    setIsFilterOpen(false);
+  };
+
+  // 필터 초기화
+  const handleResetFilter = () => {
+    setSelectedRegion("");
+    setSelectedCity("");
+    setSelectedCourtTypes([]);
+    setSelectedOwnerTypes([]);
+    if (isFilterOpen) {
+      setTempRegion("");
+      setTempCity("");
+      setTempCourtTypes([]);
+      setTempOwnerTypes([]);
+    }
+  };
+
+  // 임시 상태에서 사용할 cities 목록
+  const tempCities = useMemo(() => {
+    if (!tempRegion) return [];
+    return citiesByRegion[tempRegion] ?? [];
+  }, [tempRegion, citiesByRegion]);
+
+  // 필터 콘텐츠 컴포넌트 (재사용을 위해 분리)
+  const FilterContent = ({ isMobile = false, useTemp = false }: { isMobile?: boolean; useTemp?: boolean }) => {
+    const currentRegion = useTemp ? tempRegion : selectedRegion;
+    const currentCity = useTemp ? tempCity : selectedCity;
+    const currentCourtTypes = useTemp ? tempCourtTypes : selectedCourtTypes;
+    const currentOwnerTypes = useTemp ? tempOwnerTypes : selectedOwnerTypes;
+    const currentCities = useTemp ? tempCities : cities;
+
+    const handleRegionChange = (value: string) => {
+      if (useTemp) {
+        setTempRegion(value);
+        setTempCity("");
+      } else {
+        setSelectedRegion(value);
+        setSelectedCity("");
+      }
+    };
+
+    const handleCityChange = (value: string) => {
+      if (useTemp) {
+        setTempCity(value);
+      } else {
+        setSelectedCity(value);
+      }
+    };
+
+    return (
+      <>
         {/* 지역 필터 */}
         <section className="mb-6">
-          <h3 className="mb-2 text-lg font-bold text-[#282828]">지역</h3>
+          <h3 className={`mb-2 text-lg font-bold ${isMobile ? "text-white" : "text-[#282828]"}`}>
+            지역
+          </h3>
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              {/*<span className="text-xs text-zinc-600">시/도</span>*/}
               <select
-                className="flex-1 border rounded border-[#E1E1E1] px-2.5 py-2 text-sm text-[#555555] appearance-none"
-                value={selectedRegion}
-                onChange={(e) => {
-                  setSelectedRegion(e.target.value);
-                  setSelectedCity("");
-                }}
+                className={`flex-1 border rounded px-2.5 py-2 text-sm appearance-none ${
+                  isMobile
+                    ? "border-[#3C3C3C] bg-[#2C2C2C] text-white"
+                    : "border-[#E1E1E1] text-[#555555]"
+                }`}
+                value={currentRegion}
+                onChange={(e) => handleRegionChange(e.target.value)}
               >
-                <option value="">시/도 전체</option>
+                <option value="" className={isMobile ? "bg-[#2C2C2C] text-white" : ""}>
+                  시/도 전체
+                </option>
                 {regions.map((r) => (
-                  <option key={r} value={r}>
+                  <option
+                    key={r}
+                    value={r}
+                    className={isMobile ? "bg-[#2C2C2C] text-white" : ""}
+                  >
                     {r}
                   </option>
                 ))}
@@ -177,16 +257,25 @@ export function CourtFilter({ courts }: Props) {
             </div>
 
             <div className="flex items-center gap-2">
-              {/*<span className="text-xs text-zinc-600">시/군/구</span>*/}
               <select
-                className="flex-1 border rounded border-[#E1E1E1] px-2.5 py-2 text-sm text-[#555555] appearance-none"
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                disabled={!selectedRegion}
+                className={`flex-1 border rounded px-2.5 py-2 text-sm appearance-none ${
+                  isMobile
+                    ? "border-[#3C3C3C] bg-[#2C2C2C] text-white"
+                    : "border-[#E1E1E1] text-[#555555]"
+                } ${!currentRegion ? "opacity-50" : ""}`}
+                value={currentCity}
+                onChange={(e) => handleCityChange(e.target.value)}
+                disabled={!currentRegion}
               >
-                <option value="">시/군/구 전체</option>
-                {cities.map((c) => (
-                  <option key={c} value={c}>
+                <option value="" className={isMobile ? "bg-[#2C2C2C] text-white" : ""}>
+                  시/군/구 전체
+                </option>
+                {currentCities.map((c) => (
+                  <option
+                    key={c}
+                    value={c}
+                    className={isMobile ? "bg-[#2C2C2C] text-white" : ""}
+                  >
                     {c}
                   </option>
                 ))}
@@ -197,18 +286,22 @@ export function CourtFilter({ courts }: Props) {
 
         {/* 코트 종류 필터 */}
         <section className="mb-6">
-          <h3 className="mb-2 text-lg font-bold text-[#282828]">
+          <h3 className={`mb-2 text-lg font-bold ${isMobile ? "text-white" : "text-[#282828]"}`}>
             코트 종류
           </h3>
-          <div className="flex flex-col gap-1 text-sm text-zinc-700">
+          <div className={`flex flex-col gap-1 text-sm ${isMobile ? "text-white" : "text-zinc-700"}`}>
             <label className="inline-flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 className="custom-checkbox"
-                checked={selectedCourtTypes.includes("hard")}
-                onChange={() =>
-                  setSelectedCourtTypes((prev) => toggleInArray(prev, "hard"))
-                }
+                checked={currentCourtTypes.includes("hard")}
+                onChange={() => {
+                  if (useTemp) {
+                    setTempCourtTypes((prev) => toggleInArray(prev, "hard"));
+                  } else {
+                    setSelectedCourtTypes((prev) => toggleInArray(prev, "hard"));
+                  }
+                }}
               />
               <span className="text-sm">하드</span>
             </label>
@@ -216,10 +309,14 @@ export function CourtFilter({ courts }: Props) {
               <input
                 type="checkbox"
                 className="custom-checkbox"
-                checked={selectedCourtTypes.includes("grass")}
-                onChange={() =>
-                  setSelectedCourtTypes((prev) => toggleInArray(prev, "grass"))
-                }
+                checked={currentCourtTypes.includes("grass")}
+                onChange={() => {
+                  if (useTemp) {
+                    setTempCourtTypes((prev) => toggleInArray(prev, "grass"));
+                  } else {
+                    setSelectedCourtTypes((prev) => toggleInArray(prev, "grass"));
+                  }
+                }}
               />
               <span className="text-sm">잔디</span>
             </label>
@@ -227,10 +324,14 @@ export function CourtFilter({ courts }: Props) {
               <input
                 type="checkbox"
                 className="custom-checkbox"
-                checked={selectedCourtTypes.includes("clay")}
-                onChange={() =>
-                  setSelectedCourtTypes((prev) => toggleInArray(prev, "clay"))
-                }
+                checked={currentCourtTypes.includes("clay")}
+                onChange={() => {
+                  if (useTemp) {
+                    setTempCourtTypes((prev) => toggleInArray(prev, "clay"));
+                  } else {
+                    setSelectedCourtTypes((prev) => toggleInArray(prev, "clay"));
+                  }
+                }}
               />
               <span className="text-sm">클레이</span>
             </label>
@@ -239,18 +340,22 @@ export function CourtFilter({ courts }: Props) {
 
         {/* 운영 구분 필터 */}
         <section className="mb-6">
-          <h3 className="mb-2 text-lg font-bold text-[#282828]">
+          <h3 className={`mb-2 text-lg font-bold ${isMobile ? "text-white" : "text-[#282828]"}`}>
             운영 구분
           </h3>
-          <div className="flex flex-col gap-1 text-sm text-zinc-700">
+          <div className={`flex flex-col gap-1 text-sm ${isMobile ? "text-white" : "text-zinc-700"}`}>
             <label className="inline-flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 className="custom-checkbox"
-                checked={selectedOwnerTypes.includes("시립")}
-                onChange={() =>
-                  setSelectedOwnerTypes((prev) => toggleInArray(prev, "시립"))
-                }
+                checked={currentOwnerTypes.includes("시립")}
+                onChange={() => {
+                  if (useTemp) {
+                    setTempOwnerTypes((prev) => toggleInArray(prev, "시립"));
+                  } else {
+                    setSelectedOwnerTypes((prev) => toggleInArray(prev, "시립"));
+                  }
+                }}
               />
               <span className="text-sm">시립</span>
             </label>
@@ -258,10 +363,14 @@ export function CourtFilter({ courts }: Props) {
               <input
                 type="checkbox"
                 className="custom-checkbox"
-                checked={selectedOwnerTypes.includes("구립")}
-                onChange={() =>
-                  setSelectedOwnerTypes((prev) => toggleInArray(prev, "구립"))
-                }
+                checked={currentOwnerTypes.includes("구립")}
+                onChange={() => {
+                  if (useTemp) {
+                    setTempOwnerTypes((prev) => toggleInArray(prev, "구립"));
+                  } else {
+                    setSelectedOwnerTypes((prev) => toggleInArray(prev, "구립"));
+                  }
+                }}
               />
               <span className="text-sm">구립</span>
             </label>
@@ -269,16 +378,120 @@ export function CourtFilter({ courts }: Props) {
               <input
                 type="checkbox"
                 className="custom-checkbox"
-                checked={selectedOwnerTypes.includes("사설")}
-                onChange={() =>
-                  setSelectedOwnerTypes((prev) => toggleInArray(prev, "사설"))
-                }
+                checked={currentOwnerTypes.includes("사설")}
+                onChange={() => {
+                  if (useTemp) {
+                    setTempOwnerTypes((prev) => toggleInArray(prev, "사설"));
+                  } else {
+                    setSelectedOwnerTypes((prev) => toggleInArray(prev, "사설"));
+                  }
+                }}
               />
               <span className="text-sm">사설</span>
             </label>
           </div>
         </section>
+      </>
+    );
+  };
+
+  return (
+    <div className="flex gap-4 relative">
+      {/* 좌측 필터 영역 - 1032px 이상에서만 표시 */}
+      <aside className="hidden min-[1032px]:block w-full max-w-xs min-h-screen border-r border-[#EEEEEE] p-7.5 bg-[#ffffff]">
+        <h2 className="mb-6 text-2xl font-black text-zinc-900">
+          GROUND KOREA
+        </h2>
+        <FilterContent isMobile={false} useTemp={false} />
+        {/* 초기화 버튼 */}
+        <button
+          onClick={handleResetFilter}
+          className="mt-6 w-full px-4 py-2.5 text-sm font-medium text-[#555555] border border-[#E1E1E1] rounded hover:bg-[#F5F5F5] transition-colors"
+        >
+          필터 초기화
+        </button>
       </aside>
+
+      {/* 플로팅 필터 버튼 - 1031px 이하에서만 표시 */}
+      <button
+        onClick={handleOpenFilter}
+        className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 max-[1031px]:flex min-[1032px]:hidden items-center justify-center bg-[#2C2C2C] text-white px-6 py-3 rounded-full gap-2 shadow-lg hover:bg-[#3C3C3C] transition-colors"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 20 20"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M2.5 5H17.5M2.5 10H17.5M2.5 15H17.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+        <span className="text-sm font-medium">필터</span>
+      </button>
+
+      {/* 풀팝업 필터 - 1031px 이하에서만 표시 */}
+      {isFilterOpen && (
+        <>
+          {/* 배경 오버레이 */}
+          <div
+            className="fixed inset-0 bg-black/50 z-50 max-[1031px]:block min-[1032px]:hidden"
+            onClick={handleCloseFilter}
+          />
+          {/* 필터 팝업 */}
+          <div className="fixed inset-0 z-50 max-[1031px]:flex min-[1032px]:hidden flex-col bg-[#1A1A1A] dark-theme">
+            {/* 헤더 */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#2C2C2C]">
+              <h2 className="text-xl font-bold text-white">필터</h2>
+              <button
+                onClick={handleCloseFilter}
+                className="text-white hover:text-gray-300 transition-colors"
+                aria-label="닫기"
+              >
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M18 6L6 18M6 6L18 18"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+            {/* 필터 콘텐츠 */}
+            <div className="flex-1 overflow-y-auto px-6 py-6">
+              <FilterContent isMobile={true} useTemp={true} />
+              {/* 초기화 버튼 */}
+              <button
+                onClick={handleResetFilter}
+                className="mt-4 w-full px-4 py-2.5 text-sm font-medium text-white border border-[#3C3C3C] rounded hover:bg-[#2C2C2C] transition-colors"
+              >
+                필터 초기화
+              </button>
+            </div>
+            {/* 확인 버튼 - 1031px 이하 팝업에서만 표시 */}
+            <div className="px-6 py-4 border-t border-[#2C2C2C]">
+              <button
+                onClick={handleConfirmFilter}
+                className="w-full px-4 py-3 text-sm font-medium text-white bg-[#2C8B56] rounded hover:bg-[#53A978] transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* 우측 결과 영역 */}
       <section className="flex-1 space-y-4 p-7.5">
@@ -291,23 +504,23 @@ export function CourtFilter({ courts }: Props) {
         {filteredCourts.length === 0 ? (
           <p className="text-gray-600">조건에 맞는 코트가 없습니다.</p>
         ) : (
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          <ul className="grid grid-cols-1 gap-4 max-[768px]:grid-cols-1 min-[769px]:max-[1275px]:grid-cols-2 min-[1276px]:sm:grid-cols-2 min-[1276px]:lg:grid-cols-3 min-[1276px]:2xl:grid-cols-4">
             {filteredCourts.map((c) => (
               <li key={c.id} className={courtitemstyle}>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2 min-w-0">
                   <span className={courtitem_courtname}>{c.court_name ?? "(이름 없음)"}</span>
                   <span className={courtitem_courtownertype}>{c.owner_type}</span>
                 </div>
                 <div className="text-sm px-2.5 py-2 bg-[#F5FAF6]">
                   <div className="">
-                    <p className={courtitem_courtopentime}>
+                    <p className={`${courtitem_courtopentime} break-words`}>
                       <span className="text-[#2B523C]">구민/시민 : </span>
                       <span className="text-[#909090] font-normal">{c.opentime_owner ?? ""} 예약 오픈</span>
                     </p>
                   </div>
                   {c.opentime_normal != null && c.opentime_normal.trim() !== "" && (
                     <div className="">
-                      <p className={courtitem_courtopentime}>
+                      <p className={`${courtitem_courtopentime} break-words`}>
                         <span className="text-[#2B523C]">일반 : </span>
                         <span className="text-[#909090] font-normal">
                           {c.opentime_normal} 예약 오픈
@@ -317,26 +530,27 @@ export function CourtFilter({ courts }: Props) {
                   )}
                 </div>
                 {c.address && (
-                  <div className="flex items-center gap-0.5">
+                  <div className="flex items-center gap-0.5 min-w-0">
                     <Image
                             src="/icon/icon_map.svg"
                             alt="지도"
                             width={16}
                             height={16}
+                            className="flex-shrink-0"
                           />
-                    <span className={courtitem_courtaddress}>{c.address}</span>
+                    <span className={`${courtitem_courtaddress} truncate`}>{c.address}</span>
                     <a
                       href={c.map_link ?? undefined}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={courtitem_courtmaplink}
+                      className={`${courtitem_courtmaplink} flex-shrink-0`}
                     >
                       위치보기
                     </a>
                   </div>
                 )}
 
-                <table>
+                <table className="w-full table-fixed">
                   <thead>
                     <tr>
                       <th className={th}>구분</th>

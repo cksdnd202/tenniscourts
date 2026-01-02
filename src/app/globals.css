@@ -71,3 +71,22 @@ body {
   background-color: #52525b;
   border-color: #52525b;
 }
+
+/* 다크 테마용 체크박스 스타일 */
+.dark-theme .custom-checkbox {
+  border-color: #52525b;
+}
+
+.dark-theme .custom-checkbox:checked {
+  background-color: #ffffff;
+  border-color: #ffffff;
+}
+
+.dark-theme .custom-checkbox:hover {
+  border-color: #71717a;
+}
+
+.dark-theme .custom-checkbox:checked:hover {
+  background-color: #e4e4e7;
+  border-color: #e4e4e7;
+}
