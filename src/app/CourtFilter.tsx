@@ -610,6 +610,9 @@ export function CourtFilter({ courts }: Props) {
                       href={c.reserve_link}
                       target="_blank"
                       rel="noopener noreferrer"
+                      data-gtm="reserve_click"
+                      data-court-id={c.id}
+                      data-court-name={c.court_name}
                       className="flex justify-center mt-3 px-3 py-2.5 text-sm font-normal text-white bg-[#2C8B56] rounded hover:bg-[#53A978] transition"
                     >
                       예약하러가기
