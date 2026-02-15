@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #F6F6F6;
-  --foreground: #171717;
+  --background: #000000;
+  --foreground: #FFFFFF;
 }
 
 @theme inline {
@@ -16,16 +16,26 @@
 }
 
 @media (prefers-color-scheme: dark) {
+  /* 어두운 배경/밝은 텍스트 유지 */
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #000000;
+    --foreground: #FFFFFF;
   }
+}
+
+html {
+  color-scheme: dark;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: pretendard, Arial, Helvetica, sans-serif;
+}
+
+/* 스크롤바 공간 항상 예약하여 레이아웃 시프트 방지 */
+.overflow-y-auto {
+  scrollbar-gutter: stable;
 }
 
 /* 커스텀 체크박스 스타일 */
@@ -35,7 +45,7 @@ body {
   -moz-appearance: none;
   width: 16px;
   height: 16px;
-  border: 1.5px solid #d4d4d8;
+  border: 1.5px solid #ffffff;
   border-radius: 2px;
   background-color: transparent;
   cursor: pointer;
@@ -45,8 +55,8 @@ body {
 }
 
 .custom-checkbox:checked {
-  background-color: #3f3f46;
-  border-color: #3f3f46;
+  background-color: #ffffff;
+  border-color: #ffffff;
 }
 
 .custom-checkbox:checked::after {
@@ -57,19 +67,19 @@ body {
   transform: translate(-50%, -50%);
   width: 10px;
   height: 10px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath d='M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='black'%3E%3Cpath d='M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z'/%3E%3C/svg%3E");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
 }
 
 .custom-checkbox:hover {
-  border-color: #a1a1aa;
+  border-color: #ffffff;
 }
 
 .custom-checkbox:checked:hover {
-  background-color: #52525b;
-  border-color: #52525b;
+  background-color: #ffffff;
+  border-color: #ffffff;
 }
 
 /* 다크 테마용 체크박스 스타일 */

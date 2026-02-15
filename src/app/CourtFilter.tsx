@@ -1,56 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Image from "next/image";
-
-type Court = {
-  id: string;
-  court_name: string | null;
-  owner_type: string | null;
-  address: string | null;
-  map_link: string | null;
-  region: string | null;
-  city: string | null;
-  opentime_owner: string | null;
-  opentime_normal: string | null;
-  reservation_time: string | null;
-  time_of_use: string | null;
-  court_count_hard_indoor: number | null;
-  court_count_hard_outdoor: number | null;
-  court_count_grass_indoor: number | null;
-  court_count_grass_outdoor: number | null;
-  court_count_clay_indoor: number | null;
-  court_count_clay_outdoor: number | null;
-  reserve_link: string | null;
-};
+import { useMemo, useState, useRef, useEffect } from "react";
+import { Court } from "./types";
+import { FixedScheduleContent } from "./FixedScheduleContent";
+import { RollingContent } from "./RollingContent";
+import { LotteryContent } from "./LotteryContent";
+import { PhoneContent } from "./PhoneContent";
+import { OnSiteContent } from "./OnSiteContent";
+import { IrregularContent } from "./IrregularContent";
+import { CheckingContent } from "./CheckingContent";
 
 type Props = {
   courts: Court[];
 };
 
 const courtitemstyle = 
-"grid border rounded-xl border-[#D9E5DE] p-5 bg-[#ffffff] gap-2 transition duration-300 ease-in-out hover:-translate-y-1 hover:bg-[#DEF4E0] overflow-hidden min-w-0";
-const courtitem_courtname = "font-semibold text-[#4CA375] text-xl w-full md:w-auto flex-1 min-w-0 truncate";
-const courtitem_courtownertype =
-  "rounded text-xs font-medium text-[#4F8065] pt-1 pb-1 pl-1.5 pr-1.5 bg-[#D4E0D6] flex-shrink-0 whitespace-nowrap";
-const courtitem_courtopentime = "text-sm font-bold text-zinc-700";
-const courtitem_courtopentime_text = "text-sm font-normal text-zinc-700";
-const courtitem_courtaddress = "font-light text-sm text-[#686868] mr-2";
-const courtitem_courtmaplink = "text-sm font-light text-zinc-400 underline";
-const th =
-  "border border-gray-200 bg-[#F5FBEA] px-1 py-1 text-center font-normal text-zinc-600 text-xs overflow-hidden";
-const td =
-  "border border-gray-200 px-1 py-1 text-center text-zinc-600 font-normal text-xs bg-white overflow-hidden";
-const tdIcon =
-  "border border-gray-200 bg-[#F5FBEA] px-1 py-1 text-center text-xs";
-
-const fmt = (n?: number | null) => (n && n > 0 ? `${n}개` : "-");
+"grid border rounded-xl border-transparent p-5 bg-[#191B1E] gap-2 transition duration-300 ease-in-out hover:-translate-y-1 hover:bg-[#2C2C2C] overflow-hidden min-w-0";
 
 export function CourtFilter({ courts }: Props) {
-  // 디버깅: 첫 번째 코트의 opentime_normal 확인
+  // 디버깅: 첫 번째 코트의 booking_opentime_normal 확인
   if (courts.length > 0) {
     console.log("CourtFilter - 첫 번째 코트:", courts[0]);
-    console.log("CourtFilter - opentime_normal:", courts[0]?.opentime_normal);
+    console.log("CourtFilter - booking_open_time_normal:", courts[0]?.booking_open_time_normal);
   }
 
   // 실제 필터 상태 (필터링에 사용)
@@ -66,13 +37,42 @@ export function CourtFilter({ courts }: Props) {
   const [tempOwnerTypes, setTempOwnerTypes] = useState<string[]>([]);
   
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const asideRef = useRef<HTMLElement | null>(null);
+
+  // 좌측 필터 영역 스크롤 제어
+  useEffect(() => {
+    const aside = asideRef.current;
+    if (!aside) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // 스크롤이 위로 올라가서 0보다 작아지지 않도록 제한
+      if (aside.scrollTop <= 0 && e.deltaY < 0) {
+        e.preventDefault();
+        aside.scrollTop = 0;
+      }
+    };
+
+    const handleScroll = () => {
+      // 스크롤이 위로 올라가서 0보다 작아지지 않도록 제한
+      if (aside.scrollTop < 0) {
+        aside.scrollTop = 0;
+      }
+    };
+
+    aside.addEventListener('wheel', handleWheel, { passive: false });
+    aside.addEventListener('scroll', handleScroll);
+    return () => {
+      aside.removeEventListener('wheel', handleWheel);
+      aside.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   // 시/도 목록
   const regions = useMemo(() => {
     const set = new Set<string>();
     courts.forEach((c) => {
-      if (c.region) {
-        set.add(c.region);
+      if (c.basic_region) {
+        set.add(c.basic_region);
       }
     });
     return Array.from(set).sort();
@@ -82,11 +82,11 @@ export function CourtFilter({ courts }: Props) {
   const citiesByRegion = useMemo(() => {
     const map: Record<string, Set<string>> = {};
     courts.forEach((c) => {
-      if (!c.region || !c.city) return;
-      if (!map[c.region]) {
-        map[c.region] = new Set<string>();
+      if (!c.basic_region || !c.basic_city) return;
+      if (!map[c.basic_region]) {
+        map[c.basic_region] = new Set<string>();
       }
-      map[c.region].add(c.city);
+      map[c.basic_region].add(c.basic_city);
     });
 
     const obj: Record<string, string[]> = {};
@@ -104,16 +104,23 @@ export function CourtFilter({ courts }: Props) {
   const toggleInArray = (arr: string[], value: string) =>
     arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
 
-  // 주소 + 코트 종류 + 운영 구분 필터링
+  // 지역/도시 + 코트 종류 + 운영 구분 필터링
   const filteredCourts = useMemo(() => {
     return courts.filter((c) => {
-      const addr = c.address ?? "";
-      const owner = (c.owner_type ?? "").trim();
+      const owner = (c.basic_owner_type ?? "").trim();
 
-      if (selectedRegion && !addr.includes(selectedRegion)) {
+      // use_or_not === true 인 데이터만 노출
+      if (c.use_or_not !== true) {
         return false;
       }
-      if (selectedCity && !addr.includes(selectedCity)) {
+
+      // 시/도 필터: basic_region 기준으로 일치 여부 확인
+      if (selectedRegion && c.basic_region !== selectedRegion) {
+        return false;
+      }
+
+      // 시/군/구 필터: basic_city 기준으로 일치 여부 확인
+      if (selectedCity && c.basic_city !== selectedCity) {
         return false;
       }
 
@@ -197,6 +204,31 @@ export function CourtFilter({ courts }: Props) {
     return citiesByRegion[tempRegion] ?? [];
   }, [tempRegion, citiesByRegion]);
 
+  // booking_rule_type에 따라 적절한 컴포넌트를 반환
+  const renderCourtContent = (c: Court) => {
+    const ruleType = c.booking_rule_type;
+    
+    switch (ruleType) {
+      case "rolling":
+        return <RollingContent court={c} />;
+      case "fixed_schedule":
+        return <FixedScheduleContent court={c} />;
+      case "lottery":
+        return <LotteryContent court={c} />;
+      case "phone":
+        return <PhoneContent court={c} />;
+      case "on_site":
+        return <OnSiteContent court={c} />;
+      case "irregular":
+        return <IrregularContent court={c} />;
+      case "checking":
+        return <CheckingContent court={c} />;
+      default:
+        // 기본값은 fixed_schedule로 처리
+        return <FixedScheduleContent court={c} />;
+    }
+  };
+
   // 필터 콘텐츠 컴포넌트 (재사용을 위해 분리)
   const FilterContent = ({ isMobile = false, useTemp = false }: { isMobile?: boolean; useTemp?: boolean }) => {
     const currentRegion = useTemp ? tempRegion : selectedRegion;
@@ -227,28 +259,24 @@ export function CourtFilter({ courts }: Props) {
       <>
         {/* 지역 필터 */}
         <section className="mb-6">
-          <h3 className={`mb-2 text-lg font-bold ${isMobile ? "text-white" : "text-[#282828]"}`}>
+          <h3 className={`mb-2 text-lg font-bold text-white`}>
             지역
           </h3>
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <select
-                className={`flex-1 border rounded px-2.5 py-2 text-sm appearance-none ${
-                  isMobile
-                    ? "border-[#3C3C3C] bg-[#2C2C2C] text-white"
-                    : "border-[#E1E1E1] text-[#555555]"
-                }`}
+                className={`flex-1 border rounded px-2.5 py-2 text-sm appearance-none border-[#3C3C3C] bg-[#2C2C2C] text-[#B0B0B0]`}
                 value={currentRegion}
                 onChange={(e) => handleRegionChange(e.target.value)}
               >
-                <option value="" className={isMobile ? "bg-[#2C2C2C] text-white" : ""}>
+                <option value="" className="bg-[#2C2C2C] text-[#B0B0B0]">
                   시/도 전체
                 </option>
                 {regions.map((r) => (
                   <option
                     key={r}
                     value={r}
-                    className={isMobile ? "bg-[#2C2C2C] text-white" : ""}
+                    className="bg-[#2C2C2C] text-[#B0B0B0]"
                   >
                     {r}
                   </option>
@@ -258,23 +286,19 @@ export function CourtFilter({ courts }: Props) {
 
             <div className="flex items-center gap-2">
               <select
-                className={`flex-1 border rounded px-2.5 py-2 text-sm appearance-none ${
-                  isMobile
-                    ? "border-[#3C3C3C] bg-[#2C2C2C] text-white"
-                    : "border-[#E1E1E1] text-[#555555]"
-                } ${!currentRegion ? "opacity-50" : ""}`}
+                className={`flex-1 border rounded px-2.5 py-2 text-sm appearance-none border-[#3C3C3C] bg-[#2C2C2C] text-[#B0B0B0] ${!currentRegion ? "opacity-50" : ""}`}
                 value={currentCity}
                 onChange={(e) => handleCityChange(e.target.value)}
                 disabled={!currentRegion}
               >
-                <option value="" className={isMobile ? "bg-[#2C2C2C] text-white" : ""}>
+                <option value="" className="bg-[#2C2C2C] text-[#B0B0B0]">
                   시/군/구 전체
                 </option>
                 {currentCities.map((c) => (
                   <option
                     key={c}
                     value={c}
-                    className={isMobile ? "bg-[#2C2C2C] text-white" : ""}
+                    className="bg-[#2C2C2C] text-[#B0B0B0]"
                   >
                     {c}
                   </option>
@@ -286,10 +310,10 @@ export function CourtFilter({ courts }: Props) {
 
         {/* 코트 종류 필터 */}
         <section className="mb-6">
-          <h3 className={`mb-2 text-lg font-bold ${isMobile ? "text-white" : "text-[#282828]"}`}>
+          <h3 className={`mb-2 text-lg font-bold text-white`}>
             코트 종류
           </h3>
-          <div className={`flex flex-col gap-1 text-sm ${isMobile ? "text-white" : "text-zinc-700"}`}>
+          <div className={`flex flex-col gap-1 text-sm text-white`}>
             <label className="inline-flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -340,10 +364,10 @@ export function CourtFilter({ courts }: Props) {
 
         {/* 운영 구분 필터 */}
         <section className="mb-6">
-          <h3 className={`mb-2 text-lg font-bold ${isMobile ? "text-white" : "text-[#282828]"}`}>
+          <h3 className={`mb-2 text-lg font-bold text-white`}>
             운영 구분
           </h3>
-          <div className={`flex flex-col gap-1 text-sm ${isMobile ? "text-white" : "text-zinc-700"}`}>
+          <div className={`flex flex-col gap-1 text-sm text-white`}>
             <label className="inline-flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -396,17 +420,20 @@ export function CourtFilter({ courts }: Props) {
   };
 
   return (
-    <div className="flex gap-4 relative">
+    <div className="flex relative flex-1 overflow-hidden">
       {/* 좌측 필터 영역 - 1032px 이상에서만 표시 */}
-      <aside className="hidden min-[1032px]:block w-full max-w-xs min-h-screen border-r border-[#EEEEEE] p-7.5 bg-[#ffffff]">
-        <h2 className="mb-6 text-2xl font-black text-zinc-900">
+      <aside 
+        ref={asideRef}
+        className="hidden min-[1032px]:block w-full max-w-2xs h-[calc(100vh-73px-40px)] overflow-y-auto rounded-[10px] p-7.5 bg-[#000000] overscroll-y-none ml-5 mt-5"
+      >
+        {/*<h2 className="mb-6 text-2xl font-black text-zinc-900">
           GROUND KOREA
-        </h2>
+        </h2>*/}
         <FilterContent isMobile={false} useTemp={false} />
         {/* 초기화 버튼 */}
         <button
           onClick={handleResetFilter}
-          className="mt-6 w-full px-4 py-2.5 text-sm font-medium text-[#555555] border border-[#E1E1E1] rounded hover:bg-[#F5F5F5] transition-colors"
+          className="mt-6 w-full px-4 py-2.5 text-sm font-medium text-white border border-[#3C3C3C] rounded hover:bg-[#2C2C2C] transition-colors"
         >
           필터 초기화
         </button>
@@ -415,7 +442,7 @@ export function CourtFilter({ courts }: Props) {
       {/* 플로팅 필터 버튼 - 1031px 이하에서만 표시 */}
       <button
         onClick={handleOpenFilter}
-        className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 max-[1031px]:flex min-[1032px]:hidden items-center justify-center bg-[#2C2C2C] text-white px-6 py-3 rounded-full gap-2 shadow-lg hover:bg-[#3C3C3C] transition-colors"
+        className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 max-[1031px]:flex min-[1032px]:hidden items-center justify-center bg-white text-black px-6 py-3 rounded-full gap-2 shadow-lg hover:bg-gray-100 transition-colors"
       >
         <svg
           width="20"
@@ -423,6 +450,7 @@ export function CourtFilter({ courts }: Props) {
           viewBox="0 0 20 20"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
+          className="text-black"
         >
           <path
             d="M2.5 5H17.5M2.5 10H17.5M2.5 15H17.5"
@@ -431,7 +459,7 @@ export function CourtFilter({ courts }: Props) {
             strokeLinecap="round"
           />
         </svg>
-        <span className="text-sm font-medium">필터</span>
+        <span className="text-sm font-medium text-black">필터</span>
       </button>
 
       {/* 풀팝업 필터 - 1031px 이하에서만 표시 */}
@@ -494,131 +522,84 @@ export function CourtFilter({ courts }: Props) {
       )}
 
       {/* 우측 결과 영역 */}
-      <section className="flex-1 space-y-4 p-7.5">
-        <div className="flex items-baseline justify-between">
-          <p className="text-lg font-semibold text-zinc-900">
+      <section className="flex-1 h-full overflow-y-auto space-y-4 p-7.5 ml-4" style={{ scrollbarGutter: 'stable' }}>
+        {/* 모바일용 코트 정보 알려주기 배너 - 1031px 이하에서만 표시 */}
+        <a
+          href="https://forms.gle/FfvfcDATe5CfH1iR6"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="max-[1031px]:flex min-[1032px]:hidden items-center justify-between w-full px-5 py-3 rounded-xl bg-[#191B1E] hover:bg-[#2C2C2C] transition-colors"
+        >
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-white">나만 아는 코트가 있으신가요?</span>
+            <div className="flex items-center gap-1">
+              <span className="text-lg">🎾</span>
+              <span className="text-lg text-white">코트 정보 알려주기</span>
+            </div>
+          </div>
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="text-[#B0B0B0] flex-shrink-0"
+          >
+            <path
+              d="M6 12L10 8L6 4"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </a>
+
+        {/* PC용 코트 정보 알려주기 버튼 - 1032px 이상에서만 표시 */}
+        <div className="hidden min-[1032px]:flex items-center justify-end w-full mb-2">
+          <a
+            href="https://forms.gle/FfvfcDATe5CfH1iR6"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="relative flex flex-col gap-1 px-5 py-3 rounded-xl bg-[#191B1E] hover:bg-[#2C2C2C] transition-colors w-3xs"
+          >
+            <span className="text-xs text-white">나만 아는 코트가 있으신가요?</span>
+            <div className="flex items-center gap-1">
+              <span className="text-lg text-white">🎾</span>
+              <span className="text-lg text-white">코트 정보 알려주기</span>
+            </div>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="absolute right-5 top-1/2 -translate-y-1/2 text-[#B0B0B0]"
+            >
+              <path
+                d="M6 12L10 8L6 4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </a>
+        </div>
+
+        <div className="mt-8">
+          <p className="text-lg font-semibold text-white">
             {filteredCourts.length}개의 코트
           </p>
         </div>
 
         {filteredCourts.length === 0 ? (
-          <p className="text-gray-600">조건에 맞는 코트가 없습니다.</p>
+          <p className="text-[#B0B0B0]">조건에 맞는 코트가 없습니다.</p>
         ) : (
           <ul className="grid grid-cols-1 gap-4 max-[768px]:grid-cols-1 min-[769px]:max-[1275px]:grid-cols-2 min-[1276px]:sm:grid-cols-2 min-[1276px]:lg:grid-cols-3 min-[1276px]:2xl:grid-cols-4">
             {filteredCourts.map((c) => (
               <li key={c.id} className={courtitemstyle}>
-                <div className="flex items-center justify-between gap-2 min-w-0">
-                  <span className={courtitem_courtname}>{c.court_name ?? "(이름 없음)"}</span>
-                  <span className={courtitem_courtownertype}>{c.owner_type}</span>
-                </div>
-                <div className="text-sm px-2.5 py-2 bg-[#F5FAF6]">
-                  <div className="">
-                    <p className={`${courtitem_courtopentime} break-words`}>
-                      <span className="text-[#2B523C]">구민/시민 : </span>
-                      <span className="text-[#909090] font-normal">{c.opentime_owner ?? ""} 예약 오픈</span>
-                    </p>
-                  </div>
-                  {c.opentime_normal != null && c.opentime_normal.trim() !== "" && (
-                    <div className="">
-                      <p className={`${courtitem_courtopentime} break-words`}>
-                        <span className="text-[#2B523C]">일반 : </span>
-                        <span className="text-[#909090] font-normal">
-                          {c.opentime_normal} 예약 오픈
-                        </span>
-                      </p>
-                    </div>
-                  )}
-                </div>
-                {c.address && (
-                  <div className="flex items-center gap-0.5 min-w-0">
-                    <Image
-                            src="/icon/icon_map.svg"
-                            alt="지도"
-                            width={16}
-                            height={16}
-                            className="flex-shrink-0"
-                          />
-                    <span className={`${courtitem_courtaddress} truncate`}>{c.address}</span>
-                    <a
-                      href={c.map_link ?? undefined}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`${courtitem_courtmaplink} flex-shrink-0`}
-                    >
-                      위치보기
-                    </a>
-                  </div>
-                )}
-
-                <table className="w-full table-fixed">
-                  <thead>
-                    <tr>
-                      <th className={th}>구분</th>
-                      <th className={th}>실내</th>
-                      <th className={th}>실외</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className={tdIcon}>
-                        <div className="flex justify-center">
-                          <Image
-                            src="/icon/icon_hard_court.svg"
-                            alt="하드코트"
-                            width={20}
-                            height={36}
-                          />
-                        </div>
-                      </td>
-                      <td className={td}>{fmt(c.court_count_hard_indoor)}</td>
-                      <td className={td}>{fmt(c.court_count_hard_outdoor)}</td>
-                    </tr>
-                    <tr>
-                      <td className={tdIcon}>
-                        <div className="flex justify-center">
-                          <Image
-                            src="/icon/icon_grass_court.svg"
-                            alt="잔디코트"
-                            width={20}
-                            height={36}
-                          />
-                        </div>
-                      </td>
-                      <td className={td}>{fmt(c.court_count_grass_indoor)}</td>
-                      <td className={td}>{fmt(c.court_count_grass_outdoor)}</td>
-                    </tr>
-                    <tr>
-                      <td className={tdIcon}>
-                        <div className="flex justify-center">
-                          <Image
-                            src="/icon/icon_clay_court.svg"
-                            alt="클레이코트"
-                            width={20}
-                            height={36}
-                          />
-                        </div>
-                      </td>
-                      <td className={td}>{fmt(c.court_count_clay_indoor)}</td>
-                      <td className={td}>{fmt(c.court_count_clay_outdoor)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <div className="text-lg text-gray-100">
-                  {c.reserve_link && (
-                    <a
-                      href={c.reserve_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      data-gtm="reserve_click"
-                      data-court-id={c.id}
-                      data-court-name={c.court_name}
-                      className="flex justify-center mt-3 px-3 py-2.5 text-sm font-normal text-white bg-[#2C8B56] rounded hover:bg-[#53A978] transition"
-                    >
-                      예약하러가기
-                    </a>
-                  )}
-                </div>
+                {renderCourtContent(c)}
               </li>
             ))}
           </ul>

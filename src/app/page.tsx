@@ -1,35 +1,15 @@
 import { supabase } from "@/lib/supabase";
 import { CourtFilter } from "./CourtFilter";
-
-// DB 레코드 타입 정의(테이블 컬럼만 적당히)
-type Court = {
-  id: string;
-  court_name: string | null;
-  owner_type: string | null;
-  address: string | null;
-  map_link: string | null;
-  region: string | null;
-  city: string | null;
-  opentime_owner: string | null;
-  opentime_normal: string | null;
-  reservation_time: string | null;
-  time_of_use: string | null;
-  court_count_hard_indoor: number | null;
-  court_count_hard_outdoor: number | null;
-  court_count_grass_indoor: number | null;
-  court_count_grass_outdoor: number | null;
-  court_count_clay_indoor: number | null;
-  court_count_clay_outdoor: number | null;
-  reserve_link: string | null;
-  
-};
+import type { Court } from "./types";
+import { CourtSearchHeader } from "./CourtSearchHeader";
 
 export default async function Home() {
   // 타입 지정
   const { data, error } = await supabase
     .from("courtinfo")
-    .select("id, court_name, owner_type, address, region, city, opentime_owner, opentime_normal, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, reserve_link, map_link")
-    .order("court_name", { ascending: true })
+    .select("id, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, booking_site_link, basic_map_link, booking_rule_type, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_offset, booking_open_day_of_month, booking_open_day_of_week")
+    .eq("use_or_not", true)
+    .order("basic_court_name", { ascending: true })
     .limit(50);
   
   const typedData = data as Court[] | null;
@@ -45,15 +25,20 @@ export default async function Home() {
 
   const list = typedData ?? []; // 안전하게 기본값
 
-  // 디버깅: opentime_normal 데이터 확인
+  // 디버깅: booking_open_time_owner 데이터 확인
   if (list.length > 0) {
     console.log("첫 번째 코트 데이터:", list[0]);
-    console.log("opentime_normal 값:", list[0]?.opentime_normal);
+    console.log("booking_open_time_owner 값:", list[0]?.booking_open_time_owner);
   }
 
   return (
-    <main className="w-auto mx-auto h-max">
-      <CourtFilter courts={list} />
-    </main>
+    <>
+      {/* 상단 헤더 + 검색 */}
+      <CourtSearchHeader courts={list} />
+      <main className="w-auto mx-auto h-screen flex flex-col overflow-hidden pt-[73px] bg-[#000000]">
+        {/* 코트 필터 및 리스트 */}
+        <CourtFilter courts={list} />
+      </main>
+    </>
   );
 }
