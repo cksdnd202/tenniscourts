@@ -7,8 +7,6 @@ import { CourtDetailCommon } from "./CourtDetailCommon";
 
 const NAVER_MAP_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
 
-console.log("NAVER_MAP_CLIENT_ID", NAVER_MAP_CLIENT_ID);
-
 /** 네이버 지도 (basic_address로 주소 검색 후 표시) - OrdinalDetail 전용 */
 export function NaverMapBlock({ address }: { address: string | null }) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -40,7 +38,7 @@ export function NaverMapBlock({ address }: { address: string | null }) {
       return new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.id = scriptId;
-        script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${NAVER_MAP_CLIENT_ID}`;
+        script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${NAVER_MAP_CLIENT_ID}&submodules=geocoder`;
         script.async = true;
         script.onload = () => resolve();
         script.onerror = () => reject(new Error("네이버 지도 스크립트 로드 실패"));
@@ -48,31 +46,85 @@ export function NaverMapBlock({ address }: { address: string | null }) {
       });
     };
 
-    loadScript()
-      .then(() => {
-        const w = window as unknown as Record<string, unknown>;
-        const naver = w.naver as undefined | {
-          maps: {
-            Service: { Status: { OK: number }; geocode: (opts: { query: string }, cb: (status: number, res: { result?: { items?: Array<{ point: { x: number; y: number } }> } }) => void) => void };
-            LatLng: new (lat: number, lng: number) => unknown;
-            Map: new (el: HTMLElement, opts: { center: unknown; zoom: number }) => unknown;
-            Marker: new (opts: { position: unknown; map: unknown }) => unknown;
-          };
+    const runMap = () => {
+      const w = window as unknown as Record<string, unknown>;
+      const naver = w.naver as undefined | {
+        maps: {
+          Service: { Status: { OK: number }; geocode: (opts: { query: string }, cb: (status: number, res: { result?: { items?: Array<{ point: { x: number; y: number } }> } }) => void) => void };
+          LatLng: new (lat: number, lng: number) => unknown;
+          Map: new (el: HTMLElement, opts: { center: unknown; zoom: number }) => unknown;
+          Marker: new (opts: { position: unknown; map: unknown }) => unknown;
         };
-        if (!naver?.maps) return;
-        naver.maps.Service.geocode({ query: address }, (status: number, res) => {
-          if (status !== naver.maps.Service.Status.OK || !res.result?.items?.length) {
+      };
+      if (!naver?.maps) {
+        setError("지도 API를 사용할 수 없습니다. 네이버 클라우드 플랫폼에서 이 사이트 도메인(URL)을 등록했는지 확인해 주세요.");
+        return;
+      }
+      const Service = naver.maps.Service;
+      if (typeof Service === "undefined" || typeof Service.geocode !== "function") {
+        setError("지도 주소 검색 기능을 불러올 수 없습니다. 잠시 후 새로고침 해 주세요.");
+        return;
+      }
+      try {
+        Service.geocode({ query: address }, (status: number, res: { result?: { items?: Array<{ point: { x: number; y: number } }> } }) => {
+          if (status !== Service.Status.OK || !res.result?.items?.length) {
+            if (process.env.NODE_ENV === "development") {
+              console.warn("[Naver Map] geocode 실패", { status, res });
+            }
             setError("주소를 찾을 수 없습니다.");
             return;
           }
-          const item = res.result.items[0];
-          const { x: lng, y: lat } = item.point;
-          const center = new naver.maps.LatLng(lat, lng);
-          const map = new naver.maps.Map(mapEl, { center, zoom: 16 });
-          new naver.maps.Marker({ position: center, map });
+          try {
+            const item = res.result.items[0];
+            const { x: lng, y: lat } = item.point;
+            const center = new naver.maps.LatLng(lat, lng);
+            const map = new naver.maps.Map(mapEl, { center, zoom: 16 });
+            new naver.maps.Marker({ position: center, map });
+          } catch (err) {
+            if (process.env.NODE_ENV === "development") {
+              console.error("[Naver Map] 지도 생성 오류", err);
+            }
+            setError("지도를 불러올 수 없습니다.");
+          }
         });
+      } catch (err) {
+        if (process.env.NODE_ENV === "development") {
+          console.error("[Naver Map] geocode 호출 오류", err);
+        }
+        setError("지도를 불러올 수 없습니다.");
+      }
+    };
+
+    loadScript()
+      .then(() => {
+        const w = window as unknown as Record<string, unknown>;
+        const naver = w.naver as undefined as { maps?: { Service?: unknown } } | undefined;
+        if (!naver?.maps?.Service) {
+          const deadline = Date.now() + 3000;
+          const waitService = () => {
+            const n = window as unknown as Record<string, unknown>;
+            const nav = n.naver as undefined as { maps?: { Service?: { geocode?: unknown } } } | undefined;
+            if (nav?.maps?.Service && typeof nav.maps.Service.geocode === "function") {
+              runMap();
+              return;
+            }
+            if (Date.now() < deadline) {
+              setTimeout(waitService, 100);
+            } else {
+              setError("지도 API를 불러오는 중 시간이 초과되었습니다. 새로고침 해 주세요.");
+            }
+          };
+          setTimeout(waitService, 50);
+        } else {
+          runMap();
+        }
       })
-      .catch(() => setError("지도를 불러올 수 없습니다."));
+      .catch((err) => {
+        if (process.env.NODE_ENV === "development") {
+          console.error("[Naver Map] 스크립트 로드 오류", err);
+        }
+        setError("지도를 불러올 수 없습니다. 네이버 클라우드 플랫폼에서 이 사이트 도메인(URL)을 등록했는지 확인해 주세요.");
+      });
   }, [address]);
 
   if (!address || !address.trim()) {
