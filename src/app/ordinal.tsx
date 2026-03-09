@@ -13,18 +13,19 @@ import {
   formatTime,
 } from "./styles";
 
-// 주차 숫자를 한글 주차로 변환 (-1은 마지막주, API에서 문자열 "-1"로 올 수 있음)
+// 주차 숫자를 한글 주차로 변환 (-2는 첫번째 영업일, -1은 마지막, API에서 문자열 "-1"로 올 수 있음)
 const formatWeekOfMonth = (week: number | string | null | undefined): string => {
   if (week == null) return "";
-  if (Number(week) === -1) return "마지막주";
+  const n = Number(week);
+  if (n === -1) return "마지막";
+  if (n === -2) return "첫번째 영업일";
   const weekMap: Record<number, string> = {
-    1: "첫째주",
-    2: "둘째주",
-    3: "셋째주",
-    4: "넷째주",
-    5: "다섯째주",
+    1: "첫번째",
+    2: "두번째",
+    3: "세번째",
+    4: "네번째",
   };
-  return weekMap[Number(week)] ?? "";
+  return weekMap[n] ?? "";
 };
 
 // 요일 숫자를 한글 요일로 변환
@@ -42,7 +43,7 @@ const formatDayOfWeek = (day: number | null | undefined): string => {
   return dayMap[day] || "";
 };
 
-export function FixedScheduleContent({ court }: { court: Court }) {
+export function OrdinalContent({ court }: { court: Court }) {
   return (
     <>
       {/* 코트 이름, 시립/구립/사설 */}
@@ -51,24 +52,31 @@ export function FixedScheduleContent({ court }: { court: Court }) {
         <span className={courtitem_courtownertype}>{court.basic_owner_type}</span>
       </div>
 
-      {/* fixed_schedule 타입용 구조 - 필요에 따라 수정하세요 */}
+      {/* ordinal 타입용 구조 - 필요에 따라 수정하세요 */}
       <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-lg my-2 h-[56px] flex flex-col justify-center">
-        {court.booking_open_type === "day" ? (
+        {court.booking_open_type === "week" ? (
           <>
-          {/* day 타입용 구조 */}
+            {/* week 타입용 구조 */}
             {court.booking_eligibility_first && (court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen") && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#6FCF97]">
+                  <span className="text-[#2B523C]">
                     {court.booking_eligibility_first === "resident" ? "구민" : "시민"} :{" "}
                   </span>
+                  {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
                   <span className="text-white font-semibold">
-                    {court.booking_open_day_owner != null ? `${court.booking_open_day_owner}일 ` : ""}
-                    {formatTime(court.booking_open_time_owner)}
-                    {`, `}
+                    {(() => {
+                      const month = formatWeekOfMonth(court.booking_open_ordinal);
+                      const week = formatDayOfWeek(court.booking_open_day_of_week);
+                      const time = formatTime(court.booking_open_time_owner);
+                      if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, 다음달 `;
+                      if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
+                      if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
+                      return time ? `${time}, 다음달 ` : "";
+                    })()}
                   </span>
-                  <span className="text-white font-semibold">{court.booking_open_offset != null ? `${court.booking_open_offset}` : ""}</span>
-                  <span className="text-white font-normal"> 예약 오픈</span>
+                  <span className="text-white font-normal">{`예약 오픈`}</span>
+                  {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
                 </p>
               </div>
             )}
@@ -76,18 +84,27 @@ export function FixedScheduleContent({ court }: { court: Court }) {
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
                   <span className="text-[#6FCF97]">일반 : </span>
+                  {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
                   <span className="text-white font-semibold">
-                    {court.booking_open_day_normal != null ? `${court.booking_normal_iscurrentmonth ? "당월 " : ""}${court.booking_open_day_normal}일 ` : ""}
-                    {formatTime(court.booking_open_time_normal)}
-                    {`, `}
+                    {(() => {
+                      const month = formatWeekOfMonth(court.booking_open_ordinal);
+                      const week = formatDayOfWeek(court.booking_open_day_of_week);
+                      const time = formatTime(court.booking_open_time_normal);
+                      if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, 다음달 `;
+                      if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
+                      if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
+                      return time ? `${time}, 다음달 ` : "";
+                    })()}
                   </span>
-                  <span className="text-white font-semibold">{court.booking_open_offset != null ? `${court.booking_open_offset}` : ""}</span>
-                  <span className="text-white font-normal"> 예약 오픈</span>
+                  <span className="text-white font-normal">{`예약 오픈`}</span>
+                  {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
                 </p>
               </div>
             )}
+            {/* week 타입 전용 내용을 여기에 추가하세요 */}
           </>
-        ) : court.booking_open_type === "week" ? (
+        ) : (
+          // booking_open_type이 없거나 다른 값인 경우 week로 기본 처리
           <>
             {/* week 타입용 구조 */}
             {court.booking_eligibility_first && (court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen") && (
@@ -106,7 +123,6 @@ export function FixedScheduleContent({ court }: { court: Court }) {
                       if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
                       if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
                       return time ? `${time}, 다음달 ` : "";
-                      return "";
                     })()}
                   </span>
                   <span className="text-white font-normal">{`예약 오픈`}</span>
@@ -119,7 +135,7 @@ export function FixedScheduleContent({ court }: { court: Court }) {
                 <p className={`${courtitem_courtopentime} break-words`}>
                   <span className="text-[#6FCF97]">일반 : </span>
                   {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
-                  <span className="text-white font-semibold">
+                  <span className="text-white] font-semibold">
                     {(() => {
                       const month = formatWeekOfMonth(court.booking_open_day_of_month);
                       const week = formatDayOfWeek(court.booking_open_day_of_week);
@@ -128,43 +144,14 @@ export function FixedScheduleContent({ court }: { court: Court }) {
                       if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
                       if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
                       return time ? `${time}, 다음달 ` : "";
-                      return "";
                     })()}
                   </span>
-                  <span className="text-white font-normal">{`예약 오픈`}</span>
+                  <span className="text-white] font-normal">{`예약 오픈`}</span>
                   {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
                 </p>
               </div>
             )}
             {/* week 타입 전용 내용을 여기에 추가하세요 */}
-          </>
-        ) : (
-          // booking_open_type이 없거나 다른 값인 경우 day로 기본 처리
-          <>
-            {court.booking_eligibility_first && (court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen") && (
-              <div className="">
-                <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#2B523C]">
-                    {court.booking_eligibility_first === "resident" ? "구민" : "시민"} :{" "}
-                  </span>
-                  <span className="text-white font-normal">
-                    {court.booking_open_day_owner != null ? `${court.booking_open_day_owner}일 ` : ""}
-                    {formatTime(court.booking_open_time_owner)} 예약 오픈
-                  </span>
-                </p>
-              </div>
-            )}
-            {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" && (
-              <div className="">
-                <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#6FCF97]">일반 : </span>
-                  <span className="text-white font-normal">
-                    {court.booking_open_day_normal != null ? `${court.booking_open_day_normal}일 ` : ""}
-                    {formatTime(court.booking_open_time_normal)} 예약 오픈
-                  </span>
-                </p>
-              </div>
-            )}
           </>
         )}
       </div>

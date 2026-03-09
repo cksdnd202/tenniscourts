@@ -35,6 +35,7 @@ export type Court = {
   /*오픈 주차 및 오픈 요일*/
   booking_open_day_of_month: number | null;
   booking_open_day_of_week: number | null;
+  booking_open_ordinal: number | null;
 
   /*첫번째 우선권 일자 및 시간*/
   booking_open_day_owner: number | null;
@@ -43,6 +44,7 @@ export type Court = {
   /*두번째 우선권 일자 및 시간*/
   booking_open_day_normal: number | null;
   booking_open_time_normal: string | null;
+  booking_normal_iscurrentmonth: boolean | null;
 
   booking_open_time_local: string | null;
   booking_open_offset: string | null;
@@ -51,4 +53,5 @@ export type Court = {
   booking_holiday_week: string | null;
   booking_today_booking_possible: boolean | null;
   booking_booking_provide: string | null;
+  etc_desc: string | null;
 };

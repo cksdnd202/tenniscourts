@@ -3,6 +3,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { Court } from "./types";
 import { FixedScheduleContent } from "./FixedScheduleContent";
+import { OrdinalContent } from "./ordinal";
 import { RollingContent } from "./RollingContent";
 import { LotteryContent } from "./LotteryContent";
 import { PhoneContent } from "./PhoneContent";
@@ -213,6 +214,8 @@ export function CourtFilter({ courts }: Props) {
         return <RollingContent court={c} />;
       case "fixed_schedule":
         return <FixedScheduleContent court={c} />;
+      case "ordinal":
+        return <OrdinalContent court={c} />;
       case "lottery":
         return <LotteryContent court={c} />;
       case "phone":
