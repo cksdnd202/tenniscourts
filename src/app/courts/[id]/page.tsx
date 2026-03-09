@@ -3,6 +3,7 @@ import type { Court } from "../../types";
 import { CourtSearchHeader } from "../../CourtSearchHeader";
 import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSection";
 import { CourtDetailAddress, CourtDetailTable } from "../../detail/CourtDetailCommon";
+import { NaverMapBlock } from "../../detail/OrdinalDetail";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -90,11 +91,9 @@ export default async function CourtDetailPage({ params }: PageProps) {
             <CourtDetailAddress court={court} />
           </section>
 
-          {/* 4. 네이버 지도 API (추후 개발용 빈 영역) */}
+          {/* 4. 네이버 지도 API (basic_address로 지도 표시) */}
           <section className="mb-6">
-            <div className="w-full min-h-[200px] rounded-lg bg-[#2C2C2C] flex items-center justify-center">
-              <span className="text-[#6B7280] text-sm">네이버 지도 API</span>
-            </div>
+            <NaverMapBlock address={court.basic_address} />
           </section>
 
           {/* 5. 코트 종류 정보 */}

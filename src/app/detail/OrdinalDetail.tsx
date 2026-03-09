@@ -8,7 +8,7 @@ import { CourtDetailCommon } from "./CourtDetailCommon";
 const NAVER_MAP_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
 
 /** 네이버 지도 (basic_address로 주소 검색 후 표시) - OrdinalDetail 전용 */
-function NaverMapBlock({ address }: { address: string | null }) {
+export function NaverMapBlock({ address }: { address: string | null }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
