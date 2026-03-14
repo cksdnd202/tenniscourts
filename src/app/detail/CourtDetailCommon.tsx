@@ -3,7 +3,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type { Court } from "../types";
 
-const NAVER_MAP_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
+const NAVER_MAP_CLIENT_ID = (process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "").trim();
 
 declare global {
   interface Window {
@@ -57,7 +57,6 @@ export function CourtDetailMap({ court }: { court: Court }) {
       if (!NAVER_MAP_CLIENT_ID) setError("지도 API 키를 설정해 주세요.");
       return;
     }
-    const mapEl = mapRef.current;
     const scriptId = "naver-maps-script";
 
     const loadScript = (): Promise<void> => {
@@ -87,12 +86,17 @@ export function CourtDetailMap({ court }: { court: Court }) {
 
     loadScript()
       .then(() => {
-        if (!mapEl || !window.naver?.maps) {
+        if (!mapRef.current?.isConnected || !window.naver?.maps) {
           setError("지도를 불러올 수 없습니다.");
           return;
         }
-        const center = new window.naver.maps.LatLng(37.3595704, 127.105399);
-        new window.naver.maps.Map(mapEl, { center, zoom: 15 });
+        try {
+          const el = mapRef.current;
+          const center = new window.naver.maps.LatLng(37.3595704, 127.105399);
+          new window.naver.maps.Map(el, { center, zoom: 15 });
+        } catch (e) {
+          setError("지도를 불러올 수 없습니다.");
+        }
       })
       .catch(() => setError("지도를 불러올 수 없습니다."));
   }, []);
