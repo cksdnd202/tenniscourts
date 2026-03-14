@@ -76,7 +76,7 @@ export function CourtDetailMap({ court }: { court: Court }) {
       return new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.id = scriptId;
-        script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${NAVER_MAP_CLIENT_ID}`;
+        script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_MAP_CLIENT_ID}`;
         script.async = true;
         script.onload = () => resolve();
         script.onerror = () => reject(new Error("지도 스크립트 로드 실패"));
