@@ -1,5 +1,20 @@
+"use client";
 import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import type { Court } from "../types";
+
+const NAVER_MAP_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "";
+
+declare global {
+  interface Window {
+    naver?: {
+      maps: {
+        Map: new (idOrElement: string | HTMLElement, options: { center: unknown; zoom: number }) => unknown;
+        LatLng: new (lat: number, lng: number) => unknown;
+      };
+    };
+  }
+}
 import {
   courtitem_courtaddress,
   courtitem_courtmaplink,
@@ -31,6 +46,67 @@ export function CourtDetailAddress({ court }: { court: Court }) {
         위치보기
       </a>
     </div>
+  );
+}
+export function CourtDetailMap({ court }: { court: Court }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!mapRef.current || !NAVER_MAP_CLIENT_ID) {
+      if (!NAVER_MAP_CLIENT_ID) setError("지도 API 키를 설정해 주세요.");
+      return;
+    }
+    const mapEl = mapRef.current;
+    const scriptId = "naver-maps-script";
+
+    const loadScript = (): Promise<void> => {
+      if (typeof window !== "undefined" && window.naver?.maps) {
+        return Promise.resolve();
+      }
+      const existing = document.getElementById(scriptId);
+      if (existing) {
+        return new Promise((resolve) => {
+          const check = () => {
+            if (window.naver?.maps) resolve();
+            else setTimeout(check, 50);
+          };
+          check();
+        });
+      }
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.id = scriptId;
+        script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${NAVER_MAP_CLIENT_ID}`;
+        script.async = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error("지도 스크립트 로드 실패"));
+        document.head.appendChild(script);
+      });
+    };
+
+    loadScript()
+      .then(() => {
+        if (!mapEl || !window.naver?.maps) {
+          setError("지도를 불러올 수 없습니다.");
+          return;
+        }
+        const center = new window.naver.maps.LatLng(37.3595704, 127.105399);
+        new window.naver.maps.Map(mapEl, { center, zoom: 15 });
+      })
+      .catch(() => setError("지도를 불러올 수 없습니다."));
+  }, []);
+
+  if (!court.basic_address) return null;
+  if (error) {
+    return (
+      <div className="w-full min-h-[200px] rounded-lg bg-[#2C2C2C] flex items-center justify-center">
+        <span className="text-[#6B7280] text-sm">{error}</span>
+      </div>
+    );
+  }
+  return (
+    <div ref={mapRef} className="w-full min-h-[200px] rounded-lg bg-[#2C2C2C] overflow-hidden" style={{ minHeight: "200px" }} />
   );
 }
 

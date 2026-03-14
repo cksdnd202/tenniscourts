@@ -2,8 +2,7 @@ import { supabase } from "@/lib/supabase";
 import type { Court } from "../../types";
 import { CourtSearchHeader } from "../../CourtSearchHeader";
 import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSection";
-import { CourtDetailAddress, CourtDetailTable } from "../../detail/CourtDetailCommon";
-import { NaverMapBlock } from "../../detail/OrdinalDetail";
+import { CourtDetailAddress, CourtDetailTable, CourtDetailMap } from "../../detail/CourtDetailCommon";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -91,9 +90,10 @@ export default async function CourtDetailPage({ params }: PageProps) {
             <CourtDetailAddress court={court} />
           </section>
 
-          {/* 4. 네이버 지도 API (basic_address로 지도 표시) */}
+          {/* 4. 네이버 지도 API (나중에 개발할 부분, 현재 빈칸) */}
           <section className="mb-6">
-            <NaverMapBlock address={court.basic_address} />
+            <div className="w-full min-h-[200px] rounded-lg bg-[#2C2C2C]" />
+            <CourtDetailMap court={court} />
           </section>
 
           {/* 5. 코트 종류 정보 */}
