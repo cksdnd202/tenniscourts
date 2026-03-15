@@ -7,7 +7,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "address is required" }, { status: 400 });
   }
 
-  const clientId = (process.env.NAVER_MAP_CLIENT_ID ?? "").trim();
+  const clientId = (
+    process.env.NAVER_MAP_CLIENT_ID ??
+    process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ??
+    ""
+  ).trim();
   const clientSecret = (process.env.NAVER_MAP_CLIENT_SECRET ?? "").trim();
 
   if (!clientId || !clientSecret) {
