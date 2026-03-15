@@ -92,7 +92,6 @@ export default async function CourtDetailPage({ params }: PageProps) {
 
           {/* 4. 네이버 지도 API (나중에 개발할 부분, 현재 빈칸) */}
           <section className="mb-6">
-            <div className="w-full min-h-[200px] rounded-lg bg-[#2C2C2C]" />
             <CourtDetailMap court={court} />
           </section>
 

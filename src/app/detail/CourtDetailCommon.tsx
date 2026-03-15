@@ -11,6 +11,7 @@ declare global {
       maps: {
         Map: new (idOrElement: string | HTMLElement, options: { center: unknown; zoom: number }) => unknown;
         LatLng: new (lat: number, lng: number) => unknown;
+        Marker: new (opts: { position: unknown; map: unknown }) => unknown;
       };
     };
   }
@@ -48,15 +49,20 @@ export function CourtDetailAddress({ court }: { court: Court }) {
     </div>
   );
 }
+const DEFAULT_CENTER = { lat: 37.3595704, lng: 127.105399 };
+
 export function CourtDetailMap({ court }: { court: Court }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const [geocodeFailed, setGeocodeFailed] = useState(false);
+  const address = court.basic_address?.trim() || "";
 
   useEffect(() => {
     if (!mapRef.current || !NAVER_MAP_CLIENT_ID) {
       if (!NAVER_MAP_CLIENT_ID) setError("지도 API 키를 설정해 주세요.");
       return;
     }
+    setGeocodeFailed(false);
     const scriptId = "naver-maps-script";
 
     const loadScript = (): Promise<void> => {
@@ -84,33 +90,63 @@ export function CourtDetailMap({ court }: { court: Court }) {
       });
     };
 
-    loadScript()
-      .then(() => {
-        if (!mapRef.current?.isConnected || !window.naver?.maps) {
-          setError("지도를 불러올 수 없습니다.");
-          return;
-        }
-        try {
-          const el = mapRef.current;
-          const center = new window.naver.maps.LatLng(37.3595704, 127.105399);
-          new window.naver.maps.Map(el, { center, zoom: 15 });
-        } catch (e) {
-          setError("지도를 불러올 수 없습니다.");
-        }
+    const initMap = (lat: number, lng: number) => {
+      if (!mapRef.current?.isConnected || !window.naver?.maps) {
+        setError("지도를 불러올 수 없습니다.");
+        return;
+      }
+      try {
+        const el = mapRef.current;
+        const center = new window.naver.maps.LatLng(lat, lng);
+        const map = new window.naver.maps.Map(el, { center, zoom: 16 });
+        new window.naver.maps.Marker({ position: center, map });
+      } catch (e) {
+        setError("지도를 불러올 수 없습니다.");
+      }
+    };
+
+    const run = (lat: number, lng: number) => {
+      loadScript()
+        .then(() => initMap(lat, lng))
+        .catch(() => setError("지도를 불러올 수 없습니다."));
+    };
+
+    if (!address) {
+      setGeocodeFailed(true);
+      run(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
+      return;
+    }
+
+    fetch(`/api/geocode?address=${encodeURIComponent(address)}`)
+      .then((res) => {
+        if (res.ok) return res.json() as Promise<{ lat: number; lng: number }>;
+        setGeocodeFailed(true);
+        return { lat: DEFAULT_CENTER.lat, lng: DEFAULT_CENTER.lng };
       })
-      .catch(() => setError("지도를 불러올 수 없습니다."));
-  }, []);
+      .then((coord) => run(coord.lat, coord.lng))
+      .catch(() => {
+        setGeocodeFailed(true);
+        run(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
+      });
+  }, [address]);
 
   if (!court.basic_address) return null;
   if (error) {
     return (
-      <div className="w-full min-h-[200px] rounded-lg bg-[#2C2C2C] flex items-center justify-center">
+      <div className="w-full min-h-[300px] rounded-lg bg-[#2C2C2C] flex items-center justify-center">
         <span className="text-[#6B7280] text-sm">{error}</span>
       </div>
     );
   }
   return (
-    <div ref={mapRef} className="w-full min-h-[200px] rounded-lg bg-[#2C2C2C] overflow-hidden" style={{ minHeight: "200px" }} />
+    <div className="w-full">
+      <div ref={mapRef} className="w-full min-h-[300px] rounded-lg bg-[#2C2C2C] overflow-hidden" style={{ minHeight: "300px" }} />
+      {geocodeFailed && (
+        <p className="mt-1.5 text-[#6B7280] text-xs">
+          주소로 위치를 찾지 못해 기본 위치를 표시합니다. 지도에 코트 위치가 나오게 하려면 .env.local과 Vercel 환경변수에 NAVER_MAP_CLIENT_SECRET(지오코딩 API 키)을 추가해 주세요.
+        </p>
+      )}
+    </div>
   );
 }
 
