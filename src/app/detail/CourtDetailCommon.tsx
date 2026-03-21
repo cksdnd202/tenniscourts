@@ -3,15 +3,16 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type { Court } from "../types";
 
-const NAVER_MAP_CLIENT_ID = (process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ?? "").trim();
+const KAKAO_JAVASCRIPT_KEY = (process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY ?? "").trim();
 
 declare global {
   interface Window {
-    naver?: {
-      maps: {
-        Map: new (idOrElement: string | HTMLElement, options: { center: unknown; zoom: number }) => unknown;
+    kakao?: {
+      maps?: {
+        load: (callback: () => void) => void;
+        Map: new (container: HTMLElement, options: { center: unknown; level: number }) => unknown;
         LatLng: new (lat: number, lng: number) => unknown;
-        Marker: new (opts: { position: unknown; map: unknown }) => unknown;
+        Marker: new (opts: { position: unknown }) => { setMap: (map: unknown) => void };
       };
     };
   }
@@ -58,22 +59,23 @@ export function CourtDetailMap({ court }: { court: Court }) {
   const address = court.basic_address?.trim() || "";
 
   useEffect(() => {
-    if (!mapRef.current || !NAVER_MAP_CLIENT_ID) {
-      if (!NAVER_MAP_CLIENT_ID) setError("지도 API 키를 설정해 주세요.");
+    if (!mapRef.current || !KAKAO_JAVASCRIPT_KEY) {
+      if (!KAKAO_JAVASCRIPT_KEY) setError("카카오 지도 JavaScript 키를 설정해 주세요.");
       return;
     }
+    setError(null);
     setGeocodeFailed(false);
-    const scriptId = "naver-maps-script";
+    const scriptId = "kakao-maps-script";
 
     const loadScript = (): Promise<void> => {
-      if (typeof window !== "undefined" && window.naver?.maps) {
-        return Promise.resolve();
+      if (typeof window !== "undefined" && window.kakao?.maps) {
+        return new Promise((resolve) => window.kakao?.maps?.load(() => resolve()));
       }
       const existing = document.getElementById(scriptId);
       if (existing) {
         return new Promise((resolve) => {
           const check = () => {
-            if (window.naver?.maps) resolve();
+            if (window.kakao?.maps) window.kakao.maps.load(() => resolve());
             else setTimeout(check, 50);
           };
           check();
@@ -82,24 +84,31 @@ export function CourtDetailMap({ court }: { court: Court }) {
       return new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.id = scriptId;
-        script.src = `https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${NAVER_MAP_CLIENT_ID}`;
+        script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_JAVASCRIPT_KEY}&autoload=false`;
         script.async = true;
-        script.onload = () => resolve();
+        script.onload = () => {
+          if (!window.kakao?.maps) {
+            reject(new Error("카카오 지도 객체를 찾을 수 없습니다."));
+            return;
+          }
+          window.kakao.maps.load(() => resolve());
+        };
         script.onerror = () => reject(new Error("지도 스크립트 로드 실패"));
         document.head.appendChild(script);
       });
     };
 
     const initMap = (lat: number, lng: number) => {
-      if (!mapRef.current?.isConnected || !window.naver?.maps) {
+      if (!mapRef.current?.isConnected || !window.kakao?.maps) {
         setError("지도를 불러올 수 없습니다.");
         return;
       }
       try {
         const el = mapRef.current;
-        const center = new window.naver.maps.LatLng(lat, lng);
-        const map = new window.naver.maps.Map(el, { center, zoom: 16 });
-        new window.naver.maps.Marker({ position: center, map });
+        const center = new window.kakao.maps.LatLng(lat, lng);
+        const map = new window.kakao.maps.Map(el, { center, level: 3 });
+        const marker = new window.kakao.maps.Marker({ position: center });
+        marker.setMap(map);
       } catch (e) {
         setError("지도를 불러올 수 없습니다.");
       }
@@ -143,7 +152,8 @@ export function CourtDetailMap({ court }: { court: Court }) {
       <div ref={mapRef} className="w-full min-h-[300px] rounded-lg bg-[#2C2C2C] overflow-hidden" style={{ minHeight: "300px" }} />
       {geocodeFailed && (
         <p className="mt-1.5 text-[#6B7280] text-xs">
-          주소로 위치를 찾지 못해 기본 위치를 표시합니다. 지도에 코트 위치가 나오게 하려면 .env.local과 Vercel 환경변수에 NAVER_MAP_CLIENT_SECRET(지오코딩 API 키)을 추가해 주세요.
+          주소로 위치를 찾지 못해 기본 위치를 표시합니다. .env.local과 Vercel 환경변수에
+          KAKAO_REST_API_KEY(지오코딩), NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY(지도)를 설정해 주세요.
         </p>
       )}
     </div>

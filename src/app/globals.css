@@ -25,6 +25,9 @@
 
 html {
   color-scheme: dark;
+  /* 페이지별 스크롤바 유무와 무관하게 가로 중심점 고정 */
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }
 
 body {

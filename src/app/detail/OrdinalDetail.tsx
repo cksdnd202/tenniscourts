@@ -1,6 +1,8 @@
 import type { Court } from "../types";
-import { courtitem_courtopentime, formatTime } from "../styles";
+import { formatTime } from "../styles";
 import { CourtDetailCommon } from "./CourtDetailCommon";
+import { BookingOpenCardRow } from "./BookingOpenCardRow";
+import { detailCard, detailMuted, detailNoPriorityClass } from "./detailLayoutStyles";
 
 const formatWeekOfMonth = (week: number | string | null | undefined): string => {
   if (week == null) return "";
@@ -22,86 +24,117 @@ const formatDayOfWeek = (day: number | null | undefined): string => {
   return dayMap[day] || "";
 };
 
+const bookingGrid = "grid grid-cols-1 gap-3 min-[1032px]:grid-cols-2 min-[1032px]:gap-4";
+
 /** ordinal 전용 상세 화면: 예약 오픈 정보 + 공통(주소/테이블/예약 버튼) */
 function OrdinalBookingBlock({ court }: { court: Court }) {
+  const firstEligible =
+    court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen";
+
+  if (court.booking_open_type === "week") {
+    return (
+      <div className={bookingGrid}>
+        <div className={detailCard}>
+          {firstEligible ? (
+            <BookingOpenCardRow
+              label={court.booking_eligibility_first === "resident" ? "구민" : "시민"}
+              labelTone="priority"
+            >
+              <>
+                <span className="font-bold">
+                  {(() => {
+                    const month = formatWeekOfMonth(court.booking_open_ordinal);
+                    const week = formatDayOfWeek(court.booking_open_day_of_week);
+                    const time = formatTime(court.booking_open_time_owner);
+                    if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, 다음달 `;
+                    if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
+                    if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
+                    return time ? `${time}, 다음달 ` : "";
+                  })()}
+                </span>
+                <span className="font-normal">예약 오픈</span>
+              </>
+            </BookingOpenCardRow>
+          ) : (
+            <span className={detailNoPriorityClass}>우선 예약 권한 없음</span>
+          )}
+        </div>
+        <div className={detailCard}>
+          {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" ? (
+            <BookingOpenCardRow label="일반" labelTone="general">
+              <>
+                <span className="font-bold">
+                  {(() => {
+                    const month = formatWeekOfMonth(court.booking_open_ordinal);
+                    const week = formatDayOfWeek(court.booking_open_day_of_week);
+                    const time = formatTime(court.booking_open_time_normal);
+                    if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, 다음달 `;
+                    if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
+                    if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
+                    return time ? `${time}, 다음달 ` : "";
+                  })()}
+                </span>
+                <span className="font-normal">예약 오픈</span>
+              </>
+            </BookingOpenCardRow>
+          ) : (
+            <span className={detailMuted}>—</span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-lg my-2 min-h-[56px] flex flex-col justify-center">
-        {court.booking_open_type === "week" ? (
-          <>
-            {court.booking_eligibility_first && (court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen") && (
-              <p className={`${courtitem_courtopentime} break-words`}>
-                <span className="text-[#2B523C]">{court.booking_eligibility_first === "resident" ? "구민" : "시민"} : </span>
-                <span className="text-[#909090] font-semibold">
-                  {(() => {
-                    const month = formatWeekOfMonth(court.booking_open_ordinal);
-                    const week = formatDayOfWeek(court.booking_open_day_of_week);
-                    const time = formatTime(court.booking_open_time_owner);
-                    if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, 다음달 `;
-                    if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
-                    if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
-                    return time ? `${time}, 다음달 ` : "";
-                  })()}
-                </span>
-                <span className="text-[#909090] font-normal">예약 오픈</span>
-              </p>
-            )}
-            {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" && (
-              <p className={`${courtitem_courtopentime} break-words`}>
-                <span className="text-[#6FCF97]">일반 : </span>
-                <span className="text-[#909090] font-semibold">
-                  {(() => {
-                    const month = formatWeekOfMonth(court.booking_open_ordinal);
-                    const week = formatDayOfWeek(court.booking_open_day_of_week);
-                    const time = formatTime(court.booking_open_time_normal);
-                    if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, 다음달 `;
-                    if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
-                    if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
-                    return time ? `${time}, 다음달 ` : "";
-                  })()}
-                </span>
-                <span className="text-[#909090] font-normal">예약 오픈</span>
-              </p>
-            )}
-          </>
+    <div className={bookingGrid}>
+      <div className={detailCard}>
+        {firstEligible ? (
+          <BookingOpenCardRow
+            label={court.booking_eligibility_first === "resident" ? "구민" : "시민"}
+            labelTone="priority"
+          >
+            <>
+              <span className="font-bold">
+                {(() => {
+                  const month = formatWeekOfMonth(court.booking_open_day_of_month);
+                  const week = formatDayOfWeek(court.booking_open_day_of_week);
+                  const time = formatTime(court.booking_open_time_owner);
+                  if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, 다음달 `;
+                  if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
+                  if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
+                  return time ? `${time}, 다음달 ` : "";
+                })()}
+              </span>
+              <span className="font-normal">예약 오픈</span>
+            </>
+          </BookingOpenCardRow>
         ) : (
-          <>
-            {court.booking_eligibility_first && (court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen") && (
-              <p className={`${courtitem_courtopentime} break-words`}>
-                <span className="text-[#2B523C]">{court.booking_eligibility_first === "resident" ? "구민" : "시민"} : </span>
-                <span className="text-[#909090] font-semibold">
-                  {(() => {
-                    const month = formatWeekOfMonth(court.booking_open_day_of_month);
-                    const week = formatDayOfWeek(court.booking_open_day_of_week);
-                    const time = formatTime(court.booking_open_time_owner);
-                    if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, 다음달 `;
-                    if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
-                    if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
-                    return time ? `${time}, 다음달 ` : "";
-                  })()}
-                </span>
-                <span className="text-[#909090] font-normal">예약 오픈</span>
-              </p>
-            )}
-            {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" && (
-              <p className={`${courtitem_courtopentime} break-words`}>
-                <span className="text-[#6FCF97]">일반 : </span>
-                <span className="text-[#909090] font-semibold">
-                  {(() => {
-                    const month = formatWeekOfMonth(court.booking_open_day_of_month);
-                    const week = formatDayOfWeek(court.booking_open_day_of_week);
-                    const time = formatTime(court.booking_open_time_normal);
-                    if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, 다음달 `;
-                    if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
-                    if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
-                    return time ? `${time}, 다음달 ` : "";
-                  })()}
-                </span>
-                <span className="text-[#909090] font-normal">예약 오픈</span>
-              </p>
-            )}
-          </>
+          <span className={detailNoPriorityClass}>우선 예약 권한 없음</span>
         )}
       </div>
+      <div className={detailCard}>
+        {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" ? (
+          <BookingOpenCardRow label="일반" labelTone="general">
+            <>
+              <span className="font-bold">
+                {(() => {
+                  const month = formatWeekOfMonth(court.booking_open_day_of_month);
+                  const week = formatDayOfWeek(court.booking_open_day_of_week);
+                  const time = formatTime(court.booking_open_time_normal);
+                  if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, 다음달 `;
+                  if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
+                  if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
+                  return time ? `${time}, 다음달 ` : "";
+                })()}
+              </span>
+              <span className="font-normal">예약 오픈</span>
+            </>
+          </BookingOpenCardRow>
+        ) : (
+          <span className={detailMuted}>—</span>
+        )}
+      </div>
+    </div>
   );
 }
 

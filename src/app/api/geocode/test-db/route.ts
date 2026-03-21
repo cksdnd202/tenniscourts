@@ -18,25 +18,19 @@ type GeocodeResult = {
 };
 
 async function geocodeAddress(address: string) {
-  const clientId = (
-    process.env.NAVER_MAP_CLIENT_ID ??
-    process.env.NEXT_PUBLIC_NAVER_MAP_CLIENT_ID ??
-    ""
-  ).trim();
-  const clientSecret = (process.env.NAVER_MAP_CLIENT_SECRET ?? "").trim();
+  const kakaoRestApiKey = (process.env.KAKAO_REST_API_KEY ?? "").trim();
 
-  if (!clientId || !clientSecret) {
-    return { ok: false, reason: "missing_naver_keys" as const };
+  if (!kakaoRestApiKey) {
+    return { ok: false, reason: "missing_kakao_rest_api_key" as const };
   }
 
-  const url = new URL("https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode");
+  const url = new URL("https://dapi.kakao.com/v2/local/search/address.json");
   url.searchParams.set("query", address);
 
   const res = await fetch(url.toString(), {
     method: "GET",
     headers: {
-      "x-ncp-apigw-api-key-id": clientId,
-      "x-ncp-apigw-api-key": clientSecret,
+      Authorization: `KakaoAK ${kakaoRestApiKey}`,
       Accept: "application/json",
     },
   });
@@ -45,15 +39,12 @@ async function geocodeAddress(address: string) {
     return { ok: false, reason: `http_${res.status}` as const };
   }
 
-  const data = (await res.json()) as {
-    status?: string;
-    addresses?: Array<{ x?: string; y?: string }>;
-  };
-  if (data.status !== "OK" || !data.addresses?.length) {
+  const data = (await res.json()) as { documents?: Array<{ x?: string; y?: string }> };
+  if (!data.documents?.length) {
     return { ok: false, reason: "no_result" as const };
   }
 
-  const first = data.addresses[0];
+  const first = data.documents[0];
   const lng = first.x != null ? Number.parseFloat(first.x) : Number.NaN;
   const lat = first.y != null ? Number.parseFloat(first.y) : Number.NaN;
   if (Number.isNaN(lat) || Number.isNaN(lng)) {
@@ -63,7 +54,7 @@ async function geocodeAddress(address: string) {
   return { ok: true, lat, lng };
 }
 
-/** DB 주소 -> 네이버 지오코딩 결과 점검용 API (개발용) */
+/** DB 주소 -> 카카오 지오코딩 결과 점검용 API (개발용) */
 export async function GET(request: NextRequest) {
   const limitRaw = request.nextUrl.searchParams.get("limit");
   const sampleRaw = request.nextUrl.searchParams.get("sample");

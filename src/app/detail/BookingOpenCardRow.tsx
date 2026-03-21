@@ -1,0 +1,31 @@
+import type { ReactNode } from "react";
+import {
+  bookingOpenLabelTextClass,
+  type BookingOpenLabelTone,
+} from "./detailLayoutStyles";
+
+type Props = {
+  /** 구민 · 시민 · 일반 */
+  label: string;
+  /** 구민·시민: priority, 일반: general */
+  labelTone: BookingOpenLabelTone;
+  children: ReactNode;
+};
+
+/** 라벨은 좌측 고정(톤별 배지), 예약 오픈 문구는 박스 가로 중앙 */
+export function BookingOpenCardRow({ label, labelTone, children }: Props) {
+  const labelColorClass = bookingOpenLabelTextClass[labelTone];
+
+  return (
+    <div className="relative w-full min-h-[48px]">
+      <span
+        className={`absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-md bg-[#0D0D0F] px-2.5 py-1 text-xs font-medium leading-none ring-1 ring-white/5 ${labelColorClass}`}
+      >
+        {label}
+      </span>
+      <div className="flex min-h-[48px] w-full items-center justify-center px-14 sm:px-16 text-center text-sm text-white break-words">
+        <span className="max-w-full leading-snug">{children}</span>
+      </div>
+    </div>
+  );
+}

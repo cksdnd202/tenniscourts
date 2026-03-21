@@ -65,25 +65,98 @@ export function CourtSearchHeader({ courts }: Props) {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-30 bg-[#000000] border-b border-[#2C2C2C]">
-      {/* CourtFilter 와 동일한 2열 레이아웃: 좌측(필터 영역 폭) / 우측(콘텐츠 영역) */}
-      <div className="flex gap-4 px-7.5 py-4 items-center">
-        {/* 데스크탑용 로고 - 좌측 필터 영역 폭과 동일한 컬럼에 배치 */}
-        <div className="hidden min-[1032px]:flex w-full max-w-xs items-center">
-          <button
-            type="button"
-            onClick={() => {
-              // 홈으로 완전 새로고침
-              window.location.href = "/";
-            }}
-            className="text-left"
+      <div className="px-7.5 py-4">
+        {/* 데스크탑: 검색창을 헤더 정중앙에 고정 */}
+        <div className="hidden min-[1032px]:flex items-center relative">
+          <div className="w-full max-w-xs">
+            <button
+              type="button"
+              onClick={() => {
+                // 홈으로 완전 새로고침
+                window.location.href = "/";
+              }}
+              className="text-left"
+            >
+              <span className="text-xl font-black tracking-tight text-white">
+                GROUND KOREA
+              </span>
+            </button>
+          </div>
+
+          {/* 데스크탑용 검색 입력창 (1032px 이상) */}
+          <div
+            ref={containerRef}
+            className="absolute left-1/2 -translate-x-1/2 w-[300px]"
           >
-            <span className="text-xl font-black tracking-tight text-white">
-              GROUND KOREA
-            </span>
-          </button>
+            <div className="flex items-center rounded-full bg-[#191B1E] px-4 py-3 focus-within:border-[#2C8B56] focus-within:ring-1 focus-within:ring-[#2C8B56]">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 18 18"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="mr-2 text-[#2C8B56]"
+              >
+                <path
+                  d="M8.25 13.5C11.1495 13.5 13.5 11.1495 13.5 8.25C13.5 5.35051 11.1495 3 8.25 3C5.35051 3 3 5.35051 3 8.25C3 11.1495 5.35051 13.5 8.25 13.5Z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M12 12L15 15"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setIsOpen(true);
+                }}
+                onFocus={() => {
+                  if (query.trim()) {
+                    setIsOpen(true);
+                  }
+                }}
+                onKeyDown={handleKeyDown}
+                className="w-full bg-transparent text-sm outline-none text-white placeholder:text-[#888888]"
+                placeholder="검색어를 입력해주세요"
+              />
+            </div>
+
+            {/* 검색 결과 레이어 (데스크탑) */}
+            {isOpen && results.length > 0 && (
+              <div className="absolute left-0 right-0 mt-2 max-h-80 overflow-y-auto rounded-xl border border-[#3C3C3C] bg-[#2C2C2C] shadow-[0_6px_20px_rgba(0,0,0,0.5)]">
+                <ul className="py-2">
+                  {results.map((court) => (
+                    <li key={court.id}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectCourt(court)}
+                        className="flex w-full flex-col items-start gap-0.5 px-4 py-2 text-left hover:bg-[#3C3C3C]"
+                      >
+                        <span className="text-sm font-medium text-white">
+                          {court.basic_court_name}
+                        </span>
+                        <span className="text-xs text-[#B0B0B0]">
+                          {court.basic_region} {court.basic_city}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* 모바일/태블릿용 로고 - 상단에만 살짝 보이도록 */}
+        {/* 모바일/태블릿 헤더 */}
         <div className="flex min-[1032px]:hidden items-center">
           <button
             type="button"
@@ -96,91 +169,10 @@ export function CourtSearchHeader({ courts }: Props) {
               GROUND KOREA
             </span>
           </button>
-        </div>
-
-        {/* 우측 콘텐츠 영역 헤더 */}
-        <div className="flex-1 flex items-center justify-end">
-          {/* 데스크탑용 검색 입력창 (1032px 이상) */}
-          <div className="hidden min-[1032px]:block flex-1">
-            <div className="flex justify-center">
-              <div
-                ref={containerRef}
-                className="relative w-full max-w-sm"
-              >
-                <div className="flex items-center rounded-full bg-[#191B1E] px-4 py-3 focus-within:border-[#2C8B56] focus-within:ring-1 focus-within:ring-[#2C8B56]">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 18 18"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="mr-2 text-[#2C8B56]"
-                  >
-                    <path
-                      d="M8.25 13.5C11.1495 13.5 13.5 11.1495 13.5 8.25C13.5 5.35051 11.1495 3 8.25 3C5.35051 3 3 5.35051 3 8.25C3 11.1495 5.35051 13.5 8.25 13.5Z"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M12 12L15 15"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  <input
-                    ref={inputRef}
-                    value={query}
-                    onChange={(e) => {
-                      setQuery(e.target.value);
-                      setIsOpen(true);
-                    }}
-                    onFocus={() => {
-                      if (query.trim()) {
-                        setIsOpen(true);
-                      }
-                    }}
-                    onKeyDown={handleKeyDown}
-                    className="w-full bg-transparent text-sm outline-none text-white placeholder:text-[#888888]"
-                    placeholder="검색어를 입력해주세요"
-                  />
-                </div>
-
-                {/* 검색 결과 레이어 (데스크탑) */}
-                {isOpen && results.length > 0 && (
-                  <div className="absolute left-0 right-0 mt-2 max-h-80 overflow-y-auto rounded-xl border border-[#3C3C3C] bg-[#2C2C2C] shadow-[0_6px_20px_rgba(0,0,0,0.5)]">
-                    <ul className="py-2">
-                      {results.map((court) => (
-                        <li key={court.id}>
-                          <button
-                            type="button"
-                            onClick={() => handleSelectCourt(court)}
-                            className="flex w-full flex-col items-start gap-0.5 px-4 py-2 text-left hover:bg-[#3C3C3C]"
-                          >
-                            <span className="text-sm font-medium text-white">
-                              {court.basic_court_name}
-                            </span>
-                            <span className="text-xs text-[#B0B0B0]">
-                              {court.basic_region} {court.basic_city}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 모바일/태블릿용 검색 아이콘 버튼 (1031px 이하) */}
           <button
             type="button"
             onClick={() => setIsMobileSearchOpen(true)}
-            className="min-[1032px]:hidden ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] text-[#B0B0B0]"
+            className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] text-[#B0B0B0]"
             aria-label="코트 검색 열기"
           >
             <svg

@@ -1,30 +1,48 @@
 import type { Court } from "../types";
-import { courtitem_courtopentime, formatTime } from "../styles";
+import { formatTime } from "../styles";
 import { CourtDetailCommon } from "./CourtDetailCommon";
+import { BookingOpenCardRow } from "./BookingOpenCardRow";
+import { detailCard, detailMuted, detailNoPriorityClass } from "./detailLayoutStyles";
+
+const bookingGrid = "grid grid-cols-1 gap-3 min-[1032px]:grid-cols-2 min-[1032px]:gap-4";
 
 /** rolling 전용 상세 화면 */
 function RollingBookingBlock({ court }: { court: Court }) {
+  const firstEligible =
+    court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen";
+
   return (
-    <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-lg my-2 min-h-[56px] flex flex-col justify-center">
-        {court.booking_eligibility_first && (court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen") && (
-          <p className={`${courtitem_courtopentime} break-words`}>
-            <span className="text-[#6FCF97]">{court.booking_eligibility_first === "resident" ? "구민" : "시민"} : </span>
-            <span className="text-white font-semibold">
-              매일 {court.booking_open_time_owner != null ? `${formatTime(court.booking_open_time_owner)},` : ""} +{court.booking_open_offset != null ? `${court.booking_open_offset}일` : ""} 일자{" "}
-              <span className="font-normal">예약 오픈</span>
+    <div className={bookingGrid}>
+      <div className={detailCard}>
+        {firstEligible ? (
+          <BookingOpenCardRow
+            label={court.booking_eligibility_first === "resident" ? "구민" : "시민"}
+            labelTone="priority"
+          >
+            <span className="font-bold">
+              매일 {court.booking_open_time_owner != null ? `${formatTime(court.booking_open_time_owner)}, ` : ""}
+              {court.booking_open_offset != null ? `+${court.booking_open_offset}일 ` : ""}
+              일자 <span className="font-normal">예약 오픈</span>
             </span>
-          </p>
-        )}
-        {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" && (
-          <p className={`${courtitem_courtopentime} break-words`}>
-            <span className="text-[#6FCF97]">일반 : </span>
-            <span className="text-white font-semibold">
-              매일 {court.booking_open_time_normal != null ? `${formatTime(court.booking_open_time_normal)},` : ""} +{court.booking_open_offset != null ? `${court.booking_open_offset}일` : ""} 일자{" "}
-              <span className="font-normal">예약 오픈</span>
-            </span>
-          </p>
+          </BookingOpenCardRow>
+        ) : (
+          <span className={detailNoPriorityClass}>우선 예약 권한 없음</span>
         )}
       </div>
+      <div className={detailCard}>
+        {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" ? (
+          <BookingOpenCardRow label="일반" labelTone="general">
+            <span className="font-bold">
+              매일 {formatTime(court.booking_open_time_normal)}
+              {court.booking_open_offset != null ? `, +${court.booking_open_offset}일 ` : " "}
+              일자 <span className="font-normal">예약 오픈</span>
+            </span>
+          </BookingOpenCardRow>
+        ) : (
+          <span className={detailMuted}>—</span>
+        )}
+      </div>
+    </div>
   );
 }
 

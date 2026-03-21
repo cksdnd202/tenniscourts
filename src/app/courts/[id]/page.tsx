@@ -3,10 +3,33 @@ import type { Court } from "../../types";
 import { CourtSearchHeader } from "../../CourtSearchHeader";
 import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSection";
 import { CourtDetailAddress, CourtDetailTable, CourtDetailMap } from "../../detail/CourtDetailCommon";
+import { CourtDetailAside, CourtDetailMobileBookBar } from "../../detail/CourtDetailAside";
 
 type PageProps = {
   params: Promise<{ id: string }>;
 };
+
+function CourtInfoBanner() {
+  return (
+    <a
+      href="/"
+      className="flex items-center justify-between gap-2 rounded-xl border border-[#2C2C2C] bg-[#1A1A1B] px-4 py-3 text-sm hover:bg-[#252528] transition min-[1032px]:hidden"
+    >
+      <span className="flex items-center gap-2 min-w-0 text-[#B0B0B0]">
+        <span aria-hidden className="flex-shrink-0">
+          🎾
+        </span>
+        <span className="min-w-0 leading-snug">
+          <span className="text-white">나만 아는 코트가 있으신가요?</span>{" "}
+          <span className="text-white font-medium">코트 정보 알려주기</span>
+        </span>
+      </span>
+      <span className="text-white flex-shrink-0 text-lg leading-none" aria-hidden>
+        ›
+      </span>
+    </a>
+  );
+}
 
 export default async function CourtDetailPage({ params }: PageProps) {
   const { id } = await params;
@@ -41,75 +64,75 @@ export default async function CourtDetailPage({ params }: PageProps) {
 
   return (
     <>
-      {/* 1. 헤더: 메인화면과 동일 */}
       <CourtSearchHeader courts={[court]} />
 
-      <main className="pt-[73px] min-h-screen bg-[#000000]">
-        <div className="mx-auto max-w-4xl px-6 py-8">
-          {/* 1. basic_court_name, basic_owner_type, 코트정보 알려주기 배너, 예약하러가기 */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-            <div className="flex flex-wrap items-center gap-2 min-w-0">
-              <h1 className="text-xl font-bold text-white truncate">
-                {court.basic_court_name ?? "(이름 없음)"}
-              </h1>
-              <span className="rounded text-xs font-medium text-white pt-1 pb-1 pl-1.5 pr-1.5 bg-[#2C2C2C] flex-shrink-0 whitespace-nowrap">
-                {court.basic_owner_type ?? ""}
-              </span>
-              <a
-                href="/"
-                className="flex items-center gap-1.5 rounded-lg bg-[#2C2C2C] px-3 py-2 text-sm text-[#B0B0B0] hover:bg-[#333333] transition flex-shrink-0"
-              >
-                <span className="text-[#E6B800]">●</span>
-                <span>나만 아는 코트가 있으신가요?</span>
-                <span className="font-medium text-white">코트 정보 알려주기</span>
-                <span className="text-white">→</span>
-              </a>
+      {/* 헤더 검색창과 동일하게 1032px 이상에서만 2열 + 우측 사이드 표시 (lg=1024만 쓰면 사이드바가 비는 구간 발생) */}
+      <main className="pt-[73px] min-h-screen bg-black pb-44 min-[1032px]:pb-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 min-[1032px]:px-8 py-6 min-[1032px]:py-8">
+          <div className="min-[1032px]:grid min-[1032px]:grid-cols-12 min-[1032px]:gap-8 min-[1032px]:items-stretch">
+            {/* 좌측 메인 (~70–75%) */}
+            <div className="min-[1032px]:col-span-8 xl:col-span-9 space-y-6 min-w-0">
+              <CourtInfoBanner />
+
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-white truncate">
+                    {court.basic_court_name ?? "(이름 없음)"}
+                  </h1>
+                  {court.basic_owner_type ? (
+                    <span className="rounded text-xs font-medium text-white px-2 py-1 bg-[#2C2C2C] flex-shrink-0 whitespace-nowrap">
+                      {court.basic_owner_type}
+                    </span>
+                  ) : null}
+                </div>
+                <a
+                  href="/"
+                  className="hidden min-[1032px]:inline-flex items-center gap-1.5 rounded-xl border border-[#2C2C2C] bg-[#1A1A1B] px-4 py-2.5 text-sm text-[#B0B0B0] hover:bg-[#252528] transition flex-shrink-0"
+                >
+                  <span aria-hidden>🎾</span>
+                  <span>
+                    나만 아는 코트가 있으신가요?{" "}
+                    <span className="text-white font-medium">코트 정보 알려주기</span>
+                  </span>
+                  <span className="text-white" aria-hidden>
+                    ›
+                  </span>
+                </a>
+              </div>
+
+              <section aria-label="예약 오픈 정보">
+                <CourtDetailBookingSection court={court} />
+              </section>
+
+              <section className="space-y-3">
+                <CourtDetailAddress court={court} />
+                <CourtDetailMap court={court} />
+              </section>
+
+              <section>
+                <h2 className="text-white font-semibold mb-3">코트</h2>
+                <CourtDetailTable court={court} />
+              </section>
+
+              <section>
+                <h2 className="text-white font-semibold mb-3">부가 정보</h2>
+                <div className="rounded-xl border border-[#2C2C2C] bg-[#1A1A1B] px-4 py-4 text-sm text-[#B0B0B0] whitespace-pre-wrap min-h-[120px]">
+                  {court.etc_desc != null && court.etc_desc.trim() !== ""
+                    ? court.etc_desc
+                    : "등록된 부가 정보가 없습니다."}
+                </div>
+              </section>
             </div>
-            {court.booking_site_link && (
-              <a
-                href={court.booking_site_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-gtm="reserve_click"
-                data-court-id={court.id}
-                data-court-name={court.basic_court_name}
-                className="flex-shrink-0 flex items-center justify-center px-5 py-2.5 rounded-lg bg-[#2C8B56] text-white font-medium hover:bg-[#53A978] transition"
-              >
-                예약하러가기
-              </a>
-            )}
+
+            {/* 우측 사이드바 (~25–30%), 1032px 이상만 */}
+            <div className="hidden min-[1032px]:block min-[1032px]:col-span-4 xl:col-span-3 min-w-0">
+              <CourtDetailAside court={court} />
+            </div>
           </div>
-
-          {/* 2. ruleType별 코트 오픈 시간 */}
-          <section className="mb-6">
-            <CourtDetailBookingSection court={court} />
-          </section>
-
-          {/* 3. basic_address */}
-          <section className="mb-6">
-            <CourtDetailAddress court={court} />
-          </section>
-
-          {/* 4. 네이버 지도 API (나중에 개발할 부분, 현재 빈칸) */}
-          <section className="mb-6">
-            <CourtDetailMap court={court} />
-          </section>
-
-          {/* 5. 코트 종류 정보 */}
-          <section className="mb-6">
-            <h2 className="text-white font-semibold mb-2">코트</h2>
-            <CourtDetailTable court={court} />
-          </section>
-
-          {/* 6. 부가 정보 (etc_desc) */}
-          <section>
-            <h2 className="text-white font-semibold mb-2">부가 정보</h2>
-            <div className="text-[#B0B0B0] text-sm whitespace-pre-wrap">
-              {court.etc_desc != null && court.etc_desc.trim() !== "" ? court.etc_desc : "등록된 부가 정보가 없습니다."}
-            </div>
-          </section>
         </div>
       </main>
+
+      <CourtDetailMobileBookBar court={court} />
     </>
   );
 }
