@@ -23,7 +23,7 @@ export function BookingOpenCardRow({ label, labelTone, children }: Props) {
       >
         {label}
       </span>
-      <div className="flex min-h-[48px] w-full items-center justify-center px-14 sm:px-16 text-center text-sm text-white break-words">
+      <div className="flex min-h-[48px] w-full items-center justify-end min-[1032px]:justify-center pl-14 pr-4 sm:pl-16 sm:pr-5 min-[1032px]:px-16 text-right min-[1032px]:text-center text-sm text-white break-words">
         <span className="max-w-full leading-snug">{children}</span>
       </div>
     </div>
