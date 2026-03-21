@@ -20,7 +20,7 @@ function buildDeviceCalendarUrl(params: {
   const title = `[${badge}] ${courtName} 예약 오픈`;
   const details = `${courtName} 예약 오픈 시간입니다.`;
   const q = new URLSearchParams({
-    text: title,
+    title,
     description: details,
     start: start.toISOString(),
     durationMin: "10",
