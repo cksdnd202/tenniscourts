@@ -8,7 +8,10 @@ import {
   bookingOpenLabelTextClass,
   type BookingOpenLabelTone,
 } from "./detailLayoutStyles";
+import type { CalendarAndroidEventPayload } from "./calendarAndroidPayload";
 import { CalendarRegisterButton } from "./CalendarRegisterButton";
+
+const DEFAULT_CAL_DURATION_MIN = 10;
 
 function buildDeviceCalendarUrl(params: {
   courtName: string;
@@ -23,12 +26,34 @@ function buildDeviceCalendarUrl(params: {
     title,
     description: details,
     start: start.toISOString(),
-    durationMin: "10",
+    durationMin: String(DEFAULT_CAL_DURATION_MIN),
   });
   if (address && address.trim()) {
     q.set("location", address.trim());
   }
   return `/api/calendar-event?${q.toString()}`;
+}
+
+function buildCalendarLinks(params: {
+  courtName: string;
+  badge: string;
+  start: Date;
+  address?: string | null;
+}): { ics: string; androidEvent: CalendarAndroidEventPayload } {
+  const { courtName, badge, start, address } = params;
+  const end = new Date(start.getTime() + DEFAULT_CAL_DURATION_MIN * 60 * 1000);
+  const title = `[${badge}] ${courtName} 예약 오픈`;
+  const description = `${courtName} 예약 오픈 시간입니다.`;
+  return {
+    ics: buildDeviceCalendarUrl(params),
+    androidEvent: {
+      title,
+      description,
+      location: address?.trim() || undefined,
+      startIso: start.toISOString(),
+      endIso: end.toISOString(),
+    },
+  };
 }
 
 /** 다음 예약 오픈: 뱃지(구민·시민·일반) + 제목 한 줄, 날짜(좌)·시간(우) 한 줄 */
@@ -37,14 +62,14 @@ function NextOpenPreviewCard({
   badgeTone,
   dateLabel,
   timeLabel,
-  calendarUrl,
+  calendarLinks,
   compact = false,
 }: {
   badge: string;
   badgeTone: BookingOpenLabelTone;
   dateLabel: string;
   timeLabel: string;
-  calendarUrl?: string;
+  calendarLinks?: { ics: string; androidEvent: CalendarAndroidEventPayload };
   compact?: boolean;
 }) {
   const badgeTextClass = bookingOpenLabelTextClass[badgeTone];
@@ -68,7 +93,13 @@ function NextOpenPreviewCard({
             다음 예약 오픈 일
           </span>
         </div>
-        {calendarUrl ? <CalendarRegisterButton calendarPath={calendarUrl} compact={compact} /> : null}
+        {calendarLinks ? (
+          <CalendarRegisterButton
+            icsPath={calendarLinks.ics}
+            androidEvent={calendarLinks.androidEvent}
+            compact={compact}
+          />
+        ) : null}
       </div>
       <div className="flex w-full min-w-0 flex-nowrap items-baseline justify-between gap-3">
         <span
@@ -105,7 +136,7 @@ export function CourtDetailAside({ court }: { court: Court }) {
             badgeTone="priority"
             dateLabel={ownerOpen.dateLabel}
             timeLabel={ownerOpen.timeLabel}
-            calendarUrl={buildDeviceCalendarUrl({
+            calendarLinks={buildCalendarLinks({
               courtName: court.basic_court_name ?? "테니스장",
               badge: priorityLabel,
               start: ownerOpen.instant,
@@ -120,7 +151,7 @@ export function CourtDetailAside({ court }: { court: Court }) {
             badgeTone="general"
             dateLabel={normalOpen.dateLabel}
             timeLabel={normalOpen.timeLabel}
-            calendarUrl={buildDeviceCalendarUrl({
+            calendarLinks={buildCalendarLinks({
               courtName: court.basic_court_name ?? "테니스장",
               badge: "일반",
               start: normalOpen.instant,
@@ -172,7 +203,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
                   badgeTone="priority"
                   dateLabel={ownerOpen.dateLabel}
                   timeLabel={ownerOpen.timeLabel}
-                  calendarUrl={buildDeviceCalendarUrl({
+                  calendarLinks={buildCalendarLinks({
                     courtName: court.basic_court_name ?? "테니스장",
                     badge: priorityLabel,
                     start: ownerOpen.instant,
@@ -189,7 +220,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
                   badgeTone="general"
                   dateLabel={normalOpen.dateLabel}
                   timeLabel={normalOpen.timeLabel}
-                  calendarUrl={buildDeviceCalendarUrl({
+                  calendarLinks={buildCalendarLinks({
                     courtName: court.basic_court_name ?? "테니스장",
                     badge: "일반",
                     start: normalOpen.instant,
@@ -207,7 +238,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
             badgeTone="priority"
             dateLabel={ownerOpen.dateLabel}
             timeLabel={ownerOpen.timeLabel}
-            calendarUrl={buildDeviceCalendarUrl({
+            calendarLinks={buildCalendarLinks({
               courtName: court.basic_court_name ?? "테니스장",
               badge: priorityLabel,
               start: ownerOpen.instant,
@@ -222,7 +253,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
             badgeTone="general"
             dateLabel={normalOpen.dateLabel}
             timeLabel={normalOpen.timeLabel}
-            calendarUrl={buildDeviceCalendarUrl({
+            calendarLinks={buildCalendarLinks({
               courtName: court.basic_court_name ?? "테니스장",
               badge: "일반",
               start: normalOpen.instant,
