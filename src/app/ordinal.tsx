@@ -60,7 +60,7 @@ export function OrdinalContent({ court }: { court: Court }) {
             {court.booking_eligibility_first && (court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen") && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#2B523C]">
+                  <span className="text-[#6FCF97]">
                     {court.booking_eligibility_first === "resident" ? "구민" : "시민"} :{" "}
                   </span>
                   {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}

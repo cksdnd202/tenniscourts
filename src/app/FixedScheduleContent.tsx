@@ -79,9 +79,18 @@ export function FixedScheduleContent({ court }: { court: Court }) {
                   <span className="text-white font-semibold">
                     {court.booking_open_day_normal != null ? `${court.booking_normal_iscurrentmonth ? "당월 " : ""}${court.booking_open_day_normal}일 ` : ""}
                     {formatTime(court.booking_open_time_normal)}
-                    {`, `}
+                    {(() => {
+                      if (court.booking_normal_iscurrentmonth === true) return ", 당월 ";
+                      return ", ";
+                    })()}
                   </span>
-                  <span className="text-white font-semibold">{court.booking_open_offset != null ? `${court.booking_open_offset}` : ""}</span>
+                  <span className="text-white font-semibold">
+                    {court.booking_normal_iscurrentmonth === true
+                      ? ""
+                      : court.booking_open_offset != null
+                        ? `${court.booking_open_offset}`
+                        : ""}
+                  </span>
                   <span className="text-white font-normal"> 예약 오픈</span>
                 </p>
               </div>
@@ -124,10 +133,11 @@ export function FixedScheduleContent({ court }: { court: Court }) {
                       const month = formatWeekOfMonth(court.booking_open_day_of_month);
                       const week = formatDayOfWeek(court.booking_open_day_of_week);
                       const time = formatTime(court.booking_open_time_normal);
-                      if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, 다음달 `;
-                      if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
-                      if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
-                      return time ? `${time}, 다음달 ` : "";
+                      const monthLabel = court.booking_normal_iscurrentmonth ? "당월" : "다음달";
+                      if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, ${monthLabel} `;
+                      if (month) return `${month}${time ? ` ${time}` : ""}, ${monthLabel} `;
+                      if (week) return `${week}${time ? ` ${time}` : ""}, ${monthLabel} `;
+                      return time ? `${time}, ${monthLabel} ` : "";
                       return "";
                     })()}
                   </span>

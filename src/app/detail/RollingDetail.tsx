@@ -2,7 +2,7 @@ import type { Court } from "../types";
 import { formatTime } from "../styles";
 import { CourtDetailCommon } from "./CourtDetailCommon";
 import { BookingOpenCardRow } from "./BookingOpenCardRow";
-import { detailCard, detailMuted, detailNoPriorityClass } from "./detailLayoutStyles";
+import { detailCard, detailNoNormalClass, detailNoPriorityClass } from "./detailLayoutStyles";
 
 const bookingGrid = "grid grid-cols-1 gap-3 min-[1032px]:grid-cols-2 min-[1032px]:gap-4";
 
@@ -39,7 +39,7 @@ function RollingBookingBlock({ court }: { court: Court }) {
             </span>
           </BookingOpenCardRow>
         ) : (
-          <span className={detailMuted}>—</span>
+          <span className={detailNoNormalClass}>일반 예약 권한 없음</span>
         )}
       </div>
     </div>

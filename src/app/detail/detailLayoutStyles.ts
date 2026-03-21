@@ -8,6 +8,10 @@ export const detailMuted = "text-[#B0B0B0]";
 export const detailNoPriorityClass =
   "block w-full text-center text-[#888888] text-sm font-normal leading-relaxed";
 
+/** 일반 예약 정보가 없을 때 오른쪽 카드 문구 */
+export const detailNoNormalClass =
+  "block w-full text-center text-[#888888] text-sm font-normal leading-relaxed";
+
 /** 예약 오픈 카드 좌측 라벨(구민·시민 / 일반) · 사이드바 뱃지 글자색 공통 */
 export type BookingOpenLabelTone = "priority" | "general";
 

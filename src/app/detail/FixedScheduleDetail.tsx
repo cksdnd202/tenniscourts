@@ -2,7 +2,7 @@ import type { Court } from "../types";
 import { formatTime } from "../styles";
 import { CourtDetailCommon } from "./CourtDetailCommon";
 import { BookingOpenCardRow } from "./BookingOpenCardRow";
-import { detailCard, detailMuted, detailNoPriorityClass } from "./detailLayoutStyles";
+import { detailCard, detailNoNormalClass, detailNoPriorityClass } from "./detailLayoutStyles";
 
 const formatWeekOfMonth = (week: number | string | null | undefined): string => {
   if (week == null) return "";
@@ -56,11 +56,16 @@ function FixedScheduleBookingBlock({ court }: { court: Court }) {
                   ? `${court.booking_normal_iscurrentmonth ? "당월 " : ""}${court.booking_open_day_normal}일 `
                   : ""}
                 {formatTime(court.booking_open_time_normal)}
-                {court.booking_open_offset != null ? `, ${court.booking_open_offset}` : ""} 예약 오픈
+                {(() => {
+                  if (court.booking_normal_iscurrentmonth === true) return ", 당월";
+                  if (court.booking_open_offset != null) return `, ${court.booking_open_offset}`;
+                  return "";
+                })()}{" "}
+                예약 오픈
               </span>
             </BookingOpenCardRow>
           ) : (
-            <span className={detailMuted}>—</span>
+            <span className={detailNoNormalClass}>일반 예약 권한 없음</span>
           )}
         </div>
       </div>
@@ -104,17 +109,18 @@ function FixedScheduleBookingBlock({ court }: { court: Court }) {
                     const month = formatWeekOfMonth(court.booking_open_day_of_month);
                     const week = formatDayOfWeek(court.booking_open_day_of_week);
                     const time = formatTime(court.booking_open_time_normal);
-                    if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, 다음달 `;
-                    if (month) return `${month}${time ? ` ${time}` : ""}, 다음달 `;
-                    if (week) return `${week}${time ? ` ${time}` : ""}, 다음달 `;
-                    return time ? `${time}, 다음달 ` : "";
+                    const monthLabel = court.booking_normal_iscurrentmonth ? "당월" : "다음달";
+                    if (month && week) return `${month} ${week}${time ? ` ${time}` : ""}, ${monthLabel} `;
+                    if (month) return `${month}${time ? ` ${time}` : ""}, ${monthLabel} `;
+                    if (week) return `${week}${time ? ` ${time}` : ""}, ${monthLabel} `;
+                    return time ? `${time}, ${monthLabel} ` : "";
                   })()}
                 </span>
                 <span className="font-normal">예약 오픈</span>
               </>
             </BookingOpenCardRow>
           ) : (
-            <span className={detailMuted}>—</span>
+            <span className={detailNoNormalClass}>일반 예약 권한 없음</span>
           )}
         </div>
       </div>
@@ -147,7 +153,7 @@ function FixedScheduleBookingBlock({ court }: { court: Court }) {
             </span>
           </BookingOpenCardRow>
         ) : (
-          <span className={detailMuted}>—</span>
+          <span className={detailNoNormalClass}>일반 예약 권한 없음</span>
         )}
       </div>
     </div>

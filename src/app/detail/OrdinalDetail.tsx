@@ -2,7 +2,7 @@ import type { Court } from "../types";
 import { formatTime } from "../styles";
 import { CourtDetailCommon } from "./CourtDetailCommon";
 import { BookingOpenCardRow } from "./BookingOpenCardRow";
-import { detailCard, detailMuted, detailNoPriorityClass } from "./detailLayoutStyles";
+import { detailCard, detailNoNormalClass, detailNoPriorityClass } from "./detailLayoutStyles";
 
 const formatWeekOfMonth = (week: number | string | null | undefined): string => {
   if (week == null) return "";
@@ -78,7 +78,7 @@ function OrdinalBookingBlock({ court }: { court: Court }) {
               </>
             </BookingOpenCardRow>
           ) : (
-            <span className={detailMuted}>—</span>
+            <span className={detailNoNormalClass}>일반 예약 권한 없음</span>
           )}
         </div>
       </div>
@@ -131,7 +131,7 @@ function OrdinalBookingBlock({ court }: { court: Court }) {
             </>
           </BookingOpenCardRow>
         ) : (
-          <span className={detailMuted}>—</span>
+          <span className={detailNoNormalClass}>일반 예약 권한 없음</span>
         )}
       </div>
     </div>

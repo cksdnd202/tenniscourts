@@ -73,22 +73,25 @@ function dayOfMonthForNthWeekday(
   courtWeekdayRaw: unknown,
   ordinalRaw: unknown
 ): number | null {
-  const wd = toFiniteInt(courtWeekdayRaw);
   const ordinal = toFiniteInt(ordinalRaw);
-  if (wd == null || ordinal == null) return null;
-  const want = courtWeekdayToJs(wd);
+  if (ordinal == null) return null;
   const dim = daysInMonth(y, m);
 
-  if (ordinal === -1) {
-    for (let d = dim; d >= 1; d--) {
-      if (getSeoulWeekday(y, m, d) === want) return d;
-    }
-    return null;
-  }
   if (ordinal === -2) {
     for (let d = 1; d <= dim; d++) {
       const w = getSeoulWeekday(y, m, d);
       if (w >= 1 && w <= 5) return d;
+    }
+    return null;
+  }
+
+  const wd = toFiniteInt(courtWeekdayRaw);
+  if (wd == null) return null;
+  const want = courtWeekdayToJs(wd);
+
+  if (ordinal === -1) {
+    for (let d = dim; d >= 1; d--) {
+      if (getSeoulWeekday(y, m, d) === want) return d;
     }
     return null;
   }
@@ -189,7 +192,9 @@ function nextWeekRuleOpen(
 ): Date | null {
   const weekOrdinal = toFiniteInt(weekOrdinalRaw);
   const weekday = toFiniteInt(weekdayRaw);
-  if (weekday == null || weekOrdinal == null) return null;
+  if (weekOrdinal == null) return null;
+  // 첫번째 영업일(-2)은 요일 값 없이도 계산 가능
+  if (weekOrdinal !== -2 && weekday == null) return null;
   const t = parseTimeParts(timeStr);
   if (!t) return null;
 
