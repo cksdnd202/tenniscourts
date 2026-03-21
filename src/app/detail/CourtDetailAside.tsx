@@ -34,18 +34,46 @@ function buildDeviceCalendarUrl(params: {
   return `/api/calendar-event?${q.toString()}`;
 }
 
+function toGoogleCalendarUtc(date: Date): string {
+  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
+/** 안드로이드: 인텐트 실패 시 Chrome 폴백용 구글 캘린더 웹 */
+function buildGoogleCalendarAddUrl(params: {
+  courtName: string;
+  badge: string;
+  start: Date;
+  address?: string | null;
+}): string {
+  const { courtName, badge, start, address } = params;
+  const end = new Date(start.getTime() + DEFAULT_CAL_DURATION_MIN * 60 * 1000);
+  const title = `[${badge}] ${courtName} 예약 오픈`;
+  const details = `${courtName} 예약 오픈 시간입니다.`;
+  const q = new URLSearchParams({
+    action: "TEMPLATE",
+    text: title,
+    dates: `${toGoogleCalendarUtc(start)}/${toGoogleCalendarUtc(end)}`,
+    details,
+  });
+  if (address && address.trim()) {
+    q.set("location", address.trim());
+  }
+  return `https://calendar.google.com/calendar/render?${q.toString()}`;
+}
+
 function buildCalendarLinks(params: {
   courtName: string;
   badge: string;
   start: Date;
   address?: string | null;
-}): { ics: string; androidEvent: CalendarAndroidEventPayload } {
+}): { ics: string; google: string; androidEvent: CalendarAndroidEventPayload } {
   const { courtName, badge, start, address } = params;
   const end = new Date(start.getTime() + DEFAULT_CAL_DURATION_MIN * 60 * 1000);
   const title = `[${badge}] ${courtName} 예약 오픈`;
   const description = `${courtName} 예약 오픈 시간입니다.`;
   return {
     ics: buildDeviceCalendarUrl(params),
+    google: buildGoogleCalendarAddUrl(params),
     androidEvent: {
       title,
       description,
@@ -69,7 +97,7 @@ function NextOpenPreviewCard({
   badgeTone: BookingOpenLabelTone;
   dateLabel: string;
   timeLabel: string;
-  calendarLinks?: { ics: string; androidEvent: CalendarAndroidEventPayload };
+  calendarLinks?: { ics: string; google: string; androidEvent: CalendarAndroidEventPayload };
   compact?: boolean;
 }) {
   const badgeTextClass = bookingOpenLabelTextClass[badgeTone];
@@ -96,6 +124,7 @@ function NextOpenPreviewCard({
         {calendarLinks ? (
           <CalendarRegisterButton
             icsPath={calendarLinks.ics}
+            googleCalendarUrl={calendarLinks.google}
             androidEvent={calendarLinks.androidEvent}
             compact={compact}
           />

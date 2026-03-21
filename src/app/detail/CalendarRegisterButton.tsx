@@ -3,12 +3,22 @@
 import type { CalendarAndroidEventPayload } from "./calendarAndroidPayload";
 
 type Props = {
-  /** 단일 일정 .ics (iOS·데스크톱 등) */
+  /** iOS 등: .ics 링크 */
   icsPath: string;
-  /** 안드로이드: 시스템이 처리할 일정 INSERT 인텐트용 메타 */
+  /** 안드로이드: 인텐트 실패·보조 폴백용 구글 캘린더 웹 */
+  googleCalendarUrl: string;
   androidEvent: CalendarAndroidEventPayload;
   compact?: boolean;
 };
+
+/** PC(윈도우·맥 등) 데스크톱 브라우저 — 모바일만 캘린더 등록 허용 */
+function isDesktopPc(): boolean {
+  if (typeof navigator === "undefined") return true;
+  const ua = navigator.userAgent;
+  if (/Android/i.test(ua)) return false;
+  if (/iPhone|iPad|iPod/i.test(ua)) return false;
+  return true;
+}
 
 function isAndroidUa(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -17,14 +27,11 @@ function isAndroidUa(): boolean {
 
 /**
  * Android Intent URI: ACTION_INSERT + vnd.android.cursor.item/event
- * → 삼성/구글 등 기본 캘린더 앱의 "새 일정" 화면으로 열리는 경우가 많음.
- * Chrome: S.browser_fallback_url 로 처리 실패 시 .ics URL 로 폴백.
- *
- * @see https://developer.chrome.com/docs/multidevice/android/intents
+ * browser_fallback_url 은 .ics 가 아니라 구글 캘린더(다운로드 방지).
  */
 function buildAndroidCalendarInsertIntentUrl(
   event: CalendarAndroidEventPayload,
-  browserFallbackAbsoluteUrl: string
+  browserFallbackGoogleCalendarUrl: string
 ): string {
   const beginMs = new Date(event.startIso).getTime();
   const endMs = new Date(event.endIso).getTime();
@@ -43,25 +50,37 @@ function buildAndroidCalendarInsertIntentUrl(
   if (event.location?.trim()) {
     parts.push(`S.eventLocation=${enc(event.location.trim())}`);
   }
-  parts.push(`S.browser_fallback_url=${enc(browserFallbackAbsoluteUrl)}`, "end");
+  parts.push(`S.browser_fallback_url=${enc(browserFallbackGoogleCalendarUrl)}`, "end");
   return parts.join(";");
 }
 
-/**
- * - iOS / 대부분 데스크톱: .ics 링크
- * - Android: 기본 캘린더용 INSERT 인텐트 (실패 시 브라우저가 .ics URL 로 폴백)
- */
-export function CalendarRegisterButton({ icsPath, androidEvent, compact = false }: Props) {
+export function CalendarRegisterButton({ icsPath, googleCalendarUrl, androidEvent, compact = false }: Props) {
   const className = compact
     ? "text-[11px] text-[#8A8F98] underline underline-offset-2"
     : "text-sm text-[#8A8F98] underline underline-offset-2";
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (!isAndroidUa()) return;
+    if (isDesktopPc()) {
+      e.preventDefault();
+      window.alert("캘린더 등록은 모바일에서만 가능합니다");
+      return;
+    }
+
+    if (!isAndroidUa()) {
+      // iOS 등: 기본 동작으로 .ics 열기
+      return;
+    }
+
     e.preventDefault();
-    const fallback = new URL(icsPath, window.location.origin).href;
-    const intentUrl = buildAndroidCalendarInsertIntentUrl(androidEvent, fallback);
+    const intentUrl = buildAndroidCalendarInsertIntentUrl(androidEvent, googleCalendarUrl);
     window.location.href = intentUrl;
+
+    // 인텐트가 무시되고 화면에 그대로 남은 경우 → 구글 캘린더로 2차 시도
+    window.setTimeout(() => {
+      if (document.visibilityState === "visible") {
+        window.open(googleCalendarUrl, "_blank", "noopener,noreferrer");
+      }
+    }, 850);
   };
 
   return (
