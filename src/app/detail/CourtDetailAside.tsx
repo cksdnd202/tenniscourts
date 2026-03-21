@@ -8,6 +8,28 @@ import {
   bookingOpenLabelTextClass,
   type BookingOpenLabelTone,
 } from "./detailLayoutStyles";
+import { CalendarRegisterButton } from "./CalendarRegisterButton";
+
+function buildDeviceCalendarUrl(params: {
+  courtName: string;
+  badge: string;
+  start: Date;
+  address?: string | null;
+}): string {
+  const { courtName, badge, start, address } = params;
+  const title = `[${badge}] ${courtName} 예약 오픈`;
+  const details = `${courtName} 예약 오픈 시간입니다.`;
+  const q = new URLSearchParams({
+    text: title,
+    description: details,
+    start: start.toISOString(),
+    durationMin: "10",
+  });
+  if (address && address.trim()) {
+    q.set("location", address.trim());
+  }
+  return `/api/calendar-event?${q.toString()}`;
+}
 
 /** 다음 예약 오픈: 뱃지(구민·시민·일반) + 제목 한 줄, 날짜(좌)·시간(우) 한 줄 */
 function NextOpenPreviewCard({
@@ -15,12 +37,14 @@ function NextOpenPreviewCard({
   badgeTone,
   dateLabel,
   timeLabel,
+  calendarUrl,
   compact = false,
 }: {
   badge: string;
   badgeTone: BookingOpenLabelTone;
   dateLabel: string;
   timeLabel: string;
+  calendarUrl?: string;
   compact?: boolean;
 }) {
   const badgeTextClass = bookingOpenLabelTextClass[badgeTone];
@@ -31,17 +55,20 @@ function NextOpenPreviewCard({
         compact ? "px-4 pt-4 pb-3" : "px-4 py-4"
       }`}
     >
-      <div className={`flex flex-wrap items-center gap-2 ${compact ? "mb-3" : "mb-4"}`}>
-        <span
-          className={`shrink-0 rounded-md bg-[#0D0D0F] font-medium ring-1 ring-white/5 ${badgeTextClass} ${
-            compact ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs"
-          }`}
-        >
-          {badge}
-        </span>
-        <span className={compact ? "text-xs text-white" : "text-sm text-white"}>
-          다음 예약 오픈 일
-        </span>
+      <div className={`flex items-center justify-between gap-2 ${compact ? "mb-3" : "mb-4"}`}>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span
+            className={`shrink-0 rounded-md bg-[#0D0D0F] font-medium ring-1 ring-white/5 ${badgeTextClass} ${
+              compact ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs"
+            }`}
+          >
+            {badge}
+          </span>
+          <span className={compact ? "text-xs text-white" : "text-sm text-white"}>
+            다음 예약 오픈 일
+          </span>
+        </div>
+        {calendarUrl ? <CalendarRegisterButton calendarPath={calendarUrl} compact={compact} /> : null}
       </div>
       <div className="flex w-full min-w-0 flex-nowrap items-baseline justify-between gap-3">
         <span
@@ -78,6 +105,12 @@ export function CourtDetailAside({ court }: { court: Court }) {
             badgeTone="priority"
             dateLabel={ownerOpen.dateLabel}
             timeLabel={ownerOpen.timeLabel}
+            calendarUrl={buildDeviceCalendarUrl({
+              courtName: court.basic_court_name ?? "테니스장",
+              badge: priorityLabel,
+              start: ownerOpen.instant,
+              address: court.basic_address,
+            })}
           />
         ) : null}
 
@@ -87,6 +120,12 @@ export function CourtDetailAside({ court }: { court: Court }) {
             badgeTone="general"
             dateLabel={normalOpen.dateLabel}
             timeLabel={normalOpen.timeLabel}
+            calendarUrl={buildDeviceCalendarUrl({
+              courtName: court.basic_court_name ?? "테니스장",
+              badge: "일반",
+              start: normalOpen.instant,
+              address: court.basic_address,
+            })}
           />
         ) : null}
 
@@ -133,6 +172,12 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
                   badgeTone="priority"
                   dateLabel={ownerOpen.dateLabel}
                   timeLabel={ownerOpen.timeLabel}
+                  calendarUrl={buildDeviceCalendarUrl({
+                    courtName: court.basic_court_name ?? "테니스장",
+                    badge: priorityLabel,
+                    start: ownerOpen.instant,
+                    address: court.basic_address,
+                  })}
                   compact
                 />
               </div>
@@ -144,6 +189,12 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
                   badgeTone="general"
                   dateLabel={normalOpen.dateLabel}
                   timeLabel={normalOpen.timeLabel}
+                  calendarUrl={buildDeviceCalendarUrl({
+                    courtName: court.basic_court_name ?? "테니스장",
+                    badge: "일반",
+                    start: normalOpen.instant,
+                    address: court.basic_address,
+                  })}
                   compact
                 />
               </div>
@@ -156,6 +207,12 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
             badgeTone="priority"
             dateLabel={ownerOpen.dateLabel}
             timeLabel={ownerOpen.timeLabel}
+            calendarUrl={buildDeviceCalendarUrl({
+              courtName: court.basic_court_name ?? "테니스장",
+              badge: priorityLabel,
+              start: ownerOpen.instant,
+              address: court.basic_address,
+            })}
             compact
           />
         ) : null}
@@ -165,6 +222,12 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
             badgeTone="general"
             dateLabel={normalOpen.dateLabel}
             timeLabel={normalOpen.timeLabel}
+            calendarUrl={buildDeviceCalendarUrl({
+              courtName: court.basic_court_name ?? "테니스장",
+              badge: "일반",
+              start: normalOpen.instant,
+              address: court.basic_address,
+            })}
             compact
           />
         ) : null}
