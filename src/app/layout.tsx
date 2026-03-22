@@ -17,6 +17,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             })(window,document,'script','dataLayer','GTM-NSKRJJRG');
           `}
         </Script>
+        <title>한국 테니스장 예약 정보 | Courts Korea</title>
+        <meta name="description" content="한국에 있는 모든 테니스장의 예약 정보를 제공합니다." />
+        {/* Open Graph */}
+        <meta property="og:title" content="한국 테니스장 예약 정보 | Courts Korea" />
+        <meta property="og:description" content="한국에 있는 모든 테니스장의 예약 정보를 제공합니다." />
+        <meta property="og:image" content="/og-image.png" />
+        <meta property="og:url" content="https://courtskorea.com" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Courts Korea" />
+        <meta property="og:locale" content="ko_KR" />
+        <meta property="og:locale:alternate" content="en_US" />
+        {/* Twitter Cards */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="한국 테니스장 예약 정보 | Courts Korea" />
+        <meta name="twitter:description" content="한국에 있는 모든 테니스장의 예약 정보를 제공합니다." />
+        <meta name="twitter:image" content="/og-image.png" />
+        <meta name="twitter:url" content="https://courtskorea.com" />
+        <meta name="twitter:site" content="@courtskorea" />
+        <meta name="twitter:creator" content="@courtskorea" />
+        <meta name="twitter:domain" content="courtskorea.com" />
+        <meta name="robots" content="index, follow" />
       </head>
       <body className="font-sans">
         {/* ✅ GTM - body 바로 뒤 (noscript) */}

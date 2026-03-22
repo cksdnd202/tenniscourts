@@ -78,7 +78,7 @@ export function CourtSearchHeader({ courts }: Props) {
               className="text-left"
             >
               <span className="text-xl font-black tracking-tight text-white">
-                GROUND KOREA
+                Courts KOREA
               </span>
             </button>
           </div>
@@ -166,7 +166,7 @@ export function CourtSearchHeader({ courts }: Props) {
             className="text-left"
           >
             <span className="text-xl font-black tracking-tight text-white">
-              GROUND KOREA
+              Courts KOREA
             </span>
           </button>
           <button

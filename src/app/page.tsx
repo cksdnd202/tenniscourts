@@ -17,7 +17,7 @@ export default async function Home() {
   if (error) {
     return (
       <main className="max-w-3xl mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-4">🎾 Ground Korea</h1>
+        <h1 className="text-2xl font-bold mb-4">🎾 Courts Korea</h1>
         <p className="text-red-8600">에러: {error.message}</p>
       </main>
     );
