@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import type { Metadata } from "next";
 import type { Court } from "../../types";
 import { CourtSearchHeader } from "../../CourtSearchHeader";
 import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSection";
@@ -8,6 +9,43 @@ import { CourtDetailAside, CourtDetailMobileBookBar } from "../../detail/CourtDe
 type PageProps = {
   params: Promise<{ id: string }>;
 };
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://courtskorea.com";
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  const { data } = await supabase
+    .from("courtinfo")
+    .select("id, basic_court_name")
+    .eq("id", id)
+    .maybeSingle();
+
+  const courtName =
+    (data as { basic_court_name?: string } | null)?.basic_court_name?.trim() || "테니스코트";
+  const title = `${courtName} 예약 정보`;
+  const description = `${courtName}의 예약 오픈 일정과 예약 정보를 확인하세요.`;
+  const pageUrl = `${siteUrl}/courts/${id}`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: pageUrl,
+      type: "website",
+      siteName: "Courts Korea",
+      locale: "ko_KR",
+      images: ["/og-image.png"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/og-image.png"],
+    },
+  };
+}
 
 function CourtInfoBanner() {
   return (
