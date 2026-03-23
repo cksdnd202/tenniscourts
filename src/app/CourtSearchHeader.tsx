@@ -80,11 +80,11 @@ export function CourtSearchHeader({ courts }: Props) {
               aria-label="홈으로 이동"
             >
               <Image
-                src="/courtskroea_logo.png"
+                src="/courtskroea_logo_svg.svg"
                 alt="Courts Korea"
                 width={200}
                 height={40}
-                className="h-8 w-auto object-contain"
+                className="h-7 w-auto object-contain"
                 priority
               />
             </button>
