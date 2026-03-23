@@ -4,11 +4,21 @@ import "./globals.css";
 import { pretendard } from "./fonts";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://courtskorea.com";
+const logoImage = "/courtskroea_logo.png?v=20260323-1";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "한국 테니스장 예약 정보 | Courts Korea",
   description: "한국에 있는 모든 테니스장의 예약 정보를 제공합니다.",
+  icons: {
+    icon: [
+      { url: "/courtskorea_favicon_16px.png", sizes: "16x16", type: "image/png" },
+      { url: "/courtskorea_favicon_32px.png", sizes: "32x32", type: "image/png" },
+      { url: "/courtskorea_favicon_48px.png", sizes: "48x48", type: "image/png" },
+    ],
+    shortcut: "/courtskorea_favicon.png",
+    apple: "/courtskorea_favicon.png",
+  },
   openGraph: {
     title: "한국 테니스장 예약 정보 | Courts Korea",
     description: "한국에 있는 모든 테니스장의 예약 정보를 제공합니다.",
@@ -16,13 +26,13 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Courts Korea",
     locale: "ko_KR",
-    images: ["/og-image.png"],
+    images: [logoImage],
   },
   twitter: {
     card: "summary_large_image",
     title: "한국 테니스장 예약 정보 | Courts Korea",
     description: "한국에 있는 모든 테니스장의 예약 정보를 제공합니다.",
-    images: ["/og-image.png"],
+    images: [logoImage],
     site: "@courtskorea",
     creator: "@courtskorea",
   },

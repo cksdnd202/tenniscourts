@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Court } from "./types";
@@ -76,10 +77,16 @@ export function CourtSearchHeader({ courts }: Props) {
                 window.location.href = "/";
               }}
               className="text-left"
+              aria-label="홈으로 이동"
             >
-              <span className="text-xl font-black tracking-tight text-white">
-                Courts KOREA
-              </span>
+              <Image
+                src="/courtskroea_logo.png"
+                alt="Courts Korea"
+                width={200}
+                height={40}
+                className="h-9 w-auto object-contain"
+                priority
+              />
             </button>
           </div>
 
@@ -164,10 +171,16 @@ export function CourtSearchHeader({ courts }: Props) {
               window.location.href = "/";
             }}
             className="text-left"
+            aria-label="홈으로 이동"
           >
-            <span className="text-xl font-black tracking-tight text-white">
-              Courts KOREA
-            </span>
+            <Image
+              src="/courtskroea_logo.png"
+              alt="Courts Korea"
+              width={154}
+              height={28}
+              className="h-7 w-auto object-contain"
+              priority
+            />
           </button>
           <button
             type="button"

@@ -11,6 +11,7 @@ type PageProps = {
 };
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://courtskorea.com";
+const logoImage = "/courtskroea_logo.png";
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
@@ -36,13 +37,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       type: "website",
       siteName: "Courts Korea",
       locale: "ko_KR",
-      images: ["/og-image.png"],
+      images: [logoImage],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: ["/og-image.png"],
+      images: [logoImage],
     },
   };
 }
