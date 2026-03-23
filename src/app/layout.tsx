@@ -4,7 +4,7 @@ import "./globals.css";
 import { pretendard } from "./fonts";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://courtskorea.com";
-const logoImage = "/courtskroea_logo.png?v=20260323-1";
+const ogImage = "/courtskroea_ogimg.png?v=20260323-1";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -26,13 +26,13 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Courts Korea",
     locale: "ko_KR",
-    images: [logoImage],
+    images: [ogImage],
   },
   twitter: {
     card: "summary_large_image",
     title: "한국 테니스장 예약 정보 | Courts Korea",
     description: "한국에 있는 모든 테니스장의 예약 정보를 제공합니다.",
-    images: [logoImage],
+    images: [ogImage],
     site: "@courtskorea",
     creator: "@courtskorea",
   },

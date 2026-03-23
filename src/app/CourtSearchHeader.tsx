@@ -66,7 +66,7 @@ export function CourtSearchHeader({ courts }: Props) {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-30 bg-[#000000] border-b border-[#2C2C2C]">
-      <div className="px-7.5 py-4">
+      <div className="px-10 py-5.5">
         {/* 데스크탑: 검색창을 헤더 정중앙에 고정 */}
         <div className="hidden min-[1032px]:flex items-center relative">
           <div className="w-full max-w-xs">
