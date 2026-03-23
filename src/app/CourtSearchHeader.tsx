@@ -84,7 +84,7 @@ export function CourtSearchHeader({ courts }: Props) {
                 alt="Courts Korea"
                 width={200}
                 height={40}
-                className="h-9 w-auto object-contain"
+                className="h-8 w-auto object-contain"
                 priority
               />
             </button>
