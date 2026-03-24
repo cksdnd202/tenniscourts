@@ -563,7 +563,8 @@ export function CourtFilter({ courts }: Props) {
           <a
             href="https://forms.gle/FfvfcDATe5CfH1iR6"
             target="_blank"
-            rel="noopener noreferrer"
+            data-gtm="inform_court_click"
+            rel="noopener"
             className="relative flex flex-col gap-1 px-5 py-3 rounded-xl bg-[#191B1E] hover:bg-[#2C2C2C] transition-colors w-3xs"
           >
             <span className="text-xs text-white">나만 아는 코트가 있으신가요?</span>

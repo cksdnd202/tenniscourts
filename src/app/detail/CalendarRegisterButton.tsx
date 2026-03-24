@@ -9,6 +9,7 @@ type Props = {
   googleCalendarUrl: string;
   androidEvent: CalendarAndroidEventPayload;
   compact?: boolean;
+  gtmAction: "calendar_register_priority_click" | "calendar_register_general_click";
 };
 
 /** PC(윈도우·맥 등) 데스크톱 브라우저 — 모바일만 캘린더 등록 허용 */
@@ -54,7 +55,13 @@ function buildAndroidCalendarInsertIntentUrl(
   return parts.join(";");
 }
 
-export function CalendarRegisterButton({ icsPath, googleCalendarUrl, androidEvent, compact = false }: Props) {
+export function CalendarRegisterButton({
+  icsPath,
+  googleCalendarUrl,
+  androidEvent,
+  compact = false,
+  gtmAction,
+}: Props) {
   const className = compact
     ? "text-[11px] text-[#8A8F98] underline underline-offset-2"
     : "text-sm text-[#8A8F98] underline underline-offset-2";
@@ -84,7 +91,14 @@ export function CalendarRegisterButton({ icsPath, googleCalendarUrl, androidEven
   };
 
   return (
-    <a href={icsPath} target="_blank" rel="noopener noreferrer" onClick={handleClick} className={className}>
+    <a
+      href={icsPath}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={handleClick}
+      className={className}
+      data-gtm={gtmAction}
+    >
       캘린더 등록하기
     </a>
   );

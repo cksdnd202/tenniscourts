@@ -127,6 +127,7 @@ function NextOpenPreviewCard({
             googleCalendarUrl={calendarLinks.google}
             androidEvent={calendarLinks.androidEvent}
             compact={compact}
+            gtmAction={badge === "일반" ? "calendar_register_general_click" : "calendar_register_priority_click"}
           />
         ) : null}
       </div>
