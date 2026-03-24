@@ -239,6 +239,10 @@ export function OrdinalContent({ court }: { court: Court }) {
         {/* 상세보기 버튼 - 코트 상세 페이지로 이동 */}
         <a
           href={`/courts/${court.id}`}
+          rel="noopener"
+          data-gtm="detail_click"
+          data-court-id={court.id}
+          data-court-name={court.basic_court_name}
           className="flex-1 flex items-center justify-center px-3 py-2.5 rounded bg-[#222222] text-white font-normal hover:bg-[#333333] transition"
         >
           상세보기
