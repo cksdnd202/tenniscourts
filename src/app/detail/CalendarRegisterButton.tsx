@@ -10,6 +10,9 @@ type Props = {
   androidEvent: CalendarAndroidEventPayload;
   compact?: boolean;
   gtmAction: "calendar_register_priority_click" | "calendar_register_general_click";
+  courtId?: string;
+  courtName?: string;
+  badge?: string;
 };
 
 /** PC(윈도우·맥 등) 데스크톱 브라우저 — 모바일만 캘린더 등록 허용 */
@@ -61,6 +64,9 @@ export function CalendarRegisterButton({
   androidEvent,
   compact = false,
   gtmAction,
+  courtId,
+  courtName,
+  badge,
 }: Props) {
   const className = compact
     ? "text-[11px] text-[#8A8F98] underline underline-offset-2"
@@ -98,6 +104,9 @@ export function CalendarRegisterButton({
       onClick={handleClick}
       className={className}
       data-gtm={gtmAction}
+      data-court-id={courtId}
+      data-court-name={courtName}
+      data-booking-type={badge}
     >
       캘린더 등록하기
     </a>

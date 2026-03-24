@@ -92,6 +92,8 @@ function NextOpenPreviewCard({
   timeLabel,
   calendarLinks,
   compact = false,
+  courtId,
+  courtName,
 }: {
   badge: string;
   badgeTone: BookingOpenLabelTone;
@@ -99,6 +101,8 @@ function NextOpenPreviewCard({
   timeLabel: string;
   calendarLinks?: { ics: string; google: string; androidEvent: CalendarAndroidEventPayload };
   compact?: boolean;
+  courtId?: string;
+  courtName?: string | null;
 }) {
   const badgeTextClass = bookingOpenLabelTextClass[badgeTone];
 
@@ -128,6 +132,9 @@ function NextOpenPreviewCard({
             androidEvent={calendarLinks.androidEvent}
             compact={compact}
             gtmAction={badge === "일반" ? "calendar_register_general_click" : "calendar_register_priority_click"}
+            courtId={courtId}
+            courtName={courtName ?? undefined}
+            badge={badge}
           />
         ) : null}
       </div>
@@ -172,6 +179,8 @@ export function CourtDetailAside({ court }: { court: Court }) {
               start: ownerOpen.instant,
               address: court.basic_address,
             })}
+            courtId={court.id}
+            courtName={court.basic_court_name}
           />
         ) : null}
 
@@ -187,6 +196,8 @@ export function CourtDetailAside({ court }: { court: Court }) {
               start: normalOpen.instant,
               address: court.basic_address,
             })}
+            courtId={court.id}
+            courtName={court.basic_court_name}
           />
         ) : null}
 
@@ -239,6 +250,8 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
                     start: ownerOpen.instant,
                     address: court.basic_address,
                   })}
+                  courtId={court.id}
+                  courtName={court.basic_court_name}
                   compact
                 />
               </div>
@@ -256,6 +269,8 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
                     start: normalOpen.instant,
                     address: court.basic_address,
                   })}
+                  courtId={court.id}
+                  courtName={court.basic_court_name}
                   compact
                 />
               </div>
@@ -274,6 +289,8 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
               start: ownerOpen.instant,
               address: court.basic_address,
             })}
+            courtId={court.id}
+            courtName={court.basic_court_name}
             compact
           />
         ) : null}
@@ -289,6 +306,8 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
               start: normalOpen.instant,
               address: court.basic_address,
             })}
+            courtId={court.id}
+            courtName={court.basic_court_name}
             compact
           />
         ) : null}
