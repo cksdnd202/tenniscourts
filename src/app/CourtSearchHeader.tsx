@@ -64,6 +64,10 @@ export function CourtSearchHeader({ courts }: Props) {
     setIsMobileSearchOpen(false);
   };
 
+  const goToTestPage = () => {
+    router.push("/test-lab");
+  };
+
   return (
     <header className="fixed top-0 left-0 right-0 z-30 bg-[#000000] border-b border-[#2C2C2C]">
       <div className="px-10 py-5.5">
@@ -87,6 +91,16 @@ export function CourtSearchHeader({ courts }: Props) {
                 className="h-7 w-auto object-contain"
                 priority
               />
+            </button>
+          </div>
+
+          <div className="ml-auto">
+            <button
+              type="button"
+              onClick={goToTestPage}
+              className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
+            >
+              테스트 페이지
             </button>
           </div>
 
@@ -184,8 +198,15 @@ export function CourtSearchHeader({ courts }: Props) {
           </button>
           <button
             type="button"
+            onClick={goToTestPage}
+            className="ml-auto mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white"
+          >
+            테스트
+          </button>
+          <button
+            type="button"
             onClick={() => setIsMobileSearchOpen(true)}
-            className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] text-[#B0B0B0]"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] text-[#B0B0B0]"
             aria-label="코트 검색 열기"
           >
             <svg
