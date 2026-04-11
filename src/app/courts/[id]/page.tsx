@@ -73,15 +73,24 @@ function CourtInfoBanner() {
 export default async function CourtDetailPage({ params }: PageProps) {
   const { id } = await params;
 
-  const { data, error } = await supabase
-    .from("courtinfo")
-    .select(
-      "id, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, booking_booking_provide, etc_desc"
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const [detailRes, searchRes] = await Promise.all([
+    supabase
+      .from("courtinfo")
+      .select(
+        "id, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, booking_booking_provide, etc_desc"
+      )
+      .eq("id", id)
+      .maybeSingle(),
+    supabase
+      .from("courtinfo")
+      .select("id, basic_court_name, basic_region, basic_city")
+      .eq("use_or_not", true)
+      .order("basic_court_name", { ascending: true }),
+  ]);
 
+  const { data, error } = detailRes;
   const court = data as Court | null;
+  const courtsForSearch = searchRes.data ?? [];
 
   if (error) {
     return (
@@ -103,7 +112,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
 
   return (
     <>
-      <CourtSearchHeader courts={[court]} />
+      <CourtSearchHeader courts={courtsForSearch} />
 
       {/* 헤더 검색창과 동일하게 1032px 이상에서만 2열 + 우측 사이드 표시 (lg=1024만 쓰면 사이드바가 비는 구간 발생) */}
       <main className="pt-[73px] min-h-screen bg-black pb-44 min-[1032px]:pb-10">

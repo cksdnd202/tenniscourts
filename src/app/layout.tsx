@@ -41,6 +41,11 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  verification: {
+    other: {
+      "naver-site-verification": "5f1d0a2fa3678798eda0f3feb39991b7b9e7e56d",
+    },
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

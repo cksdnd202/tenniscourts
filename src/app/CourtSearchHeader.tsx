@@ -5,8 +5,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Court } from "./types";
 
+/** 헤더 검색에 실제로 쓰이는 필드만 있으면 됨 */
+export type CourtSearchListItem = Pick<
+  Court,
+  "id" | "basic_court_name" | "basic_region" | "basic_city"
+>;
+
 type Props = {
-  courts: Court[];
+  courts: CourtSearchListItem[];
 };
 
 export function CourtSearchHeader({ courts }: Props) {
@@ -57,7 +63,7 @@ export function CourtSearchHeader({ courts }: Props) {
     }
   };
 
-  const handleSelectCourt = (court: Court) => {
+  const handleSelectCourt = (court: CourtSearchListItem) => {
     // 항상 Supabase id 값을 기준으로 상세 페이지 이동
     router.push(`/courts/${court.id}`);
     setIsOpen(false);
