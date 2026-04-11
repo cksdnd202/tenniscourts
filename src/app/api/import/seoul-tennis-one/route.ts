@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 const PAGE_SIZE = 100;
 
@@ -43,7 +43,7 @@ async function getExistingBookingLinks(): Promise<Set<string>> {
   let from = 0;
 
   for (;;) {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from("courtinfo")
       .select("booking_site_link")
       .not("booking_site_link", "is", null)
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
           time_of_use_same: true,
         };
 
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await getSupabaseAdmin()
           .from("courtinfo")
           .insert(payload)
           .select("id,basic_court_name,booking_site_link")

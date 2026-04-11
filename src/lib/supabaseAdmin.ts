@@ -5,7 +5,20 @@ declare global {
   var _supabaseAdmin: SupabaseClient | undefined;
 }
 
-function getSupabaseAdmin(): SupabaseClient {
+let productionAdminClient: SupabaseClient | undefined;
+
+/**
+ * 서버 전용(Route Handler, Server Action). RLS 우회 — 클라이언트에서 import 금지.
+ * 빌드 시점(next build)에는 env가 없을 수 있으므로, 호출 시점에만 클라이언트를 만든다.
+ */
+export function getSupabaseAdmin(): SupabaseClient {
+  if (process.env.NODE_ENV !== "production") {
+    return (global._supabaseAdmin ??= createSupabaseAdmin());
+  }
+  return (productionAdminClient ??= createSupabaseAdmin());
+}
+
+function createSupabaseAdmin(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -19,9 +32,3 @@ function getSupabaseAdmin(): SupabaseClient {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
-
-/** 서버 전용(Route Handler, Server Action). RLS 우회 — 클라이언트에서 import 금지. */
-export const supabaseAdmin =
-  process.env.NODE_ENV === "production"
-    ? getSupabaseAdmin()
-    : (global._supabaseAdmin ??= getSupabaseAdmin());
