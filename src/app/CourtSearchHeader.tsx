@@ -113,6 +113,7 @@ export function CourtSearchHeader({ courts }: Props) {
           {/* 데스크탑용 검색 입력창 (1032px 이상) */}
           <div
             ref={containerRef}
+            data-coachmark="search-area"
             className="absolute left-1/2 -translate-x-1/2 w-[300px]"
           >
             <div className="flex items-center rounded-full bg-[#191B1E] px-4 py-3 focus-within:border-[#2C8B56] focus-within:ring-1 focus-within:ring-[#2C8B56]">
@@ -212,6 +213,7 @@ export function CourtSearchHeader({ courts }: Props) {
           <button
             type="button"
             onClick={() => setIsMobileSearchOpen(true)}
+            data-coachmark="search-area-mobile"
             className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] text-[#B0B0B0]"
             aria-label="코트 검색 열기"
           >

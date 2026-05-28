@@ -10,6 +10,7 @@ import { PhoneContent } from "./PhoneContent";
 import { OnSiteContent } from "./OnSiteContent";
 import { IrregularContent } from "./IrregularContent";
 import { CheckingContent } from "./CheckingContent";
+import { FirstVisitCoachmark } from "./FirstVisitCoachmark";
 
 type Props = {
   courts: Court[];
@@ -424,9 +425,11 @@ export function CourtFilter({ courts }: Props) {
 
   return (
     <div className="flex relative flex-1 overflow-hidden">
+      <FirstVisitCoachmark />
       {/* 좌측 필터 영역 - 1032px 이상에서만 표시 */}
       <aside 
         ref={asideRef}
+        data-coachmark="filter-area"
         className="hidden min-[1032px]:block w-full max-w-2xs h-[calc(100vh-73px-40px)] overflow-y-auto rounded-[10px] p-7.5 bg-[#000000] overscroll-y-none ml-5 mt-5"
       >
         {/*<h2 className="mb-6 text-2xl font-black text-zinc-900">
@@ -445,6 +448,7 @@ export function CourtFilter({ courts }: Props) {
       {/* 플로팅 필터 버튼 - 1031px 이하에서만 표시 */}
       <button
         onClick={handleOpenFilter}
+        data-coachmark="filter-area-mobile"
         className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 max-[1031px]:flex min-[1032px]:hidden items-center justify-center bg-white text-black px-6 py-3 rounded-full gap-2 shadow-lg hover:bg-gray-100 transition-colors"
       >
         <svg
@@ -525,7 +529,7 @@ export function CourtFilter({ courts }: Props) {
       )}
 
       {/* 우측 결과 영역 */}
-      <section className="flex-1 h-full overflow-y-auto space-y-4 p-7.5 ml-4" style={{ scrollbarGutter: 'stable' }}>
+      <section data-coachmark="results-area" className="flex-1 h-full overflow-y-auto space-y-4 p-7.5 ml-4" style={{ scrollbarGutter: 'stable' }}>
         {/* 모바일용 코트 정보 알려주기 배너 - 1031px 이하에서만 표시 */}
         <a
           href="https://forms.gle/FfvfcDATe5CfH1iR6"
@@ -601,8 +605,12 @@ export function CourtFilter({ courts }: Props) {
           <p className="text-[#B0B0B0]">조건에 맞는 코트가 없습니다.</p>
         ) : (
           <ul className="grid grid-cols-1 gap-4 max-[768px]:grid-cols-1 min-[769px]:max-[1275px]:grid-cols-2 min-[1276px]:sm:grid-cols-2 min-[1276px]:lg:grid-cols-3 min-[1276px]:2xl:grid-cols-4">
-            {filteredCourts.map((c) => (
-              <li key={c.id} className={courtitemstyle}>
+            {filteredCourts.map((c, index) => (
+              <li
+                key={c.id}
+                data-coachmark={index === 0 ? "first-court-card" : undefined}
+                className={courtitemstyle}
+              >
                 {renderCourtContent(c)}
               </li>
             ))}
