@@ -1,0 +1,11 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# 내부 테스트·개발용 페이지 (검색 수집 제외)
+Disallow: /test-lab
+
+# API 경로 (검색 결과에 노출할 필요 없음)
+Disallow: /api/
+
+Sitemap: https://courtskorea.com/sitemap.xml
