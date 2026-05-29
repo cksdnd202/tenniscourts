@@ -74,6 +74,8 @@ export function CourtSearchHeader({ courts }: Props) {
     router.push("/test-lab");
   };
 
+  const showTestPageButton = process.env.NODE_ENV !== "production";
+
   return (
     <header className="fixed top-0 left-0 right-0 z-30 bg-[#000000] border-b border-[#2C2C2C]">
       <div className="px-10 py-5.5">
@@ -100,15 +102,17 @@ export function CourtSearchHeader({ courts }: Props) {
             </button>
           </div>
 
-          <div className="ml-auto">
-            <button
-              type="button"
-              onClick={goToTestPage}
-              className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
-            >
-              테스트 페이지
-            </button>
-          </div>
+          {showTestPageButton ? (
+            <div className="ml-auto">
+              <button
+                type="button"
+                onClick={goToTestPage}
+                className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
+              >
+                테스트 페이지
+              </button>
+            </div>
+          ) : null}
 
           {/* 데스크탑용 검색 입력창 (1032px 이상) */}
           <div
@@ -203,18 +207,22 @@ export function CourtSearchHeader({ courts }: Props) {
               priority
             />
           </button>
-          <button
-            type="button"
-            onClick={goToTestPage}
-            className="ml-auto mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white"
-          >
-            테스트
-          </button>
+          {showTestPageButton ? (
+            <button
+              type="button"
+              onClick={goToTestPage}
+              className="ml-auto mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white"
+            >
+              테스트
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setIsMobileSearchOpen(true)}
             data-coachmark="search-area-mobile"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] text-[#B0B0B0]"
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] text-[#B0B0B0] ${
+              showTestPageButton ? "" : "ml-auto"
+            }`}
             aria-label="코트 검색 열기"
           >
             <svg
