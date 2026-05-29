@@ -251,7 +251,7 @@ export function FirstVisitCoachmark() {
                   completeCoachmark();
                 }}
                 className="rounded-xl border border-[#D6D6D6] bg-white px-4 py-2 text-sm font-medium text-[#222222] hover:bg-[#F5F5F5]"
-                data-gtm="coauchmark_confirm_click"
+                data-gtm="coachmark_confirm_click"
               >
                 확인
               </button>
@@ -263,7 +263,7 @@ export function FirstVisitCoachmark() {
                     handleNext("button");
                   }}
                   className="rounded-xl bg-[#2C8B56] px-4 py-2 text-sm font-semibold text-white hover:bg-[#53A978]"
-                  data-gtm="coauchmark_next_click"
+                  data-gtm="coachmark_next_click"
                 >
                   다음
                 </button>
