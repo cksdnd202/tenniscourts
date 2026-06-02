@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Court } from "./types";
+import { getCourtDetailPath } from "@/lib/courtPath";
 import {
   courtitem_courtname,
   courtitem_courtownertype,
@@ -107,7 +108,7 @@ export function OnSiteContent({ court }: { court: Court }) {
       <div className="mt-3 flex gap-2 text-sm">
         {/* 상세보기 버튼 - 코트 상세 페이지로 이동 */}
         <a
-          href={`/courts/${court.id}`}
+          href={getCourtDetailPath(court)}
           rel="noopener"
           data-gtm="detail_click"
           data-court-id={court.id}

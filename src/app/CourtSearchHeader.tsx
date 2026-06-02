@@ -3,12 +3,13 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getCourtDetailPath } from "@/lib/courtPath";
 import type { Court } from "./types";
 
 /** 헤더 검색에 실제로 쓰이는 필드만 있으면 됨 */
 export type CourtSearchListItem = Pick<
   Court,
-  "id" | "basic_court_name" | "basic_region" | "basic_city"
+  "id" | "slug" | "basic_court_name" | "basic_region" | "basic_city"
 >;
 
 type Props = {
@@ -64,8 +65,7 @@ export function CourtSearchHeader({ courts }: Props) {
   };
 
   const handleSelectCourt = (court: CourtSearchListItem) => {
-    // 항상 Supabase id 값을 기준으로 상세 페이지 이동
-    router.push(`/courts/${court.id}`);
+    router.push(getCourtDetailPath(court));
     setIsOpen(false);
     setIsMobileSearchOpen(false);
   };

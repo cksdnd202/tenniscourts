@@ -1,5 +1,8 @@
 import { supabase } from "@/lib/supabase";
+import { buildCourtDetailMetadata } from "@/lib/courtSeo";
+import { getCourtDetailPath } from "@/lib/courtPath";
 import type { Metadata } from "next";
+import { permanentRedirect } from "next/navigation";
 import type { Court } from "../../types";
 import { CourtSearchHeader } from "../../CourtSearchHeader";
 import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSection";
@@ -13,23 +16,42 @@ type PageProps = {
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://courtskorea.com";
 const ogImage = "/courtskroea_ogimg.png?v=20260323-1";
 
+const METADATA_COURT_SELECT =
+  "id, slug, basic_court_name, booking_rule_type, booking_open_type, booking_eligibility_first, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset";
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { id } = await params;
-  const { data } = await supabase
+  const { id: routeKey } = await params;
+  const { data: slugData } = await supabase
     .from("courtinfo")
-    .select("id, basic_court_name")
-    .eq("id", id)
+    .select(METADATA_COURT_SELECT)
+    .eq("slug", routeKey)
     .maybeSingle();
 
-  const courtName =
-    (data as { basic_court_name?: string } | null)?.basic_court_name?.trim() || "테니스코트";
-  const title = `${courtName} 예약 정보`;
-  const description = `${courtName}의 예약 오픈 일정과 예약 정보를 확인하세요.`;
-  const pageUrl = `${siteUrl}/courts/${id}`;
+  let court = slugData as Court | null;
+  if (!court) {
+    const { data: idData } = await supabase
+      .from("courtinfo")
+      .select(METADATA_COURT_SELECT)
+      .eq("id", routeKey)
+      .maybeSingle();
+    court = idData as Court | null;
+  }
+
+  const { title, description } = court
+    ? buildCourtDetailMetadata(court)
+    : {
+        title: `테니스코트 예약 방법·오픈 시간 | Courts Korea`,
+        description:
+          "테니스장의 예약 오픈 시간, 주소, 코트 종류, 예약 사이트 정보를 확인하세요.",
+      };
+  const pageUrl = court ? `${siteUrl}${getCourtDetailPath(court)}` : `${siteUrl}/courts/${routeKey}`;
 
   return {
     title,
     description,
+    alternates: {
+      canonical: pageUrl,
+    },
     openGraph: {
       title,
       description,
@@ -71,32 +93,49 @@ function CourtInfoBanner() {
 }
 
 export default async function CourtDetailPage({ params }: PageProps) {
-  const { id } = await params;
+  const { id: routeKey } = await params;
 
-  const [detailRes, searchRes] = await Promise.all([
+  const [detailBySlugRes, searchRes] = await Promise.all([
     supabase
       .from("courtinfo")
       .select(
-        "id, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, booking_booking_provide, etc_desc"
+        "id, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, booking_booking_provide, etc_desc"
       )
-      .eq("id", id)
+      .eq("slug", routeKey)
       .maybeSingle(),
     supabase
       .from("courtinfo")
-      .select("id, basic_court_name, basic_region, basic_city")
+      .select("id, slug, basic_court_name, basic_region, basic_city")
       .eq("use_or_not", true)
       .order("basic_court_name", { ascending: true }),
   ]);
 
-  const { data, error } = detailRes;
-  const court = data as Court | null;
+  let detailData = detailBySlugRes.data;
+  let detailError = detailBySlugRes.error;
+  if (!detailData && !detailError) {
+    const detailByIdRes = await supabase
+      .from("courtinfo")
+      .select(
+        "id, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, booking_booking_provide, etc_desc"
+      )
+      .eq("id", routeKey)
+      .maybeSingle();
+    detailData = detailByIdRes.data;
+    detailError = detailByIdRes.error;
+  }
+
+  const court = detailData as Court | null;
   const courtsForSearch = searchRes.data ?? [];
 
-  if (error) {
+  if (court?.slug && court.slug !== routeKey) {
+    permanentRedirect(getCourtDetailPath(court));
+  }
+
+  if (detailError) {
     return (
       <main className="mx-auto max-w-3xl px-6 py-10">
         <h1 className="mb-4 text-2xl font-bold">코트 정보를 불러오는 중 오류가 발생했습니다.</h1>
-        <p className="text-sm text-red-600">{error.message}</p>
+        <p className="text-sm text-red-600">{detailError.message}</p>
       </main>
     );
   }

@@ -6,40 +6,40 @@ const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://courtskorea.com").
   ""
 );
 
-async function fetchActiveCourtIds(): Promise<string[]> {
-  const ids: string[] = [];
+async function fetchActiveCourtSlugs(): Promise<string[]> {
+  const slugs: string[] = [];
   const pageSize = 1000;
   let from = 0;
 
   while (true) {
     const { data, error } = await supabase
       .from("courtinfo")
-      .select("id")
+      .select("slug")
       .eq("use_or_not", true)
-      .order("id", { ascending: true })
+      .order("slug", { ascending: true })
       .range(from, from + pageSize - 1);
 
     if (error) {
-      console.error("sitemap: failed to fetch court ids", error.message);
+      console.error("sitemap: failed to fetch court slugs", error.message);
       break;
     }
 
     if (!data?.length) break;
 
-    const rows = data as { id: string | number }[];
+    const rows = data as { slug: string | null }[];
     for (const row of rows) {
-      if (row.id != null) ids.push(String(row.id));
+      if (row.slug?.trim()) slugs.push(row.slug.trim());
     }
 
     if (data.length < pageSize) break;
     from += pageSize;
   }
 
-  return ids;
+  return slugs;
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const courtIds = await fetchActiveCourtIds();
+  const courtSlugs = await fetchActiveCourtSlugs();
   const lastModified = new Date();
 
   const homeEntry: MetadataRoute.Sitemap[number] = {
@@ -49,8 +49,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 1,
   };
 
-  const courtEntries: MetadataRoute.Sitemap = courtIds.map((id) => ({
-    url: `${siteUrl}/courts/${id}`,
+  const courtEntries: MetadataRoute.Sitemap = courtSlugs.map((slug) => ({
+    url: `${siteUrl}/courts/${slug}`,
     lastModified,
     changeFrequency: "weekly",
     priority: 0.8,
