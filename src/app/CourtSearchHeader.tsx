@@ -21,8 +21,17 @@ export function CourtSearchHeader({ courts }: Props) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isLocalhost, setIsLocalhost] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setIsLocalhost(
+      window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1" ||
+        window.location.hostname === "::1"
+    );
+  }, []);
 
   // 검색 결과 필터링 (코트 이름 기준)
   const results = useMemo(() => {
@@ -74,7 +83,12 @@ export function CourtSearchHeader({ courts }: Props) {
     router.push("/test-lab");
   };
 
+  const goToAdminPage = () => {
+    router.push("/admin");
+  };
+
   const showTestPageButton = process.env.NODE_ENV !== "production";
+  const showAdminButton = isLocalhost;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-30 bg-[#000000] border-b border-[#2C2C2C]">
@@ -102,15 +116,26 @@ export function CourtSearchHeader({ courts }: Props) {
             </button>
           </div>
 
-          {showTestPageButton ? (
-            <div className="ml-auto">
-              <button
-                type="button"
-                onClick={goToTestPage}
-                className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
-              >
-                테스트 페이지
-              </button>
+          {showAdminButton || showTestPageButton ? (
+            <div className="ml-auto flex items-center gap-2">
+              {showAdminButton ? (
+                <button
+                  type="button"
+                  onClick={goToAdminPage}
+                  className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
+                >
+                  어드민
+                </button>
+              ) : null}
+              {showTestPageButton ? (
+                <button
+                  type="button"
+                  onClick={goToTestPage}
+                  className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
+                >
+                  테스트 페이지
+                </button>
+              ) : null}
             </div>
           ) : null}
 
@@ -207,11 +232,22 @@ export function CourtSearchHeader({ courts }: Props) {
               priority
             />
           </button>
+          {showAdminButton ? (
+            <button
+              type="button"
+              onClick={goToAdminPage}
+              className="ml-auto mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white"
+            >
+              어드민
+            </button>
+          ) : null}
           {showTestPageButton ? (
             <button
               type="button"
               onClick={goToTestPage}
-              className="ml-auto mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white"
+              className={`mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white ${
+                showAdminButton ? "" : "ml-auto"
+              }`}
             >
               테스트
             </button>
@@ -221,7 +257,7 @@ export function CourtSearchHeader({ courts }: Props) {
             onClick={() => setIsMobileSearchOpen(true)}
             data-coachmark="search-area-mobile"
             className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] text-[#B0B0B0] ${
-              showTestPageButton ? "" : "ml-auto"
+              showAdminButton || showTestPageButton ? "" : "ml-auto"
             }`}
             aria-label="코트 검색 열기"
           >
@@ -362,4 +398,3 @@ export function CourtSearchHeader({ courts }: Props) {
     </header>
   );
 }
-
