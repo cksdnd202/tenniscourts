@@ -9,15 +9,61 @@ import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSectio
 import { CourtDetailAddress, CourtDetailTable, CourtDetailMap } from "../../detail/CourtDetailCommon";
 import { CourtDetailAside, CourtDetailMobileBookBar } from "../../detail/CourtDetailAside";
 
+export const revalidate = 60;
+
 type PageProps = {
   params: Promise<{ id: string }>;
 };
+
+type RelatedCourt = Pick<
+  Court,
+  | "id"
+  | "slug"
+  | "basic_court_name"
+  | "basic_owner_type"
+  | "basic_region"
+  | "basic_city"
+  | "booking_rule_type"
+  | "booking_open_type"
+>;
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://courtskorea.com";
 const ogImage = "/courtskroea_ogimg.png?v=20260323-1";
 
 const METADATA_COURT_SELECT =
   "id, slug, basic_court_name, booking_rule_type, booking_open_type, booking_eligibility_first, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset";
+
+function RelatedReservationInfo({ courts }: { courts: RelatedCourt[] }) {
+  if (courts.length === 0) return null;
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-white font-semibold">이 테니스장의 다른 예약 정보</h2>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {courts.map((relatedCourt) => {
+          const region = [relatedCourt.basic_region, relatedCourt.basic_city]
+            .filter(Boolean)
+            .join(" ");
+
+          return (
+            <a
+              key={relatedCourt.id}
+              href={getCourtDetailPath(relatedCourt)}
+              className="group rounded-xl border border-[#2C2C2C] bg-[#1A1A1B] px-4 py-3 transition hover:bg-[#252528]"
+            >
+              <span className="block min-w-0 text-sm font-semibold text-white group-hover:underline">
+                {relatedCourt.basic_court_name ?? "이름 없음"}
+              </span>
+              {region ? (
+                <p className="mt-1 truncate text-xs text-[#B0B0B0]">{region}</p>
+              ) : null}
+            </a>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id: routeKey } = await params;
@@ -99,7 +145,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
     supabase
       .from("courtinfo")
       .select(
-        "id, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, booking_booking_provide, etc_desc"
+        "id, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, basic_latitude, basic_longitude, booking_booking_provide, etc_desc"
       )
       .eq("slug", routeKey)
       .maybeSingle(),
@@ -116,7 +162,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
     const detailByIdRes = await supabase
       .from("courtinfo")
       .select(
-        "id, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, booking_booking_provide, etc_desc"
+        "id, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, basic_latitude, basic_longitude, booking_booking_provide, etc_desc"
       )
       .eq("id", routeKey)
       .maybeSingle();
@@ -147,6 +193,22 @@ export default async function CourtDetailPage({ params }: PageProps) {
         <p className="text-sm text-gray-600">주소 표시줄의 주소를 다시 한 번 확인해 주세요.</p>
       </main>
     );
+  }
+
+  let relatedCourts: RelatedCourt[] = [];
+  const mapLink = court.basic_map_link?.trim();
+  if (mapLink) {
+    const { data: relatedData } = await supabase
+      .from("courtinfo")
+      .select(
+        "id, slug, basic_court_name, basic_owner_type, basic_region, basic_city, booking_rule_type, booking_open_type"
+      )
+      .eq("use_or_not", true)
+      .eq("basic_map_link", mapLink)
+      .neq("id", court.id)
+      .order("basic_court_name", { ascending: true });
+
+    relatedCourts = (relatedData ?? []) as RelatedCourt[];
   }
 
   return (
@@ -194,6 +256,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
               <section className="space-y-3">
                 <CourtDetailAddress court={court} />
                 <CourtDetailMap court={court} />
+                <RelatedReservationInfo courts={relatedCourts} />
               </section>
 
               <section>

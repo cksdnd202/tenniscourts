@@ -103,6 +103,8 @@ export async function POST(req: NextRequest) {
           basic_court_name: name,
           booking_site_link: url,
           basic_city: extractTag(row, "AREANM"),
+          basic_latitude: null,
+          basic_longitude: null,
           etc_desc: extractTag(row, "DTLCONT"),
           basic_time_of_use_weekday_from: extractTag(row, "V_MIN"),
           basic_time_of_use_weekday_to: extractTag(row, "V_MAX"),

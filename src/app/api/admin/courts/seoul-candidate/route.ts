@@ -107,6 +107,8 @@ async function searchKakaoPlace(name: string) {
       address_name?: string;
       road_address_name?: string;
       place_url?: string;
+      x?: string;
+      y?: string;
     }>;
   };
 
@@ -116,6 +118,8 @@ async function searchKakaoPlace(name: string) {
   return {
     address: place.road_address_name || place.address_name || null,
     mapLink: place.place_url || null,
+    latitude: place.y ? Number(place.y) : null,
+    longitude: place.x ? Number(place.x) : null,
   };
 }
 
@@ -131,9 +135,13 @@ async function toCourtCandidate(row: string) {
     basic_city: extractTag(row, "AREANM"),
     basic_address: kakaoPlace?.address ?? extractTag(row, "PLACENM"),
     basic_map_link: kakaoPlace?.mapLink ?? null,
-    basic_time_of_use: [extractTag(row, "V_MIN"), extractTag(row, "V_MAX")]
-      .filter(Boolean)
-      .join(" - "),
+    basic_latitude: Number.isFinite(kakaoPlace?.latitude) ? kakaoPlace?.latitude : null,
+    basic_longitude: Number.isFinite(kakaoPlace?.longitude) ? kakaoPlace?.longitude : null,
+    time_of_use_same: true,
+    basic_time_of_use_weekday_from: extractTag(row, "V_MIN") || null,
+    basic_time_of_use_weekday_to: extractTag(row, "V_MAX") || null,
+    basic_time_of_use_weekend_from: extractTag(row, "V_MIN") || null,
+    basic_time_of_use_weekend_to: extractTag(row, "V_MAX") || null,
     booking_site_link: extractTag(row, "SVCURL"),
     booking_reception_time: [extractTag(row, "RCPTBGNDT"), extractTag(row, "RCPTENDDT")]
       .filter(Boolean)

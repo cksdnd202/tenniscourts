@@ -3,6 +3,8 @@ import { CourtFilter } from "./CourtFilter";
 import type { Court } from "./types";
 import { CourtSearchHeader } from "./CourtSearchHeader";
 
+export const revalidate = 60;
+
 export default async function Home() {
   // 타입 지정
   const { data, error } = await supabase

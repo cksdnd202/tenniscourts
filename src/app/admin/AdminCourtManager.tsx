@@ -1,14 +1,27 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Court } from "../types";
+import { CheckingContent } from "../CheckingContent";
+import { FixedScheduleContent } from "../FixedScheduleContent";
+import { IrregularContent } from "../IrregularContent";
+import { LotteryContent } from "../LotteryContent";
+import { OnSiteContent } from "../OnSiteContent";
+import { OrdinalContent } from "../ordinal";
+import { PhoneContent } from "../PhoneContent";
+import { RollingContent } from "../RollingContent";
 
 type CourtForm = Partial<Court>;
+type CourtSortKey = "name" | "updated_at" | "use_or_not";
+type SortDirection = "asc" | "desc";
 
 type FieldConfig = {
   key: keyof Court;
   label: string;
   type?: "text" | "textarea" | "number" | "time" | "select" | "boolean";
+  placeholder?: string;
   options?: Array<{ label: string; value: string }>;
 };
 
@@ -27,6 +40,9 @@ const emptyForm: CourtForm = {
   booking_online_reserve_possible: null,
   booking_today_booking_possible: null,
 };
+
+const previewCardClass =
+  "grid overflow-hidden rounded-xl border border-transparent bg-[#191B1E] p-5 gap-2 min-w-0";
 
 const fields: FieldConfig[] = [
   { key: "use_or_not", label: "노출 여부", type: "boolean" },
@@ -47,22 +63,30 @@ const fields: FieldConfig[] = [
   { key: "basic_city", label: "시/군/구" },
   { key: "basic_address", label: "주소", type: "textarea" },
   { key: "basic_map_link", label: "지도 링크" },
+  { key: "basic_latitude", label: "위도", type: "number" },
+  { key: "basic_longitude", label: "경도", type: "number" },
+  { key: "time_of_use_same", label: "평일/주말 이용시간 동일", type: "boolean" },
+  { key: "basic_time_of_use_weekday_from", label: "평일 이용 시작", type: "time" },
+  { key: "basic_time_of_use_weekday_to", label: "평일 이용 종료", type: "time" },
+  { key: "basic_time_of_use_weekend_from", label: "주말 이용 시작", type: "time" },
+  { key: "basic_time_of_use_weekend_to", label: "주말 이용 종료", type: "time" },
   { key: "booking_site_link", label: "예약 사이트 링크" },
   { key: "booking_reception_time", label: "예약 접수 시간" },
+  { key: "booking_open_time_local", label: "예약 오픈 시간 local", type: "time" },
   {
     key: "booking_rule_type",
     label: "예약 규칙",
     type: "select",
     options: [
       { label: "선택 안 함", value: "" },
-      { label: "고정 일정", value: "fixed_schedule" },
-      { label: "상시/롤링", value: "rolling" },
-      { label: "추첨", value: "lottery" },
-      { label: "전화", value: "phone" },
-      { label: "현장", value: "on_site" },
-      { label: "비정기", value: "irregular" },
-      { label: "확인 필요", value: "checking" },
-      { label: "순번제", value: "ordinal" },
+      { label: "고정 일정(fixed_schedule)", value: "fixed_schedule" },
+      { label: "상시/롤링(rolling)", value: "rolling" },
+      { label: "추첨(lottery)", value: "lottery" },
+      { label: "전화(phone)", value: "phone" },
+      { label: "현장(on_site)", value: "on_site" },
+      { label: "비정기(irregular)", value: "irregular" },
+      { label: "확인 필요(checking)", value: "checking" },
+      { label: "순번제(ordinal, 몇 번째 요일인지)", value: "ordinal" },
     ],
   },
   {
@@ -71,10 +95,8 @@ const fields: FieldConfig[] = [
     type: "select",
     options: [
       { label: "선택 안 함", value: "" },
-      { label: "일자", value: "day" },
-      { label: "요일", value: "weekday" },
-      { label: "순번", value: "ordinal" },
-      { label: "상시", value: "rolling" },
+      { label: "일자(day)", value: "day" },
+      { label: "요일(week)", value: "week" },
     ],
   },
   {
@@ -83,12 +105,12 @@ const fields: FieldConfig[] = [
     type: "select",
     options: [
       { label: "NULL", value: "" },
-      { label: "resident", value: "resident" },
-      { label: "citizen", value: "citizen" },
+      { label: "resident(구민)", value: "resident" },
+      { label: "citizen(시민)", value: "citizen" },
     ],
   },
-  { key: "booking_open_day_owner", label: "우선권 오픈 일자", type: "number" },
-  { key: "booking_open_time_owner", label: "우선권 오픈 시간", type: "time" },
+  { key: "booking_open_day_owner", label: "1순위 자격 오픈 일자", type: "number" },
+  { key: "booking_open_time_owner", label: "1순위 자격 오픈 시간", type: "time" },
   {
     key: "booking_eligibility_second",
     label: "2순위 자격",
@@ -101,29 +123,81 @@ const fields: FieldConfig[] = [
   },
   { key: "booking_open_day_normal", label: "일반 오픈 일자", type: "number" },
   { key: "booking_open_time_normal", label: "일반 오픈 시간", type: "time" },
-  { key: "booking_open_offset", label: "예약 오픈 기준" },
+  { key: "booking_open_offset", label: "오픈되는 범위", placeholder: "예 : 13 또는 다음달" },
   { key: "booking_normal_iscurrentmonth", label: "일반 예약 이번달 기준", type: "boolean" },
-  { key: "booking_open_day_of_month", label: "월 오픈 일자", type: "number" },
-  { key: "booking_open_day_of_week", label: "오픈 요일", type: "number" },
-  { key: "booking_open_ordinal", label: "오픈 순번", type: "number" },
+  {
+    key: "booking_open_day_of_month",
+    label: "월 오픈 일자",
+    type: "select",
+    options: [
+      { label: "선택 안 함", value: "" },
+      { label: "1(첫째주)", value: "1" },
+      { label: "2(둘째주)", value: "2" },
+      { label: "3(셋째주)", value: "3" },
+      { label: "4(넷째주)", value: "4" },
+      { label: "5(다섯째주)", value: "5" },
+      { label: "-1(마지막주)", value: "-1" },
+    ],
+  },
+  {
+    key: "booking_open_day_of_week",
+    label: "오픈 요일",
+    type: "select",
+    options: [
+      { label: "선택 안 함", value: "" },
+      { label: "0(일요일)", value: "0" },
+      { label: "1(월요일)", value: "1" },
+      { label: "2(화요일)", value: "2" },
+      { label: "3(수요일)", value: "3" },
+      { label: "4(목요일)", value: "4" },
+      { label: "5(금요일)", value: "5" },
+      { label: "6(토요일)", value: "6" },
+    ],
+  },
+  {
+    key: "booking_open_ordinal",
+    label: "예약 오픈 주차",
+    type: "select",
+    options: [
+      { label: "선택 안 함", value: "" },
+      { label: "1(첫 번째 주)", value: "1" },
+      { label: "2(두 번째 주)", value: "2" },
+      { label: "3(세 번째 주)", value: "3" },
+      { label: "4(네 번째 주)", value: "4" },
+      { label: "-1(마지막 주)", value: "-1" },
+      { label: "-2(첫 번째 영업일)", value: "-2" },
+    ],
+  },
   { key: "court_count_hard_indoor", label: "하드 실내", type: "number" },
   { key: "court_count_hard_outdoor", label: "하드 실외", type: "number" },
   { key: "court_count_grass_indoor", label: "잔디 실내", type: "number" },
   { key: "court_count_grass_outdoor", label: "잔디 실외", type: "number" },
   { key: "court_count_clay_indoor", label: "클레이 실내", type: "number" },
   { key: "court_count_clay_outdoor", label: "클레이 실외", type: "number" },
-  { key: "booking_booking_provide", label: "예약 제공 방식" },
+  {
+    key: "booking_booking_provide",
+    label: "예약 제공 방식",
+    type: "select",
+    options: [
+      { label: "NULL", value: "" },
+      { label: "앱/웹 서비스(app_web_service)", value: "app_web_service" },
+      { label: "네이버(naver)", value: "naver" },
+      { label: "사설 사이트(private_site)", value: "private_site" },
+      { label: "공공 사이트(public_site)", value: "public_site" },
+    ],
+  },
   { key: "booking_holiday_week", label: "휴무 주" },
   { key: "booking_online_reserve_possible", label: "온라인 예약 가능", type: "boolean" },
   { key: "booking_today_booking_possible", label: "당일 예약 가능", type: "boolean" },
-  { key: "basic_time_of_use", label: "이용 시간", type: "textarea" },
   { key: "etc_desc", label: "기타 설명", type: "textarea" },
 ];
 
 const fieldGroups = [
   {
     title: "기본 정보",
-    fields: fields.filter((field) => String(field.key).startsWith("basic_")),
+    fields: fields.filter(
+      (field) => String(field.key).startsWith("basic_") || field.key === "time_of_use_same"
+    ),
   },
   {
     title: "코트 정보",
@@ -138,12 +212,24 @@ const fieldGroups = [
     fields: fields.filter(
       (field) =>
         field.key !== "use_or_not" &&
+        field.key !== "time_of_use_same" &&
         !String(field.key).startsWith("basic_") &&
         !String(field.key).startsWith("court_") &&
         !String(field.key).startsWith("booking_")
     ),
   },
 ].filter((group) => group.fields.length > 0);
+
+const commonBookingFieldKeys = new Set<keyof Court>([
+  "booking_site_link",
+  "booking_reception_time",
+  "booking_rule_type",
+  "booking_open_time_local",
+  "booking_booking_provide",
+  "booking_online_reserve_possible",
+  "booking_today_booking_possible",
+  "booking_holiday_week",
+]);
 
 const numberFieldKeys = new Set(
   fields.filter((field) => field.type === "number").map((field) => field.key)
@@ -181,8 +267,133 @@ function stringifyValue(value: unknown) {
   return String(value);
 }
 
+function numberOrNull(value: unknown) {
+  if (value === null || value === undefined || value === "") return null;
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function dateTimeValue(value: string | null | undefined) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "업데이트 없음";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "업데이트 없음";
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+function FieldLabel({
+  field,
+  showDbKey,
+  className = "",
+}: {
+  field: FieldConfig;
+  showDbKey: boolean;
+  className?: string;
+}) {
+  return (
+    <span className={`text-sm text-[#cfcfcf] ${className}`}>
+      <span className="block">{field.label}</span>
+      {showDbKey ? (
+        <span className="mt-1 block break-all font-mono text-[11px] leading-tight text-[#777]">
+          {field.key}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 function toForm(court: Court): CourtForm {
   return { ...emptyForm, ...court };
+}
+
+function toPreviewCourt(form: CourtForm): Court {
+  return {
+    id: form.id ?? "admin-preview",
+    basic_court_name: form.basic_court_name ?? "(이름 없음)",
+    slug: form.slug ?? null,
+    basic_owner_type: form.basic_owner_type ?? null,
+    basic_address: form.basic_address ?? null,
+    basic_map_link: form.basic_map_link ?? null,
+    basic_latitude: numberOrNull(form.basic_latitude),
+    basic_longitude: numberOrNull(form.basic_longitude),
+    basic_region: form.basic_region ?? null,
+    basic_city: form.basic_city ?? null,
+    time_of_use_same: form.time_of_use_same ?? null,
+    basic_time_of_use_weekday_from: form.basic_time_of_use_weekday_from ?? null,
+    basic_time_of_use_weekday_to: form.basic_time_of_use_weekday_to ?? null,
+    basic_time_of_use_weekend_from: form.basic_time_of_use_weekend_from ?? null,
+    basic_time_of_use_weekend_to: form.basic_time_of_use_weekend_to ?? null,
+    use_or_not: form.use_or_not ?? null,
+    court_count_hard_indoor: form.court_count_hard_indoor ?? null,
+    court_count_hard_outdoor: form.court_count_hard_outdoor ?? null,
+    court_count_grass_indoor: form.court_count_grass_indoor ?? null,
+    court_count_grass_outdoor: form.court_count_grass_outdoor ?? null,
+    court_count_clay_indoor: form.court_count_clay_indoor ?? null,
+    court_count_clay_outdoor: form.court_count_clay_outdoor ?? null,
+    booking_site_link: form.booking_site_link ?? null,
+    booking_reception_time: form.booking_reception_time ?? null,
+    booking_rule_type: form.booking_rule_type ?? null,
+    booking_open_type: form.booking_open_type ?? null,
+    booking_eligibility_first: form.booking_eligibility_first ?? null,
+    booking_eligibility_second: form.booking_eligibility_second ?? null,
+    booking_open_day_of_month: numberOrNull(form.booking_open_day_of_month),
+    booking_open_day_of_week: numberOrNull(form.booking_open_day_of_week),
+    booking_open_ordinal: numberOrNull(form.booking_open_ordinal),
+    booking_open_day_owner: numberOrNull(form.booking_open_day_owner),
+    booking_open_time_owner: form.booking_open_time_owner ?? null,
+    booking_open_day_normal: numberOrNull(form.booking_open_day_normal),
+    booking_open_time_normal: form.booking_open_time_normal ?? null,
+    booking_normal_iscurrentmonth: form.booking_normal_iscurrentmonth ?? null,
+    booking_open_time_local: form.booking_open_time_local ?? null,
+    booking_open_offset: form.booking_open_offset ?? null,
+    booking_online_reserve_possible: form.booking_online_reserve_possible ?? null,
+    booking_holiday_week: form.booking_holiday_week ?? null,
+    booking_today_booking_possible: form.booking_today_booking_possible ?? null,
+    booking_booking_provide: form.booking_booking_provide ?? null,
+    etc_desc: form.etc_desc ?? null,
+  };
+}
+
+function AdminCourtPreviewCard({ form }: { form: CourtForm }) {
+  const court = toPreviewCourt(form);
+
+  const content =
+    court.booking_rule_type === "rolling" ? (
+      <RollingContent court={court} />
+    ) : court.booking_rule_type === "ordinal" ? (
+      <OrdinalContent court={court} />
+    ) : court.booking_rule_type === "lottery" ? (
+      <LotteryContent court={court} />
+    ) : court.booking_rule_type === "phone" ? (
+      <PhoneContent court={court} />
+    ) : court.booking_rule_type === "on_site" ? (
+      <OnSiteContent court={court} />
+    ) : court.booking_rule_type === "irregular" ? (
+      <IrregularContent court={court} />
+    ) : court.booking_rule_type === "checking" ? (
+      <CheckingContent court={court} />
+    ) : (
+      <FixedScheduleContent court={court} />
+    );
+
+  return (
+    <div className="rounded-lg border border-[#2f2f2f] bg-black p-3">
+      <div className="pointer-events-none">
+        <div className={previewCardClass}>{content}</div>
+      </div>
+    </div>
+  );
 }
 
 function normalizeForSave(form: CourtForm) {
@@ -220,10 +431,16 @@ export function AdminCourtManager() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<CourtForm>(emptyForm);
   const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<CourtSortKey>("name");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isFetchingSeoulCandidate, setIsFetchingSeoulCandidate] = useState(false);
   const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
+  const [isFindingCoordinates, setIsFindingCoordinates] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isImportPickerOpen, setIsImportPickerOpen] = useState(false);
+  const [importQuery, setImportQuery] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -231,16 +448,117 @@ export function AdminCourtManager() {
     () => courts.find((court) => court.id === selectedId) ?? null,
     [courts, selectedId]
   );
-  const isOwnerOpenEnabled =
-    form.booking_eligibility_first === "resident" || form.booking_eligibility_first === "citizen";
+  const hasPriorityEligibility = ["resident", "citizen"].includes(
+    stringifyValue(form.booking_eligibility_first)
+  );
   const isNormalOpenEnabled = form.booking_eligibility_second === "normal";
+
+  function isBookingFieldVisible(key: keyof Court) {
+    const ruleType = stringifyValue(form.booking_rule_type);
+    const openType = stringifyValue(form.booking_open_type);
+
+    if (commonBookingFieldKeys.has(key)) return true;
+
+    if (!ruleType) return false;
+
+    if (ruleType === "phone") {
+      return key === "booking_reception_time";
+    }
+
+    if (ruleType === "rolling") {
+      if (key === "booking_eligibility_first") return true;
+      if (key === "booking_open_time_owner") return hasPriorityEligibility;
+      if (key === "booking_eligibility_second") return true;
+      if (key === "booking_open_time_normal") return isNormalOpenEnabled;
+      if (key === "booking_open_offset") return true;
+      return false;
+    }
+
+    if (ruleType === "fixed_schedule") {
+      if (
+        key === "booking_open_type" ||
+        key === "booking_eligibility_first" ||
+        key === "booking_eligibility_second" ||
+        key === "booking_open_offset" ||
+        key === "booking_normal_iscurrentmonth"
+      ) {
+        return true;
+      }
+
+      if (key === "booking_open_day_owner") return hasPriorityEligibility && openType === "day";
+      if (key === "booking_open_time_owner") return hasPriorityEligibility;
+      if (key === "booking_open_day_normal") return isNormalOpenEnabled && openType === "day";
+      if (key === "booking_open_time_normal") return isNormalOpenEnabled;
+      if (key === "booking_open_day_of_month" || key === "booking_open_day_of_week") {
+        return openType === "week";
+      }
+      return false;
+    }
+
+    if (ruleType === "ordinal") {
+      if (
+        key === "booking_open_type" ||
+        key === "booking_eligibility_first" ||
+        key === "booking_eligibility_second" ||
+        key === "booking_open_ordinal"
+      ) {
+        return true;
+      }
+
+      if (key === "booking_open_time_owner") return hasPriorityEligibility;
+      if (key === "booking_open_time_normal") return isNormalOpenEnabled;
+      if (key === "booking_open_day_of_week") return openType === "week";
+      return false;
+    }
+
+    return false;
+  }
 
   const filteredCourts = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    if (!keyword) return courts;
+    const searchedCourts = keyword
+      ? courts.filter((court) =>
+          [
+            court.basic_court_name,
+            court.basic_region,
+            court.basic_city,
+            court.basic_address,
+            court.slug,
+          ]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(keyword))
+        )
+      : courts;
 
-    return courts.filter((court) =>
-      [
+    return [...searchedCourts].sort((a, b) => {
+      const direction = sortDirection === "asc" ? 1 : -1;
+      const nameComparison = stringifyValue(a.basic_court_name).localeCompare(
+        stringifyValue(b.basic_court_name),
+        "ko"
+      );
+
+      if (sortKey === "updated_at") {
+        const compared = dateTimeValue(a.updated_at) - dateTimeValue(b.updated_at);
+        return compared === 0 ? nameComparison : compared * direction;
+      }
+
+      if (sortKey === "use_or_not") {
+        const compared = Number(Boolean(a.use_or_not)) - Number(Boolean(b.use_or_not));
+        return compared === 0 ? nameComparison : compared * direction;
+      }
+
+      return nameComparison * direction;
+    });
+  }, [courts, query, sortDirection, sortKey]);
+
+  const importPickerCourts = useMemo(() => {
+    const keyword = importQuery.trim().toLowerCase();
+
+    return courts.filter((court) => {
+      if (court.id === form.id) return false;
+      if (!keyword) return true;
+
+      return [
         court.basic_court_name,
         court.basic_region,
         court.basic_city,
@@ -248,9 +566,24 @@ export function AdminCourtManager() {
         court.slug,
       ]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(keyword))
-    );
-  }, [courts, query]);
+        .some((value) => String(value).toLowerCase().includes(keyword));
+    });
+  }, [courts, form.id, importQuery]);
+
+  function handleSort(nextSortKey: CourtSortKey) {
+    if (nextSortKey === sortKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+
+    setSortKey(nextSortKey);
+    setSortDirection("asc");
+  }
+
+  function renderSortLabel(label: string, key: CourtSortKey) {
+    if (sortKey !== key) return label;
+    return `${label} ${sortDirection === "asc" ? "↑" : "↓"}`;
+  }
 
   async function loadCourts() {
     setIsLoading(true);
@@ -279,6 +612,7 @@ export function AdminCourtManager() {
   function selectCourt(court: Court) {
     setSelectedId(court.id);
     setForm(toForm(court));
+    setIsFormOpen(true);
     setMessage(null);
     setError(null);
   }
@@ -286,12 +620,155 @@ export function AdminCourtManager() {
   function startCreate() {
     setSelectedId(null);
     setForm(emptyForm);
+    setIsFormOpen(true);
     setMessage(null);
     setError(null);
   }
 
+  function closeForm() {
+    setIsFormOpen(false);
+    setIsImportPickerOpen(false);
+    setMessage(null);
+    setError(null);
+  }
+
+  function importCourtDetails(source: Court) {
+    setForm((current) => {
+      const keep = {
+        id: current.id,
+        basic_court_name: current.basic_court_name,
+        slug: current.slug,
+        use_or_not: current.use_or_not,
+        booking_site_link: current.booking_site_link,
+      };
+
+      return {
+        ...toForm(source),
+        ...keep,
+      };
+    });
+    setIsImportPickerOpen(false);
+    setImportQuery("");
+    setMessage(`${source.basic_court_name ?? "선택한 테니스장"}의 정보를 불러왔습니다.`);
+    setError(null);
+  }
+
   function updateField(key: keyof Court, value: unknown) {
-    setForm((current) => ({ ...current, [key]: value }));
+    setForm((current): CourtForm => {
+      if (key === "time_of_use_same") {
+        const isSame = Boolean(value);
+
+        return {
+          ...current,
+          time_of_use_same: isSame,
+          basic_time_of_use_weekend_from: isSame
+            ? current.basic_time_of_use_weekday_from
+            : current.basic_time_of_use_weekend_from,
+          basic_time_of_use_weekend_to: isSame
+            ? current.basic_time_of_use_weekday_to
+            : current.basic_time_of_use_weekend_to,
+        };
+      }
+
+      if (
+        key === "basic_time_of_use_weekday_from" &&
+        current.time_of_use_same
+      ) {
+        return {
+          ...current,
+          basic_time_of_use_weekday_from: stringifyValue(value) || null,
+          basic_time_of_use_weekend_from: stringifyValue(value) || null,
+        };
+      }
+
+      if (
+        key === "basic_time_of_use_weekday_to" &&
+        current.time_of_use_same
+      ) {
+        return {
+          ...current,
+          basic_time_of_use_weekday_to: stringifyValue(value) || null,
+          basic_time_of_use_weekend_to: stringifyValue(value) || null,
+        };
+      }
+
+      if (
+        key === "booking_eligibility_first" &&
+        value !== "resident" &&
+        value !== "citizen"
+      ) {
+        return {
+          ...current,
+          booking_eligibility_first: stringifyValue(value) || null,
+          booking_open_day_owner: null,
+          booking_open_time_owner: null,
+        };
+      }
+
+      if (key === "booking_eligibility_second" && value !== "normal") {
+        return {
+          ...current,
+          booking_eligibility_second: stringifyValue(value) || null,
+          booking_open_day_normal: null,
+          booking_open_time_normal: null,
+        };
+      }
+
+      if (key === "booking_rule_type") {
+        const ruleType = stringifyValue(value) || null;
+        const keepsSchedule = ruleType === "fixed_schedule" || ruleType === "ordinal";
+        const keepsRolling = ruleType === "rolling";
+
+        return {
+          ...current,
+          booking_rule_type: ruleType,
+          booking_open_type: keepsSchedule ? current.booking_open_type : null,
+          booking_eligibility_first:
+            keepsSchedule || keepsRolling ? current.booking_eligibility_first : null,
+          booking_eligibility_second:
+            keepsSchedule || keepsRolling ? current.booking_eligibility_second : null,
+          booking_open_ordinal: ruleType === "ordinal" ? current.booking_open_ordinal : null,
+          booking_open_day_of_month:
+            ruleType === "fixed_schedule" ? current.booking_open_day_of_month : null,
+          booking_open_day_of_week: keepsSchedule ? current.booking_open_day_of_week : null,
+          booking_open_day_owner:
+            ruleType === "fixed_schedule" ? current.booking_open_day_owner : null,
+          booking_open_time_owner:
+            keepsSchedule || keepsRolling ? current.booking_open_time_owner : null,
+          booking_open_day_normal:
+            ruleType === "fixed_schedule" ? current.booking_open_day_normal : null,
+          booking_open_time_normal:
+            keepsSchedule || keepsRolling ? current.booking_open_time_normal : null,
+          booking_open_offset:
+            ruleType === "fixed_schedule" || keepsRolling ? current.booking_open_offset : null,
+          booking_normal_iscurrentmonth:
+            ruleType === "fixed_schedule" ? current.booking_normal_iscurrentmonth : null,
+        };
+      }
+
+      if (key === "booking_open_type") {
+        const openType = stringifyValue(value) || null;
+
+        return {
+          ...current,
+          booking_open_type: openType,
+          booking_open_day_owner:
+            openType === "day" ? current.booking_open_day_owner : null,
+          booking_open_day_normal:
+            openType === "day" ? current.booking_open_day_normal : null,
+          booking_open_ordinal:
+            current.booking_rule_type === "ordinal" ? current.booking_open_ordinal : null,
+          booking_open_day_of_month:
+            openType === "week" && current.booking_rule_type === "fixed_schedule"
+              ? current.booking_open_day_of_month
+              : null,
+          booking_open_day_of_week:
+            openType === "week" ? current.booking_open_day_of_week : null,
+        };
+      }
+
+      return { ...current, [key]: value } as CourtForm;
+    });
   }
 
   function openMapLink() {
@@ -301,9 +778,53 @@ export function AdminCourtManager() {
     window.open(mapLink, "_blank", "noopener,noreferrer");
   }
 
+  function openReservationLink() {
+    const reservationLink = stringifyValue(form.booking_site_link).trim();
+    if (!reservationLink) return;
+
+    window.open(reservationLink, "_blank", "noopener,noreferrer");
+  }
+
+  async function findCoordinates() {
+    const address = stringifyValue(form.basic_address).trim();
+    const name = stringifyValue(form.basic_court_name).trim();
+    const mapLink = stringifyValue(form.basic_map_link).trim();
+
+    if (!address && !name && !mapLink) {
+      setError("주소, 테니스장명, 지도 링크 중 하나가 있어야 좌표를 찾을 수 있습니다.");
+      return;
+    }
+
+    setIsFindingCoordinates(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/admin/courts/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, name, mapLink }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "좌표를 찾지 못했습니다.");
+      }
+
+      updateField("basic_latitude", String(data.lat));
+      updateField("basic_longitude", String(data.lng));
+      setMessage(`좌표를 찾았습니다. (${data.source ?? "geocode"})`);
+    } catch (coordinateError) {
+      setError(coordinateError instanceof Error ? coordinateError.message : "좌표를 찾지 못했습니다.");
+    } finally {
+      setIsFindingCoordinates(false);
+    }
+  }
+
   async function generateSlug() {
     const name = stringifyValue(form.basic_court_name).trim();
-    if (!name || form.id) return;
+    const hasSavedSlug = Boolean(form.id && stringifyValue(form.slug).trim());
+    if (!name || hasSavedSlug) return;
 
     setIsGeneratingSlug(true);
     setMessage(null);
@@ -361,9 +882,15 @@ export function AdminCourtManager() {
   }
 
   async function saveCourt() {
-    setIsSaving(true);
     setMessage(null);
     setError(null);
+
+    if (!stringifyValue(form.slug).trim()) {
+      setError("상세페이지 slug를 생성해야 저장할 수 있습니다.");
+      return;
+    }
+
+    setIsSaving(true);
 
     try {
       const isUpdate = Boolean(form.id);
@@ -390,6 +917,7 @@ export function AdminCourtManager() {
       setSelectedId(savedCourt.id);
       setForm(toForm(savedCourt));
       setMessage(isUpdate ? "수정했습니다." : "추가했습니다.");
+      setIsFormOpen(false);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "저장하지 못했습니다.");
     } finally {
@@ -418,7 +946,9 @@ export function AdminCourtManager() {
       }
 
       setCourts((current) => current.filter((court) => court.id !== selectedCourt.id));
-      startCreate();
+      setSelectedId(null);
+      setForm(emptyForm);
+      setIsFormOpen(false);
       setMessage("삭제했습니다.");
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "삭제하지 못했습니다.");
@@ -428,9 +958,22 @@ export function AdminCourtManager() {
   }
 
   return (
-    <main className="min-h-screen bg-black px-5 py-6 text-white md:px-8">
-      <div className="mx-auto flex max-w-7xl flex-col gap-5">
-        <header className="flex flex-col gap-4 border-b border-[#2c2c2c] pb-5 md:flex-row md:items-end md:justify-between">
+    <main className="min-h-screen bg-black text-white">
+      <header className="border-b border-[#2c2c2c] px-5 py-4 md:px-8">
+        <Link href="/" aria-label="메인페이지로 이동" className="inline-flex items-center">
+          <Image
+            src="/courtskroea_logo_svg.svg"
+            alt="Courts Korea"
+            width={200}
+            height={40}
+            className="h-7 w-auto object-contain"
+            priority
+          />
+        </Link>
+      </header>
+
+      <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-6 md:px-8">
+        <section className="flex flex-col gap-4 border-b border-[#2c2c2c] pb-5 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm text-[#a7a7a7]">localhost 전용</p>
             <h1 className="mt-2 text-3xl font-semibold">테니스장 어드민</h1>
@@ -448,18 +991,10 @@ export function AdminCourtManager() {
               onClick={startCreate}
               className="rounded-lg bg-[#4ade80] px-4 py-2 text-sm font-semibold text-black hover:bg-[#3fcf6f]"
             >
-              새 테니스장
-            </button>
-            <button
-              type="button"
-              onClick={fetchSeoulCandidate}
-              disabled={isFetchingSeoulCandidate}
-              className="rounded-lg border border-[#3c3c3c] bg-[#151515] px-4 py-2 text-sm font-medium text-white hover:bg-[#242424] disabled:opacity-60"
-            >
-              {isFetchingSeoulCandidate ? "불러오는 중..." : "서울시 신규 1건 불러오기"}
+              새 테니스장 추가
             </button>
           </div>
-        </header>
+        </section>
 
         {message ? (
           <div className="rounded-lg border border-[#23543a] bg-[#102217] px-4 py-3 text-sm text-[#b7f7cd]">
@@ -472,7 +1007,7 @@ export function AdminCourtManager() {
           </div>
         ) : null}
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(520px,1.25fr)_minmax(360px,0.75fr)]">
+        <div>
           <section className="rounded-lg border border-[#2f2f2f] bg-[#151515]">
             <div className="border-b border-[#2f2f2f] p-4">
               <div className="flex items-center justify-between gap-3">
@@ -493,12 +1028,35 @@ export function AdminCourtManager() {
                 <p className="p-4 text-sm text-[#a7a7a7]">표시할 테니스장이 없습니다.</p>
               ) : (
                 <ul className="divide-y divide-[#2f2f2f]">
+                  <li className="sticky top-0 z-10 grid grid-cols-[minmax(0,1fr)_140px_82px] gap-3 border-b border-[#2f2f2f] bg-[#151515] px-4 py-2 text-sm font-semibold text-[#a7a7a7]">
+                    <button
+                      type="button"
+                      onClick={() => handleSort("name")}
+                      className="min-w-0 text-left hover:text-white"
+                    >
+                      {renderSortLabel("테니스장명", "name")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("updated_at")}
+                      className="text-left hover:text-white"
+                    >
+                      {renderSortLabel("업데이트날짜", "updated_at")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSort("use_or_not")}
+                      className="text-left hover:text-white"
+                    >
+                      {renderSortLabel("노출여부", "use_or_not")}
+                    </button>
+                  </li>
                   {filteredCourts.map((court) => (
                     <li key={court.id}>
                       <button
                         type="button"
                         onClick={() => selectCourt(court)}
-                        className={`flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[#202020] ${
+                        className={`grid w-full grid-cols-[minmax(0,1fr)_140px_82px] items-center gap-3 px-4 py-3 text-left hover:bg-[#202020] ${
                           court.id === selectedId ? "bg-[#20281f]" : ""
                         }`}
                       >
@@ -509,6 +1067,9 @@ export function AdminCourtManager() {
                           <span className="mt-1 block truncate text-xs text-[#a7a7a7]">
                             {[court.basic_region, court.basic_city].filter(Boolean).join(" ")}
                           </span>
+                        </span>
+                        <span className="text-sm text-[#cfcfcf]">
+                          {formatDate(court.updated_at)}
                         </span>
                         <span
                           className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold ${
@@ -527,7 +1088,9 @@ export function AdminCourtManager() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-[#2f2f2f] bg-[#151515]">
+          {isFormOpen ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/75 px-4 py-6">
+              <section className="relative flex max-h-[calc(100vh-48px)] w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-[#2f2f2f] bg-[#151515] shadow-2xl">
             <div className="flex flex-col gap-3 border-b border-[#2f2f2f] p-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-lg font-semibold">
@@ -535,7 +1098,17 @@ export function AdminCourtManager() {
                 </h2>
                 {form.id ? <p className="mt-1 text-xs text-[#8c8c8c]">{form.id}</p> : null}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                {!form.id ? (
+                  <button
+                    type="button"
+                    onClick={fetchSeoulCandidate}
+                    disabled={isFetchingSeoulCandidate}
+                    className="rounded-lg border border-[#3c3c3c] bg-[#151515] px-4 py-2 text-sm font-medium text-white hover:bg-[#242424] disabled:opacity-60"
+                  >
+                    {isFetchingSeoulCandidate ? "불러오는 중..." : "서울시 신규 1건 불러오기"}
+                  </button>
+                ) : null}
                 {form.id ? (
                   <button
                     type="button"
@@ -548,6 +1121,25 @@ export function AdminCourtManager() {
                 ) : null}
                 <button
                   type="button"
+                  onClick={closeForm}
+                  className="rounded-lg border border-[#3c3c3c] bg-[#202020] px-4 py-2 text-sm font-medium text-white hover:bg-[#2a2a2a]"
+                >
+                  닫기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsImportPickerOpen(true);
+                    setImportQuery("");
+                    setMessage(null);
+                    setError(null);
+                  }}
+                  className="rounded-lg border border-[#3c3c3c] bg-[#202020] px-4 py-2 text-sm font-medium text-white hover:bg-[#2a2a2a]"
+                >
+                  정보 불러오기
+                </button>
+                <button
+                  type="button"
                   onClick={saveCourt}
                   disabled={isSaving}
                   className="rounded-lg bg-[#4ade80] px-5 py-2 text-sm font-semibold text-black hover:bg-[#3fcf6f] disabled:opacity-60"
@@ -557,7 +1149,18 @@ export function AdminCourtManager() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-6 p-4">
+            {message ? (
+              <div className="mx-4 mt-4 rounded-lg border border-[#23543a] bg-[#102217] px-4 py-3 text-sm text-[#b7f7cd]">
+                {message}
+              </div>
+            ) : null}
+            {error ? (
+              <div className="mx-4 mt-4 rounded-lg border border-[#533] bg-[#211] px-4 py-3 text-sm text-[#ffd6d6]">
+                {error}
+              </div>
+            ) : null}
+
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4">
               <section className="rounded-lg border border-[#2f2f2f] bg-black p-3">
                 <label className="flex min-h-[42px] items-center justify-between gap-3">
                   <span className="text-sm font-medium text-[#cfcfcf]">노출 여부</span>
@@ -570,6 +1173,19 @@ export function AdminCourtManager() {
                 </label>
               </section>
 
+              <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
+                <aside className="min-h-0 overflow-hidden rounded-lg border border-[#2f2f2f] bg-[#111] p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-[#4ade80]">메인 카드 미리보기</h3>
+                    <span className="text-xs text-[#8c8c8c]">
+                      {form.use_or_not ? "노출 YES" : "노출 NO"}
+                    </span>
+                  </div>
+                  <AdminCourtPreviewCard form={form} />
+                </aside>
+
+                <div className="min-h-0 overflow-y-auto pr-1">
+                  <div className="flex flex-col gap-6">
               {fieldGroups.map((group) => (
                 <section key={group.title} className="flex flex-col gap-3">
                   <h3 className="border-b border-[#2f2f2f] pb-2 text-sm font-semibold text-[#4ade80]">
@@ -618,19 +1234,20 @@ export function AdminCourtManager() {
                   ) : (
                     <div className="grid gap-3">
                       {group.fields.map((field) => {
+                if (group.title === "예약 정보" && !isBookingFieldVisible(field.key)) {
+                  return null;
+                }
+
                 const value = form[field.key];
                 const isCourtCountField = courtCountFieldKeys.has(field.key);
+                const showDbKey = group.title === "예약 정보";
+                const hasSavedSlug = Boolean(form.id && stringifyValue(form.slug).trim());
+                const isSlugField = field.key === "slug";
                 const isDisabled =
-                  field.key === "slug" && Boolean(form.id)
-                    ? true
-                    :
-                  (field.key === "booking_open_day_owner" ||
-                    field.key === "booking_open_time_owner") &&
-                  !isOwnerOpenEnabled
-                    ? true
-                    : (field.key === "booking_open_day_normal" ||
-                          field.key === "booking_open_time_normal") &&
-                        !isNormalOpenEnabled;
+                  (field.key === "basic_time_of_use_weekend_from" ||
+                    field.key === "basic_time_of_use_weekend_to") &&
+                  Boolean(form.time_of_use_same);
+                const isInputDisabled = isDisabled || isSlugField;
 
                 if (field.type === "textarea") {
                   return (
@@ -640,10 +1257,10 @@ export function AdminCourtManager() {
                         isDisabled ? "opacity-45" : ""
                       }`}
                     >
-                      <span className="pt-2 text-sm text-[#cfcfcf]">{field.label}</span>
+                      <FieldLabel field={field} showDbKey={showDbKey} className="pt-2" />
                       <textarea
                         value={stringifyValue(value)}
-                        disabled={isDisabled}
+                        disabled={isInputDisabled}
                         onChange={(event) => updateField(field.key, event.target.value)}
                         rows={2}
                         className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80] disabled:cursor-not-allowed disabled:text-[#777]"
@@ -660,7 +1277,7 @@ export function AdminCourtManager() {
                         isDisabled ? "opacity-45" : ""
                       }`}
                     >
-                      <span className="text-sm text-[#cfcfcf]">{field.label}</span>
+                      <FieldLabel field={field} showDbKey={showDbKey} />
                       <input
                         type="checkbox"
                         checked={Boolean(value)}
@@ -680,7 +1297,7 @@ export function AdminCourtManager() {
                         isDisabled ? "opacity-45" : ""
                       }`}
                     >
-                      <span className="text-sm text-[#cfcfcf]">{field.label}</span>
+                      <FieldLabel field={field} showDbKey={showDbKey} />
                       <select
                         value={stringifyValue(value)}
                         disabled={isDisabled}
@@ -708,10 +1325,13 @@ export function AdminCourtManager() {
                       } ${isDisabled ? "opacity-45" : ""}`
                     }
                   >
-                    <span className="text-sm text-[#cfcfcf]">{field.label}</span>
+                    <FieldLabel field={field} showDbKey={showDbKey} />
                     <span
                       className={
-                        field.key === "basic_map_link" || field.key === "slug"
+                        field.key === "basic_map_link" ||
+                        field.key === "basic_longitude" ||
+                        field.key === "booking_site_link" ||
+                        field.key === "slug"
                           ? "flex w-full min-w-0 gap-2"
                           : "block w-full min-w-0"
                       }
@@ -719,8 +1339,9 @@ export function AdminCourtManager() {
                       <input
                         type={field.type === "number" ? "number" : field.type === "time" ? "time" : "text"}
                         min={isCourtCountField ? 0 : undefined}
+                        placeholder={field.placeholder}
                         value={stringifyValue(value)}
-                        disabled={isDisabled}
+                        disabled={isInputDisabled}
                         onChange={(event) => {
                           if (isCourtCountField && event.target.value !== "") {
                             updateField(field.key, String(Math.max(0, Number(event.target.value))));
@@ -732,6 +1353,7 @@ export function AdminCourtManager() {
                         className="w-full min-w-0 flex-1 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80] disabled:cursor-not-allowed disabled:text-[#777]"
                       />
                       {field.key === "basic_map_link" ? (
+                        <>
                         <button
                           type="button"
                           onClick={openMapLink}
@@ -740,13 +1362,37 @@ export function AdminCourtManager() {
                         >
                           지도
                         </button>
+                        <button
+                          type="button"
+                          onClick={findCoordinates}
+                          disabled={
+                            isFindingCoordinates ||
+                            (!stringifyValue(form.basic_address).trim() &&
+                              !stringifyValue(form.basic_court_name).trim() &&
+                              !stringifyValue(form.basic_map_link).trim())
+                          }
+                          className="shrink-0 rounded-lg border border-[#3c3c3c] bg-[#202020] px-3 py-2 text-sm font-medium text-white hover:bg-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {isFindingCoordinates ? "찾는 중" : "좌표 찾기"}
+                        </button>
+                        </>
+                      ) : null}
+                      {field.key === "booking_site_link" ? (
+                        <button
+                          type="button"
+                          onClick={openReservationLink}
+                          disabled={!stringifyValue(form.booking_site_link).trim()}
+                          className="shrink-0 rounded-lg border border-[#3c3c3c] bg-[#202020] px-3 py-2 text-sm font-medium text-white hover:bg-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          이동
+                        </button>
                       ) : null}
                       {field.key === "slug" ? (
                         <button
                           type="button"
                           onClick={generateSlug}
                           disabled={
-                            Boolean(form.id) ||
+                            hasSavedSlug ||
                             isGeneratingSlug ||
                             !stringifyValue(form.basic_court_name).trim()
                           }
@@ -763,8 +1409,79 @@ export function AdminCourtManager() {
                   )}
                 </section>
               ))}
+                  </div>
+                </div>
+              </div>
             </div>
-          </section>
+            {isImportPickerOpen ? (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 px-4">
+                <section className="flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-[#2f2f2f] bg-[#151515] shadow-2xl">
+                  <div className="flex items-center justify-between gap-3 border-b border-[#2f2f2f] p-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">정보 불러오기</h3>
+                      <p className="mt-1 text-xs text-[#8c8c8c]">
+                        테니스장명과 slug는 유지하고 나머지 정보만 가져옵니다.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsImportPickerOpen(false)}
+                      className="rounded-lg border border-[#3c3c3c] bg-[#202020] px-3 py-2 text-sm font-medium text-white hover:bg-[#2a2a2a]"
+                    >
+                      닫기
+                    </button>
+                  </div>
+                  <div className="border-b border-[#2f2f2f] p-4">
+                    <input
+                      value={importQuery}
+                      onChange={(event) => setImportQuery(event.target.value)}
+                      className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
+                      placeholder="이름, 지역, 주소, slug 검색"
+                    />
+                  </div>
+                  <div className="overflow-y-auto">
+                    {importPickerCourts.length === 0 ? (
+                      <p className="p-4 text-sm text-[#a7a7a7]">불러올 테니스장이 없습니다.</p>
+                    ) : (
+                      <ul className="divide-y divide-[#2f2f2f]">
+                        {importPickerCourts.map((court) => (
+                          <li key={court.id}>
+                            <button
+                              type="button"
+                              onClick={() => importCourtDetails(court)}
+                              className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[#202020]"
+                            >
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-medium text-white">
+                                  {court.basic_court_name ?? "이름 없음"}
+                                </span>
+                                <span className="mt-1 block truncate text-xs text-[#a7a7a7]">
+                                  {[court.basic_region, court.basic_city, court.basic_address]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </span>
+                              </span>
+                              <span
+                                className={`shrink-0 rounded-md px-2 py-1 text-[11px] font-semibold ${
+                                  court.use_or_not
+                                    ? "bg-[#12351f] text-[#86efac]"
+                                    : "bg-[#2a2a2a] text-[#b8b8b8]"
+                                }`}
+                              >
+                                {court.use_or_not ? "YES" : "NO"}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </section>
+              </div>
+            ) : null}
+              </section>
+            </div>
+          ) : null}
         </div>
       </div>
     </main>

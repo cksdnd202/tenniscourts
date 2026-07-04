@@ -7,9 +7,15 @@ const editableFields = [
   "basic_owner_type",
   "basic_address",
   "basic_map_link",
+  "basic_latitude",
+  "basic_longitude",
   "basic_region",
   "basic_city",
-  "basic_time_of_use",
+  "time_of_use_same",
+  "basic_time_of_use_weekday_from",
+  "basic_time_of_use_weekday_to",
+  "basic_time_of_use_weekend_from",
+  "basic_time_of_use_weekend_to",
   "use_or_not",
   "court_count_hard_indoor",
   "court_count_hard_outdoor",
@@ -52,6 +58,8 @@ const numberFields = new Set([
   "booking_open_ordinal",
   "booking_open_day_owner",
   "booking_open_day_normal",
+  "basic_latitude",
+  "basic_longitude",
 ]);
 
 const nonNegativeNumberFields = new Set([
@@ -65,6 +73,7 @@ const nonNegativeNumberFields = new Set([
 
 const booleanFields = new Set([
   "use_or_not",
+  "time_of_use_same",
   "booking_normal_iscurrentmonth",
   "booking_online_reserve_possible",
   "booking_today_booking_possible",
@@ -136,8 +145,10 @@ export async function POST(req: NextRequest) {
   if (denied) return denied;
 
   const body = (await req.json()) as Record<string, unknown>;
-  const payload = normalizePayload(body);
-  delete payload.slug;
+  const payload = {
+    ...normalizePayload(body),
+    updated_at: new Date().toISOString(),
+  };
 
   const { data, error } = await getSupabaseAdmin()
     .from("courtinfo")
@@ -164,6 +175,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const payload = normalizePayload(body);
+  payload.updated_at = new Date().toISOString();
 
   const { data, error } = await getSupabaseAdmin()
     .from("courtinfo")

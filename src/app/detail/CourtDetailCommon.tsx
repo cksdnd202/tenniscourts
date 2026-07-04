@@ -57,6 +57,8 @@ export function CourtDetailMap({ court }: { court: Court }) {
   const [error, setError] = useState<string | null>(null);
   const [geocodeFailed, setGeocodeFailed] = useState(false);
   const address = court.basic_address?.trim() || "";
+  const latitude = court.basic_latitude;
+  const longitude = court.basic_longitude;
 
   useEffect(() => {
     if (!mapRef.current || !KAKAO_JAVASCRIPT_KEY) {
@@ -120,6 +122,11 @@ export function CourtDetailMap({ court }: { court: Court }) {
         .catch(() => setError("지도를 불러올 수 없습니다."));
     };
 
+    if (typeof latitude === "number" && typeof longitude === "number") {
+      run(latitude, longitude);
+      return;
+    }
+
     if (!address) {
       setGeocodeFailed(true);
       run(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
@@ -137,7 +144,7 @@ export function CourtDetailMap({ court }: { court: Court }) {
         setGeocodeFailed(true);
         run(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
       });
-  }, [address]);
+  }, [address, latitude, longitude]);
 
   if (!court.basic_address) return null;
   if (error) {

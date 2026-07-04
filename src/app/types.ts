@@ -1,15 +1,23 @@
 export type Court = {
   /*코트 기본 정보*/
   id: string;
+  created_at?: string | null;
+  updated_at?: string | null;
   basic_court_name: string | null;
   // 슬러그 기반 상세 페이지 이동을 위한 필드
   slug?: string | null;
   basic_owner_type: string | null;
   basic_address: string | null;
   basic_map_link: string | null;
+  basic_latitude?: number | null;
+  basic_longitude?: number | null;
   basic_region: string | null;
   basic_city: string | null;
-  basic_time_of_use: string | null;
+  time_of_use_same?: boolean | null;
+  basic_time_of_use_weekday_from?: string | null;
+  basic_time_of_use_weekday_to?: string | null;
+  basic_time_of_use_weekend_from?: string | null;
+  basic_time_of_use_weekend_to?: string | null;
 
   /*노출 여부*/
   use_or_not: boolean | null;
