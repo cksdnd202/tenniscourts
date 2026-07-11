@@ -89,6 +89,7 @@ const fields: FieldConfig[] = [
       { label: "순번제(ordinal, 몇 번째 요일인지)", value: "ordinal" },
     ],
   },
+  { key: "booking_lottery_desc", label: "추첨 방식" },
   {
     key: "booking_open_type",
     label: "오픈 타입",
@@ -344,6 +345,7 @@ function toPreviewCourt(form: CourtForm): Court {
     booking_site_link: form.booking_site_link ?? null,
     booking_reception_time: form.booking_reception_time ?? null,
     booking_rule_type: form.booking_rule_type ?? null,
+    booking_lottery_desc: form.booking_lottery_desc ?? null,
     booking_open_type: form.booking_open_type ?? null,
     booking_eligibility_first: form.booking_eligibility_first ?? null,
     booking_eligibility_second: form.booking_eligibility_second ?? null,
@@ -463,6 +465,15 @@ export function AdminCourtManager() {
 
     if (ruleType === "phone") {
       return key === "booking_reception_time";
+    }
+
+    if (ruleType === "lottery") {
+      if (key === "booking_lottery_desc") return true;
+      if (key === "booking_eligibility_first") return true;
+      if (key === "booking_open_time_owner") return hasPriorityEligibility;
+      if (key === "booking_eligibility_second") return true;
+      if (key === "booking_open_time_normal") return isNormalOpenEnabled;
+      return false;
     }
 
     if (ruleType === "rolling") {
@@ -718,15 +729,17 @@ export function AdminCourtManager() {
         const ruleType = stringifyValue(value) || null;
         const keepsSchedule = ruleType === "fixed_schedule" || ruleType === "ordinal";
         const keepsRolling = ruleType === "rolling";
+        const keepsLottery = ruleType === "lottery";
 
         return {
           ...current,
           booking_rule_type: ruleType,
+          booking_lottery_desc: ruleType === "lottery" ? current.booking_lottery_desc : null,
           booking_open_type: keepsSchedule ? current.booking_open_type : null,
           booking_eligibility_first:
-            keepsSchedule || keepsRolling ? current.booking_eligibility_first : null,
+            keepsSchedule || keepsRolling || keepsLottery ? current.booking_eligibility_first : null,
           booking_eligibility_second:
-            keepsSchedule || keepsRolling ? current.booking_eligibility_second : null,
+            keepsSchedule || keepsRolling || keepsLottery ? current.booking_eligibility_second : null,
           booking_open_ordinal: ruleType === "ordinal" ? current.booking_open_ordinal : null,
           booking_open_day_of_month:
             ruleType === "fixed_schedule" ? current.booking_open_day_of_month : null,
@@ -734,11 +747,11 @@ export function AdminCourtManager() {
           booking_open_day_owner:
             ruleType === "fixed_schedule" ? current.booking_open_day_owner : null,
           booking_open_time_owner:
-            keepsSchedule || keepsRolling ? current.booking_open_time_owner : null,
+            keepsSchedule || keepsRolling || keepsLottery ? current.booking_open_time_owner : null,
           booking_open_day_normal:
             ruleType === "fixed_schedule" ? current.booking_open_day_normal : null,
           booking_open_time_normal:
-            keepsSchedule || keepsRolling ? current.booking_open_time_normal : null,
+            keepsSchedule || keepsRolling || keepsLottery ? current.booking_open_time_normal : null,
           booking_open_offset:
             ruleType === "fixed_schedule" || keepsRolling ? current.booking_open_offset : null,
           booking_normal_iscurrentmonth:

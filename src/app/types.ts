@@ -35,6 +35,7 @@ export type Court = {
   booking_reception_time: string | null;
 
   booking_rule_type: string | null;
+  booking_lottery_desc?: string | null;
   booking_open_type: string | null;
 
   booking_eligibility_first: string | null;

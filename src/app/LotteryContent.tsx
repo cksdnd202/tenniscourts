@@ -24,8 +24,14 @@ export function LotteryContent({ court }: { court: Court }) {
       </div>
 
 
-      {/* lottery 타입용 구조 - 필요에 따라 수정하세요 */}
-      <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-lg my-2 h-[56px]"></div>
+      <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-lg my-2 h-[56px] flex flex-col justify-center">
+        <p className={`${courtitem_courtopentime} break-words`}>
+          <span className="text-[#6FCF97]">추첨 : </span>
+          <span className="text-white font-semibold">
+            {court.booking_lottery_desc?.trim() || "추첨 방식 확인 필요"}
+          </span>
+        </p>
+      </div>
 
       {/* 주소, 지도보기, 코트 종류 정보, 예약하러가기 */}
       {court.basic_address && (

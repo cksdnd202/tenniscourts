@@ -26,6 +26,7 @@ const editableFields = [
   "booking_site_link",
   "booking_reception_time",
   "booking_rule_type",
+  "booking_lottery_desc",
   "booking_open_type",
   "booking_eligibility_first",
   "booking_eligibility_second",
