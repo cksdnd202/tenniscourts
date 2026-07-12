@@ -1,9 +1,9 @@
 import Image from "next/image";
 import { Court } from "./types";
 import { getCourtDetailPath } from "@/lib/courtPath";
+import { FavoriteButton } from "./FavoriteButton";
 import {
   courtitem_courtname,
-  courtitem_courtownertype,
   courtitem_courtopentime,
   courtitem_courtaddress,
   courtitem_courtmaplink,
@@ -17,14 +17,14 @@ import {
 export function LotteryContent({ court }: { court: Court }) {
   return (
     <>
-      {/* 코트 이름, 시립/구립/사설 */}
+      {/* 코트 이름, 찜하기 */}
       <div className="flex items-center justify-between gap-2 min-w-0">
         <span className={courtitem_courtname}>{court.basic_court_name ?? "(이름 없음)"}</span>
-        <span className={courtitem_courtownertype}>{court.basic_owner_type}</span>
+        <FavoriteButton courtId={court.id} />
       </div>
 
 
-      <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-lg my-2 h-[56px] flex flex-col justify-center">
+      <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-md my-2 h-[56px] flex flex-col justify-center">
         <p className={`${courtitem_courtopentime} break-words`}>
           <span className="text-[#6FCF97]">추첨 : </span>
           <span className="text-white font-semibold">

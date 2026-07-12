@@ -1,9 +1,9 @@
 import Image from "next/image";
 import { Court } from "./types";
 import { getCourtDetailPath } from "@/lib/courtPath";
+import { FavoriteButton } from "./FavoriteButton";
 import {
   courtitem_courtname,
-  courtitem_courtownertype,
   courtitem_courtopentime,
   courtitem_courtaddress,
   courtitem_courtmaplink,
@@ -20,12 +20,12 @@ export function PhoneContent({ court }: { court: Court }) {
       {/* phone 타입용 구조 - 필요에 따라 수정하세요 */}
       <div className="flex items-center justify-between gap-2 min-w-0">
         <span className={courtitem_courtname}>{court.basic_court_name ?? "(이름 없음)"}</span>
-        <span className={courtitem_courtownertype}>{court.basic_owner_type}</span>
+        <FavoriteButton courtId={court.id} />
       </div>
 
 
       {/* phone 타입 전용 내용을 여기에 추가하세요 */}
-      <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-lg my-2 h-[56px]"></div>
+      <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-md my-2 h-[56px]"></div>
 
       {/* 주소, 지도보기, 코트 종류 정보, 예약하러가기 */}
       {court.basic_address && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { Court } from "./types";
 import { FixedScheduleContent } from "./FixedScheduleContent";
 import { OrdinalContent } from "./ordinal";
@@ -616,9 +617,39 @@ export function CourtFilter({ courts }: Props) {
             ))}
           </ul>
         )}
+
+        <footer className="mt-40 min-h-[220px] border-t border-[#2C2C2C] px-1 py-12 text-[#8A8F98]">
+          <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-lg font-semibold text-white">courtskorea</p>
+              <p className="mt-3 text-sm leading-6">
+                서울과 수도권 테니스장 예약 정보를 더 쉽게 확인할 수 있도록 정리합니다.
+              </p>
+            </div>
+            <nav className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm font-medium">
+              <Link
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-colors hover:text-white"
+              >
+                개인정보처리방침
+              </Link>
+              <Link
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-colors hover:text-white"
+              >
+                이용약관
+              </Link>
+            </nav>
+          </div>
+          <p className="mt-12 text-xs text-[#5F646D]">
+            © 2026 Courts Korea. All rights reserved.
+          </p>
+        </footer>
       </section>
     </div>
   );
 }
-
-

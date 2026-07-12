@@ -8,6 +8,7 @@ import { CourtSearchHeader } from "../../CourtSearchHeader";
 import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSection";
 import { CourtDetailAddress, CourtDetailTable, CourtDetailMap } from "../../detail/CourtDetailCommon";
 import { CourtDetailAside, CourtDetailMobileBookBar } from "../../detail/CourtDetailAside";
+import { RecentCourtViewTracker } from "../../detail/RecentCourtViewTracker";
 
 export const revalidate = 60;
 
@@ -213,6 +214,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
 
   return (
     <>
+      <RecentCourtViewTracker courtId={court.id} />
       <CourtSearchHeader courts={courtsForSearch} />
 
       {/* 헤더 검색창과 동일하게 1032px 이상에서만 2열 + 우측 사이드 표시 (lg=1024만 쓰면 사이드바가 비는 구간 발생) */}

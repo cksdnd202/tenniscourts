@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCourtDetailPath } from "@/lib/courtPath";
+import { supabase } from "@/lib/supabase";
 import type { Court } from "./types";
 
 /** 헤더 검색에 실제로 쓰이는 필드만 있으면 됨 */
@@ -22,6 +23,7 @@ export function CourtSearchHeader({ courts }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isLocalhost, setIsLocalhost] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -31,6 +33,27 @@ export function CourtSearchHeader({ courts }: Props) {
         window.location.hostname === "127.0.0.1" ||
         window.location.hostname === "::1"
     );
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (isMounted) {
+        setIsLoggedIn(Boolean(data.session));
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(Boolean(session));
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // 검색 결과 필터링 (코트 이름 기준)
@@ -87,6 +110,25 @@ export function CourtSearchHeader({ courts }: Props) {
     router.push("/admin");
   };
 
+  const goToLoginPage = async () => {
+    if (isLoggedIn) {
+      router.push("/mypage");
+      return;
+    }
+
+    const redirectTo = `${window.location.origin}/`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "kakao",
+      options: {
+        redirectTo,
+      },
+    });
+
+    if (error) {
+      alert(`카카오 로그인 연결에 실패했습니다: ${error.message}`);
+    }
+  };
+
   const showTestPageButton = process.env.NODE_ENV !== "production";
   const showAdminButton = isLocalhost;
 
@@ -116,29 +158,33 @@ export function CourtSearchHeader({ courts }: Props) {
             </button>
           </div>
 
-          {showAdminButton || showTestPageButton ? (
-            <div className="ml-auto flex items-center gap-2">
-              {showAdminButton ? (
-                <button
-                  type="button"
-                  onClick={goToAdminPage}
-                  className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
-                >
-                  어드민
-                </button>
-              ) : null}
-              {showTestPageButton ? (
-                <button
-                  type="button"
-                  onClick={goToTestPage}
-                  className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
-                >
-                  테스트 페이지
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={goToLoginPage}
+              className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
+            >
+              {isLoggedIn ? "내 계정" : "로그인"}
+            </button>
+            {showAdminButton ? (
+              <button
+                type="button"
+                onClick={goToAdminPage}
+                className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
+              >
+                어드민
+              </button>
+            ) : null}
+            {showTestPageButton ? (
+              <button
+                type="button"
+                onClick={goToTestPage}
+                className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
+              >
+                테스트 페이지
+              </button>
+            ) : null}
+          </div>
           {/* 데스크탑용 검색 입력창 (1032px 이상) */}
           <div
             ref={containerRef}
@@ -232,11 +278,18 @@ export function CourtSearchHeader({ courts }: Props) {
               priority
             />
           </button>
+          <button
+            type="button"
+            onClick={goToLoginPage}
+            className="ml-auto mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white"
+          >
+            {isLoggedIn ? "내 계정" : "로그인"}
+          </button>
           {showAdminButton ? (
             <button
               type="button"
               onClick={goToAdminPage}
-              className="ml-auto mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white"
+              className="mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white"
             >
               어드민
             </button>
@@ -245,9 +298,7 @@ export function CourtSearchHeader({ courts }: Props) {
             <button
               type="button"
               onClick={goToTestPage}
-              className={`mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white ${
-                showAdminButton ? "" : "ml-auto"
-              }`}
+              className="mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white"
             >
               테스트
             </button>
@@ -256,9 +307,7 @@ export function CourtSearchHeader({ courts }: Props) {
             type="button"
             onClick={() => setIsMobileSearchOpen(true)}
             data-coachmark="search-area-mobile"
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] text-[#B0B0B0] ${
-              showAdminButton || showTestPageButton ? "" : "ml-auto"
-            }`}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] text-[#B0B0B0]"
             aria-label="코트 검색 열기"
           >
             <svg
