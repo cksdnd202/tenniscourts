@@ -9,6 +9,7 @@ import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSectio
 import { CourtDetailAddress, CourtDetailTable, CourtDetailMap } from "../../detail/CourtDetailCommon";
 import { CourtDetailAside, CourtDetailMobileBookBar } from "../../detail/CourtDetailAside";
 import { RecentCourtViewTracker } from "../../detail/RecentCourtViewTracker";
+import { FavoriteButton } from "../../FavoriteButton";
 
 export const revalidate = 60;
 
@@ -117,25 +118,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-function CourtInfoBanner() {
+function CourtFavoriteBanner({ courtId }: { courtId: string }) {
   return (
-    <a
-      href="/"
-      className="flex items-center justify-between gap-2 rounded-xl border border-[#2C2C2C] bg-[#1A1A1B] px-4 py-3 text-sm hover:bg-[#252528] transition min-[1032px]:hidden"
-    >
-      <span className="flex items-center gap-2 min-w-0 text-[#B0B0B0]">
-        <span aria-hidden className="flex-shrink-0">
-          🎾
-        </span>
-        <span className="min-w-0 leading-snug">
-          <span className="text-white">나만 아는 코트가 있으신가요?</span>{" "}
-          <span className="text-white font-medium">코트 정보 알려주기</span>
-        </span>
-      </span>
-      <span className="text-white flex-shrink-0 text-lg leading-none" aria-hidden>
-        ›
-      </span>
-    </a>
+    <div className="flex justify-end min-[1032px]:hidden">
+      <FavoriteButton courtId={courtId} />
+    </div>
   );
 }
 
@@ -223,7 +210,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
           <div className="min-[1032px]:grid min-[1032px]:grid-cols-12 min-[1032px]:gap-8 min-[1032px]:items-stretch">
             {/* 좌측 메인 (~70–75%) */}
             <div className="min-[1032px]:col-span-8 xl:col-span-9 space-y-6 min-w-0">
-              <CourtInfoBanner />
+              <CourtFavoriteBanner courtId={court.id} />
 
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex flex-wrap items-center gap-2 min-w-0">
@@ -236,19 +223,9 @@ export default async function CourtDetailPage({ params }: PageProps) {
                     </span>
                   ) : null}
                 </div>
-                <a
-                  href="/"
-                  className="hidden min-[1032px]:inline-flex items-center gap-1.5 rounded-xl border border-[#2C2C2C] bg-[#1A1A1B] px-4 py-2.5 text-sm text-[#B0B0B0] hover:bg-[#252528] transition flex-shrink-0"
-                >
-                  <span aria-hidden>🎾</span>
-                  <span>
-                    나만 아는 코트가 있으신가요?{" "}
-                    <span className="text-white font-medium">코트 정보 알려주기</span>
-                  </span>
-                  <span className="text-white" aria-hidden>
-                    ›
-                  </span>
-                </a>
+                <div className="hidden min-[1032px]:inline-flex flex-shrink-0">
+                  <FavoriteButton courtId={court.id} />
+                </div>
               </div>
 
               <section aria-label="예약 오픈 정보">
