@@ -22,10 +22,14 @@ declare global {
   var _supabase: ReturnType<typeof createClient> | undefined;
 }
 
+const globalForSupabase = globalThis as typeof globalThis & {
+  _supabase?: ReturnType<typeof createClient>;
+};
+
 export const supabase =
-  global._supabase ?? createClient(url, anon);
+  globalForSupabase._supabase ?? createClient(url, anon);
 
 // dev 환경에서만 전역에 보관
 if (process.env.NODE_ENV !== "production") {
-  global._supabase = supabase;
+  globalForSupabase._supabase = supabase;
 }
