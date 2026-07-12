@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { supabase } from "@/lib/supabase";
 
 const COURT_CARD_SELECT =
   "id, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, booking_site_link, basic_map_link, booking_rule_type, booking_lottery_desc, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_offset, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal";
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ courts: [] }, { headers: { "Cache-Control": "no-store" } });
   }
 
-  const { data, error } = await getSupabaseAdmin()
+  const { data, error } = await supabase
     .from("courtinfo")
     .select(COURT_CARD_SELECT)
     .in("id", ids)
