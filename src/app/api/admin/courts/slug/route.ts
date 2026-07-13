@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { denyUnlessAdmin } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 const romanMap: Array<[RegExp, string]> = [
@@ -98,10 +99,6 @@ const jongseong = [
   "t",
 ];
 
-function isLocalhost(req: NextRequest) {
-  return ["localhost", "127.0.0.1", "::1"].includes(req.nextUrl.hostname);
-}
-
 function fallbackHash(value: string) {
   let hash = 0;
   for (const char of value) {
@@ -165,9 +162,8 @@ async function slugExists(slug: string) {
 }
 
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV === "production" || !isLocalhost(req)) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  const denied = await denyUnlessAdmin(req);
+  if (denied) return denied;
 
   const body = (await req.json()) as { name?: unknown };
   const name = typeof body.name === "string" ? body.name.trim() : "";

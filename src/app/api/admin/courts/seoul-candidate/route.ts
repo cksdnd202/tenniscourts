@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { denyUnlessAdmin } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 const PAGE_SIZE = 100;
@@ -10,10 +11,6 @@ const DEFAULT_COURT_COUNTS = {
   court_count_clay_indoor: 0,
   court_count_clay_outdoor: 0,
 };
-
-function isLocalhost(req: NextRequest) {
-  return ["localhost", "127.0.0.1", "::1"].includes(req.nextUrl.hostname);
-}
 
 function extractTag(block: string, tag: string): string {
   const match = block.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, "i"));
@@ -170,9 +167,8 @@ async function toCourtCandidate(row: string) {
 }
 
 export async function GET(req: NextRequest) {
-  if (process.env.NODE_ENV === "production" || !isLocalhost(req)) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
+  const denied = await denyUnlessAdmin(req);
+  if (denied) return denied;
 
   const apiKey = process.env.SEOUL_OPENAPI_KEY ?? "7248745a74636b733837426b724e4b";
 

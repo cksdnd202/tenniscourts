@@ -12,6 +12,7 @@ import { OnSiteContent } from "../OnSiteContent";
 import { OrdinalContent } from "../ordinal";
 import { PhoneContent } from "../PhoneContent";
 import { RollingContent } from "../RollingContent";
+import { supabase } from "@/lib/supabase";
 
 type CourtForm = Partial<Court>;
 type CourtSortKey = "name" | "updated_at" | "use_or_not";
@@ -43,6 +44,24 @@ const emptyForm: CourtForm = {
 
 const previewCardClass =
   "grid overflow-hidden rounded-xl border border-transparent bg-[#191B1E] p-5 gap-2 min-w-0";
+
+async function adminFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error("어드민 기능은 로그인이 필요합니다.");
+  }
+
+  const headers = new Headers(init.headers);
+  headers.set("Authorization", `Bearer ${session.access_token}`);
+
+  return fetch(input, {
+    ...init,
+    headers,
+  });
+}
 
 const fields: FieldConfig[] = [
   { key: "use_or_not", label: "노출 여부", type: "boolean" },
@@ -601,7 +620,7 @@ export function AdminCourtManager() {
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/courts", { cache: "no-store" });
+      const response = await adminFetch("/api/admin/courts", { cache: "no-store" });
       const data = await response.json();
 
       if (!response.ok) {
@@ -813,7 +832,7 @@ export function AdminCourtManager() {
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/courts/geocode", {
+      const response = await adminFetch("/api/admin/courts/geocode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address, name, mapLink }),
@@ -844,7 +863,7 @@ export function AdminCourtManager() {
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/courts/slug", {
+      const response = await adminFetch("/api/admin/courts/slug", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
@@ -871,7 +890,7 @@ export function AdminCourtManager() {
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/courts/seoul-candidate", {
+      const response = await adminFetch("/api/admin/courts/seoul-candidate", {
         cache: "no-store",
       });
       const data = await response.json();
@@ -907,7 +926,7 @@ export function AdminCourtManager() {
 
     try {
       const isUpdate = Boolean(form.id);
-      const response = await fetch("/api/admin/courts", {
+      const response = await adminFetch("/api/admin/courts", {
         method: isUpdate ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(normalizeForSave(form)),
@@ -949,7 +968,7 @@ export function AdminCourtManager() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin/courts?id=${encodeURIComponent(selectedCourt.id)}`, {
+      const response = await adminFetch(`/api/admin/courts?id=${encodeURIComponent(selectedCourt.id)}`, {
         method: "DELETE",
       });
       const data = await response.json();

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { denyUnlessAdmin } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 const editableFields = [
@@ -80,18 +81,6 @@ const booleanFields = new Set([
   "booking_today_booking_possible",
 ]);
 
-function isLocalhost(req: NextRequest) {
-  return ["localhost", "127.0.0.1", "::1"].includes(req.nextUrl.hostname);
-}
-
-function denyUnlessLocal(req: NextRequest) {
-  if (process.env.NODE_ENV === "production" || !isLocalhost(req)) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return null;
-}
-
 function normalizePayload(input: Record<string, unknown>) {
   const payload: Record<string, unknown> = {};
 
@@ -126,7 +115,7 @@ function normalizePayload(input: Record<string, unknown>) {
 }
 
 export async function GET(req: NextRequest) {
-  const denied = denyUnlessLocal(req);
+  const denied = await denyUnlessAdmin(req);
   if (denied) return denied;
 
   const { data, error } = await getSupabaseAdmin()
@@ -142,7 +131,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = denyUnlessLocal(req);
+  const denied = await denyUnlessAdmin(req);
   if (denied) return denied;
 
   const body = (await req.json()) as Record<string, unknown>;
@@ -165,7 +154,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const denied = denyUnlessLocal(req);
+  const denied = await denyUnlessAdmin(req);
   if (denied) return denied;
 
   const body = (await req.json()) as Record<string, unknown>;
@@ -193,7 +182,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const denied = denyUnlessLocal(req);
+  const denied = await denyUnlessAdmin(req);
   if (denied) return denied;
 
   const id = req.nextUrl.searchParams.get("id");

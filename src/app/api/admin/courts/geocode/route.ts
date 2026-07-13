@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { denyUnlessAdmin } from "@/lib/adminAuth";
 
 type CoordinateResult = {
   lat: number;
@@ -6,18 +7,6 @@ type CoordinateResult = {
   source: string;
   query: string;
 };
-
-function isLocalhost(req: NextRequest) {
-  return ["localhost", "127.0.0.1", "::1"].includes(req.nextUrl.hostname);
-}
-
-function denyUnlessLocal(req: NextRequest) {
-  if (process.env.NODE_ENV === "production" || !isLocalhost(req)) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return null;
-}
 
 function normalizeKeyword(value: string) {
   return value
@@ -87,7 +76,7 @@ async function searchKeyword(query: string): Promise<CoordinateResult | null> {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = denyUnlessLocal(req);
+  const denied = await denyUnlessAdmin(req);
   if (denied) return denied;
 
   const body = (await req.json()) as {
