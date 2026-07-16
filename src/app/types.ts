@@ -64,3 +64,16 @@ export type Court = {
   booking_booking_provide: string | null;
   etc_desc: string | null;
 };
+
+export type CourtBlogLink = {
+  id?: string;
+  court_id: string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  thumbnail_url: string | null;
+  source: string | null;
+  sort_order: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+};

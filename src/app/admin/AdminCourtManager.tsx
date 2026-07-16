@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { Court } from "../types";
+import type { Court, CourtBlogLink } from "../types";
 import { CheckingContent } from "../CheckingContent";
 import { FixedScheduleContent } from "../FixedScheduleContent";
 import { IrregularContent } from "../IrregularContent";
@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabase";
 type CourtForm = Partial<Court>;
 type CourtSortKey = "name" | "updated_at" | "use_or_not";
 type SortDirection = "asc" | "desc";
+type CourtBlogLinkDraft = Partial<CourtBlogLink>;
 
 type FieldConfig = {
   key: keyof Court;
@@ -45,6 +46,17 @@ const emptyForm: CourtForm = {
 const previewCardClass =
   "grid overflow-hidden rounded-xl border border-transparent bg-[#191B1E] p-5 gap-2 min-w-0";
 
+function createEmptyBlogLinks(): CourtBlogLinkDraft[] {
+  return Array.from({ length: 3 }, (_, index) => ({
+    url: "",
+    title: "",
+    description: "",
+    thumbnail_url: "",
+    source: "",
+    sort_order: index,
+  }));
+}
+
 async function adminFetch(input: RequestInfo | URL, init: RequestInit = {}) {
   const {
     data: { session },
@@ -61,6 +73,28 @@ async function adminFetch(input: RequestInfo | URL, init: RequestInit = {}) {
     ...init,
     headers,
   });
+}
+
+async function readAdminResponse(response: Response, fallbackMessage: string) {
+  const text = await response.text();
+  let data: any = {};
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { error: text };
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      data.error ??
+        `${fallbackMessage} 서버 응답이 비어 있습니다. Vercel 환경변수(SUPABASE_SERVICE_ROLE_KEY)를 확인해 주세요.`
+    );
+  }
+
+  return data;
 }
 
 const fields: FieldConfig[] = [
@@ -451,12 +485,16 @@ export function AdminCourtManager() {
   const [courts, setCourts] = useState<Court[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<CourtForm>(emptyForm);
+  const [blogLinks, setBlogLinks] = useState<CourtBlogLinkDraft[]>(createEmptyBlogLinks);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<CourtSortKey>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isFetchingSeoulCandidate, setIsFetchingSeoulCandidate] = useState(false);
+  const [isFetchingBlogs, setIsFetchingBlogs] = useState(false);
+  const [fetchingBlogIndex, setFetchingBlogIndex] = useState<number | null>(null);
+  const [isLoadingBlogLinks, setIsLoadingBlogLinks] = useState(false);
   const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
   const [isFindingCoordinates, setIsFindingCoordinates] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -621,17 +659,45 @@ export function AdminCourtManager() {
 
     try {
       const response = await adminFetch("/api/admin/courts", { cache: "no-store" });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "목록을 불러오지 못했습니다.");
-      }
+      const data = await readAdminResponse(response, "목록을 불러오지 못했습니다.");
 
       setCourts(data.courts ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "목록을 불러오지 못했습니다.");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  function padBlogLinks(links: CourtBlogLinkDraft[]) {
+    const nextLinks: CourtBlogLinkDraft[] = links.slice(0, 3).map((link, index) => ({
+      ...link,
+      sort_order: index,
+    }));
+
+    while (nextLinks.length < 3) {
+      nextLinks.push(createEmptyBlogLinks()[nextLinks.length]);
+    }
+
+    return nextLinks;
+  }
+
+  async function loadBlogLinks(courtId: string) {
+    setIsLoadingBlogLinks(true);
+
+    try {
+      const response = await adminFetch(
+        `/api/admin/courts/blog-links?courtId=${encodeURIComponent(courtId)}`,
+        { cache: "no-store" }
+      );
+      const data = await readAdminResponse(response, "블로그 링크를 불러오지 못했습니다.");
+
+      setBlogLinks(padBlogLinks(data.links ?? []));
+    } catch (blogError) {
+      setBlogLinks(createEmptyBlogLinks());
+      setError(blogError instanceof Error ? blogError.message : "블로그 링크를 불러오지 못했습니다.");
+    } finally {
+      setIsLoadingBlogLinks(false);
     }
   }
 
@@ -642,6 +708,8 @@ export function AdminCourtManager() {
   function selectCourt(court: Court) {
     setSelectedId(court.id);
     setForm(toForm(court));
+    setBlogLinks(createEmptyBlogLinks());
+    loadBlogLinks(court.id);
     setIsFormOpen(true);
     setMessage(null);
     setError(null);
@@ -650,6 +718,7 @@ export function AdminCourtManager() {
   function startCreate() {
     setSelectedId(null);
     setForm(emptyForm);
+    setBlogLinks(createEmptyBlogLinks());
     setIsFormOpen(true);
     setMessage(null);
     setError(null);
@@ -837,11 +906,7 @@ export function AdminCourtManager() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address, name, mapLink }),
       });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "좌표를 찾지 못했습니다.");
-      }
+      const data = await readAdminResponse(response, "좌표를 찾지 못했습니다.");
 
       updateField("basic_latitude", String(data.lat));
       updateField("basic_longitude", String(data.lng));
@@ -868,11 +933,7 @@ export function AdminCourtManager() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "slug를 생성하지 못했습니다.");
-      }
+      const data = await readAdminResponse(response, "slug를 생성하지 못했습니다.");
 
       updateField("slug", data.slug);
       setMessage("상세페이지 slug를 생성했습니다.");
@@ -886,6 +947,7 @@ export function AdminCourtManager() {
   async function fetchSeoulCandidate() {
     setIsFetchingSeoulCandidate(true);
     setSelectedId(null);
+    setBlogLinks(createEmptyBlogLinks());
     setMessage(null);
     setError(null);
 
@@ -893,11 +955,7 @@ export function AdminCourtManager() {
       const response = await adminFetch("/api/admin/courts/seoul-candidate", {
         cache: "no-store",
       });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "서울시 API 후보를 가져오지 못했습니다.");
-      }
+      const data = await readAdminResponse(response, "서울시 API 후보를 가져오지 못했습니다.");
 
       setForm({ ...emptyForm, ...data.court });
       const range = data.meta?.apiRange ? ` API 구간 ${data.meta.apiRange}` : "";
@@ -911,6 +969,110 @@ export function AdminCourtManager() {
     } finally {
       setIsFetchingSeoulCandidate(false);
     }
+  }
+
+  function updateBlogLink(index: number, key: keyof CourtBlogLinkDraft, value: string) {
+    setBlogLinks((current) =>
+      padBlogLinks(current).map((link, linkIndex) =>
+        linkIndex === index ? { ...link, [key]: value, sort_order: index } : link
+      )
+    );
+  }
+
+  function clearBlogLink(index: number) {
+    setBlogLinks((current) =>
+      padBlogLinks(current).map((link, linkIndex) =>
+        linkIndex === index ? { ...createEmptyBlogLinks()[index], sort_order: index } : link
+      )
+    );
+  }
+
+  async function fetchBlogLinksFromNaver() {
+    const courtName = stringifyValue(form.basic_court_name).trim();
+    const region = stringifyValue(form.basic_region).trim();
+    const city = stringifyValue(form.basic_city).trim();
+
+    if (!courtName) {
+      setError("테니스장명을 입력해야 블로그를 불러올 수 있습니다.");
+      return;
+    }
+
+    setIsFetchingBlogs(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const response = await adminFetch("/api/admin/courts/blog-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courtName, region, city, count: 3 }),
+      });
+      const data = await readAdminResponse(response, "블로그를 불러오지 못했습니다.");
+
+      setBlogLinks(padBlogLinks(data.links ?? []));
+      setMessage(`네이버 블로그 검색 결과를 불러왔습니다. (${data.query ?? courtName})`);
+    } catch (blogError) {
+      setError(blogError instanceof Error ? blogError.message : "블로그를 불러오지 못했습니다.");
+    } finally {
+      setIsFetchingBlogs(false);
+    }
+  }
+
+  async function fetchAlternativeBlogLink(index: number) {
+    const courtName = stringifyValue(form.basic_court_name).trim();
+    const region = stringifyValue(form.basic_region).trim();
+    const city = stringifyValue(form.basic_city).trim();
+
+    if (!courtName) {
+      setError("테니스장명을 입력해야 다른 글을 불러올 수 있습니다.");
+      return;
+    }
+
+    setFetchingBlogIndex(index);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const excludeUrls = padBlogLinks(blogLinks)
+        .map((link) => stringifyValue(link.url).trim())
+        .filter(Boolean);
+      const response = await adminFetch("/api/admin/courts/blog-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courtName, region, city, excludeUrls, count: 1 }),
+      });
+      const data = await readAdminResponse(response, "다른 블로그 글을 불러오지 못했습니다.");
+      const nextLink = data.links?.[0];
+
+      if (!nextLink) {
+        setError("더 이상 불러올 블로그 글을 찾지 못했습니다.");
+        return;
+      }
+
+      setBlogLinks((current) =>
+        padBlogLinks(current).map((link, linkIndex) =>
+          linkIndex === index ? { ...nextLink, sort_order: index } : link
+        )
+      );
+      setMessage(`블로그 ${index + 1}에 다른 글을 불러왔습니다.`);
+    } catch (blogError) {
+      setError(
+        blogError instanceof Error ? blogError.message : "다른 블로그 글을 불러오지 못했습니다."
+      );
+    } finally {
+      setFetchingBlogIndex(null);
+    }
+  }
+
+  async function saveBlogLinksForCourt(courtId: string) {
+    const response = await adminFetch("/api/admin/courts/blog-links", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ courtId, links: blogLinks }),
+    });
+    const data = await readAdminResponse(response, "블로그 링크를 저장하지 못했습니다.");
+
+    setBlogLinks(padBlogLinks(data.links ?? []));
   }
 
   async function saveCourt() {
@@ -931,13 +1093,10 @@ export function AdminCourtManager() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(normalizeForSave(form)),
       });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "저장하지 못했습니다.");
-      }
+      const data = await readAdminResponse(response, "저장하지 못했습니다.");
 
       const savedCourt = data.court as Court;
+      await saveBlogLinksForCourt(savedCourt.id);
       setCourts((current) => {
         if (isUpdate) {
           return current.map((court) => (court.id === savedCourt.id ? savedCourt : court));
@@ -971,11 +1130,7 @@ export function AdminCourtManager() {
       const response = await adminFetch(`/api/admin/courts?id=${encodeURIComponent(selectedCourt.id)}`, {
         method: "DELETE",
       });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error ?? "삭제하지 못했습니다.");
-      }
+      await readAdminResponse(response, "삭제하지 못했습니다.");
 
       setCourts((current) => current.filter((court) => court.id !== selectedCourt.id));
       setSelectedId(null);
@@ -1441,6 +1596,130 @@ export function AdminCourtManager() {
                   )}
                 </section>
               ))}
+              <section className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3 border-b border-[#2f2f2f] pb-2">
+                  <div>
+                    <h3 className="text-sm font-semibold text-[#4ade80]">블로그 정보</h3>
+                    <p className="mt-1 text-xs text-[#8c8c8c]">
+                      상세페이지에 노출할 후기 링크를 최대 3개까지 저장합니다.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={fetchBlogLinksFromNaver}
+                    disabled={isFetchingBlogs || !stringifyValue(form.basic_court_name).trim()}
+                    className="shrink-0 rounded-lg border border-[#3c3c3c] bg-[#202020] px-3 py-2 text-sm font-medium text-white hover:bg-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {isFetchingBlogs ? "불러오는 중..." : "블로그 불러오기"}
+                  </button>
+                </div>
+                {isLoadingBlogLinks ? (
+                  <p className="rounded-lg border border-[#2f2f2f] bg-black px-3 py-4 text-sm text-[#a7a7a7]">
+                    블로그 링크를 불러오는 중...
+                  </p>
+                ) : (
+                  <div className="grid gap-3">
+                    {padBlogLinks(blogLinks).map((link, index) => (
+                      <div
+                        key={index}
+                        className="grid gap-3 rounded-lg border border-[#2f2f2f] bg-black p-3"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-medium text-[#cfcfcf]">
+                            블로그 {index + 1}
+                          </span>
+                          <div className="flex shrink-0 gap-2">
+                          {[
+                            link.url,
+                            link.title,
+                            link.description,
+                            link.thumbnail_url,
+                            link.source,
+                          ].some((value) => stringifyValue(value).trim()) ? (
+                            <button
+                              type="button"
+                              onClick={() => clearBlogLink(index)}
+                              className="rounded-lg border border-[#5a2d2d] bg-[#241313] px-3 py-1.5 text-xs font-medium text-[#ffb3b3] hover:bg-[#341818]"
+                            >
+                              삭제
+                            </button>
+                          ) : null}
+                          {link.url ? (
+                            <button
+                              type="button"
+                              onClick={() => window.open(stringifyValue(link.url), "_blank", "noopener,noreferrer")}
+                              className="rounded-lg border border-[#3c3c3c] bg-[#202020] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2a2a2a]"
+                            >
+                              열기
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => fetchAlternativeBlogLink(index)}
+                            disabled={
+                              fetchingBlogIndex === index ||
+                              isFetchingBlogs ||
+                              !stringifyValue(form.basic_court_name).trim()
+                            }
+                            className="rounded-lg border border-[#3c3c3c] bg-[#202020] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {fetchingBlogIndex === index ? "불러오는 중..." : "다른 글 불러오기"}
+                          </button>
+                          </div>
+                        </div>
+                        <label className="grid gap-2">
+                          <span className="text-xs text-[#a7a7a7]">URL</span>
+                          <input
+                            value={stringifyValue(link.url)}
+                            onChange={(event) => updateBlogLink(index, "url", event.target.value)}
+                            className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
+                            placeholder="https://..."
+                          />
+                        </label>
+                        <label className="grid gap-2">
+                          <span className="text-xs text-[#a7a7a7]">제목</span>
+                          <input
+                            value={stringifyValue(link.title)}
+                            onChange={(event) => updateBlogLink(index, "title", event.target.value)}
+                            className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
+                          />
+                        </label>
+                        <label className="grid gap-2">
+                          <span className="text-xs text-[#a7a7a7]">설명</span>
+                          <textarea
+                            value={stringifyValue(link.description)}
+                            onChange={(event) =>
+                              updateBlogLink(index, "description", event.target.value)
+                            }
+                            rows={2}
+                            className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
+                          />
+                        </label>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <label className="grid gap-2">
+                            <span className="text-xs text-[#a7a7a7]">썸네일 URL</span>
+                            <input
+                              value={stringifyValue(link.thumbnail_url)}
+                              onChange={(event) =>
+                                updateBlogLink(index, "thumbnail_url", event.target.value)
+                              }
+                              className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
+                            />
+                          </label>
+                          <label className="grid gap-2">
+                            <span className="text-xs text-[#a7a7a7]">출처</span>
+                            <input
+                              value={stringifyValue(link.source)}
+                              onChange={(event) => updateBlogLink(index, "source", event.target.value)}
+                              className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
                   </div>
                 </div>
               </div>

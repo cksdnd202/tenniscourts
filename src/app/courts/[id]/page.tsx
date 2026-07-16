@@ -3,7 +3,7 @@ import { buildCourtDetailMetadata } from "@/lib/courtSeo";
 import { getCourtDetailPath } from "@/lib/courtPath";
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
-import type { Court } from "../../types";
+import type { Court, CourtBlogLink } from "../../types";
 import { CourtSearchHeader } from "../../CourtSearchHeader";
 import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSection";
 import { CourtDetailAddress, CourtDetailTable, CourtDetailMap } from "../../detail/CourtDetailCommon";
@@ -62,6 +62,56 @@ function RelatedReservationInfo({ courts }: { courts: RelatedCourt[] }) {
             </a>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+function CourtBlogLinks({ links }: { links: CourtBlogLink[] }) {
+  if (links.length === 0) return null;
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-white font-semibold">방문 후기</h2>
+      <div className="grid gap-3 md:grid-cols-3">
+        {links.map((link) => (
+          <a
+            key={link.id ?? link.url}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group overflow-hidden rounded-xl border border-[#2C2C2C] bg-[#1A1A1B] transition hover:bg-[#252528]"
+          >
+            <div className="aspect-[16/9] bg-[#242426]">
+              {link.thumbnail_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={link.thumbnail_url}
+                  alt=""
+                  className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-xs text-[#777]">
+                  이미지 없음
+                </div>
+              )}
+            </div>
+            <div className="space-y-2 p-4">
+              {link.source ? (
+                <p className="truncate text-xs font-medium text-[#4ade80]">{link.source}</p>
+              ) : null}
+              <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-white group-hover:underline">
+                {link.title ?? "블로그 후기 보기"}
+              </h3>
+              {link.description ? (
+                <p className="line-clamp-2 text-xs leading-5 text-[#B0B0B0]">
+                  {link.description}
+                </p>
+              ) : null}
+            </div>
+          </a>
+        ))}
       </div>
     </section>
   );
@@ -184,6 +234,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
   }
 
   let relatedCourts: RelatedCourt[] = [];
+  let blogLinks: CourtBlogLink[] = [];
   const mapLink = court.basic_map_link?.trim();
   if (mapLink) {
     const { data: relatedData } = await supabase
@@ -198,6 +249,15 @@ export default async function CourtDetailPage({ params }: PageProps) {
 
     relatedCourts = (relatedData ?? []) as RelatedCourt[];
   }
+
+  const { data: blogLinkData } = await supabase
+    .from("court_blog_links")
+    .select("*")
+    .eq("court_id", court.id)
+    .order("sort_order", { ascending: true })
+    .limit(3);
+
+  blogLinks = (blogLinkData ?? []) as CourtBlogLink[];
 
   return (
     <>
@@ -251,6 +311,8 @@ export default async function CourtDetailPage({ params }: PageProps) {
                     : "등록된 부가 정보가 없습니다."}
                 </div>
               </section>
+
+              <CourtBlogLinks links={blogLinks} />
             </div>
 
             {/* 우측 사이드바 (~25–30%), 1032px 이상만 */}

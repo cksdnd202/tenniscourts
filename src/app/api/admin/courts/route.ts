@@ -114,88 +114,111 @@ function normalizePayload(input: Record<string, unknown>) {
   return payload;
 }
 
+function adminApiError(error: unknown) {
+  return NextResponse.json(
+    { error: error instanceof Error ? error.message : "어드민 API 처리 중 오류가 발생했습니다." },
+    { status: 500 }
+  );
+}
+
 export async function GET(req: NextRequest) {
   const denied = await denyUnlessAdmin(req);
   if (denied) return denied;
 
-  const { data, error } = await getSupabaseAdmin()
-    .from("courtinfo")
-    .select("*")
-    .order("basic_court_name", { ascending: true, nullsFirst: false });
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from("courtinfo")
+      .select("*")
+      .order("basic_court_name", { ascending: true, nullsFirst: false });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ courts: data ?? [] }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    return adminApiError(error);
   }
-
-  return NextResponse.json({ courts: data ?? [] }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(req: NextRequest) {
   const denied = await denyUnlessAdmin(req);
   if (denied) return denied;
 
-  const body = (await req.json()) as Record<string, unknown>;
-  const payload = {
-    ...normalizePayload(body),
-    updated_at: new Date().toISOString(),
-  };
+  try {
+    const body = (await req.json()) as Record<string, unknown>;
+    const payload = {
+      ...normalizePayload(body),
+      updated_at: new Date().toISOString(),
+    };
 
-  const { data, error } = await getSupabaseAdmin()
-    .from("courtinfo")
-    .insert(payload)
-    .select("*")
-    .single();
+    const { data, error } = await getSupabaseAdmin()
+      .from("courtinfo")
+      .insert(payload)
+      .select("*")
+      .single();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ court: data }, { status: 201 });
+  } catch (error) {
+    return adminApiError(error);
   }
-
-  return NextResponse.json({ court: data }, { status: 201 });
 }
 
 export async function PUT(req: NextRequest) {
   const denied = await denyUnlessAdmin(req);
   if (denied) return denied;
 
-  const body = (await req.json()) as Record<string, unknown>;
-  const id = typeof body.id === "string" ? body.id : "";
+  try {
+    const body = (await req.json()) as Record<string, unknown>;
+    const id = typeof body.id === "string" ? body.id : "";
 
-  if (!id) {
-    return NextResponse.json({ error: "id가 필요합니다." }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ error: "id가 필요합니다." }, { status: 400 });
+    }
+
+    const payload = normalizePayload(body);
+    payload.updated_at = new Date().toISOString();
+
+    const { data, error } = await getSupabaseAdmin()
+      .from("courtinfo")
+      .update(payload)
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ court: data });
+  } catch (error) {
+    return adminApiError(error);
   }
-
-  const payload = normalizePayload(body);
-  payload.updated_at = new Date().toISOString();
-
-  const { data, error } = await getSupabaseAdmin()
-    .from("courtinfo")
-    .update(payload)
-    .eq("id", id)
-    .select("*")
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ court: data });
 }
 
 export async function DELETE(req: NextRequest) {
   const denied = await denyUnlessAdmin(req);
   if (denied) return denied;
 
-  const id = req.nextUrl.searchParams.get("id");
+  try {
+    const id = req.nextUrl.searchParams.get("id");
 
-  if (!id) {
-    return NextResponse.json({ error: "id가 필요합니다." }, { status: 400 });
+    if (!id) {
+      return NextResponse.json({ error: "id가 필요합니다." }, { status: 400 });
+    }
+
+    const { error } = await getSupabaseAdmin().from("courtinfo").delete().eq("id", id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return adminApiError(error);
   }
-
-  const { error } = await getSupabaseAdmin().from("courtinfo").delete().eq("id", id);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ ok: true });
 }
