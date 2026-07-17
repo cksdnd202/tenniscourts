@@ -1145,7 +1145,7 @@ export function MyPageContent() {
 
       </aside>
 
-      <section className="flex-1 h-full overflow-y-auto p-7.5 ml-0 min-[1032px]:ml-4">
+      <section className="flex-1 h-full overflow-y-auto px-4 py-6 min-[1032px]:p-7.5 ml-0 min-[1032px]:ml-4">
         <div className="min-[1032px]:hidden mb-5 space-y-3">
           <div className="grid grid-cols-3 gap-2">
             {menuItems.map((item) => {

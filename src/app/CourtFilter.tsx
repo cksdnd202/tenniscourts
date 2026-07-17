@@ -18,7 +18,7 @@ type Props = {
 };
 
 const courtitemstyle = 
-"grid border rounded-xl border-transparent p-5 bg-[#191B1E] gap-2 transition duration-300 ease-in-out hover:-translate-y-1 hover:bg-[#2C2C2C] overflow-hidden min-w-0";
+"grid w-full border rounded-xl border-transparent p-5 bg-[#191B1E] gap-2 transition duration-300 ease-in-out hover:-translate-y-1 hover:bg-[#2C2C2C] overflow-hidden min-w-0";
 
 export function CourtFilter({ courts }: Props) {
   // 디버깅: 첫 번째 코트의 booking_opentime_normal 확인
@@ -530,7 +530,11 @@ export function CourtFilter({ courts }: Props) {
       )}
 
       {/* 우측 결과 영역 */}
-      <section data-coachmark="results-area" className="flex-1 h-full overflow-y-auto space-y-4 p-7.5 ml-4" style={{ scrollbarGutter: 'stable' }}>
+      <section
+        data-coachmark="results-area"
+        className="flex-1 h-full overflow-y-auto space-y-4 px-4 py-6 min-[1032px]:p-7.5 min-[1032px]:ml-4"
+        style={{ scrollbarGutter: 'stable' }}
+      >
         {/* 모바일용 코트 정보 알려주기 배너 - 1031px 이하에서만 표시 */}
         <a
           href="https://forms.gle/FfvfcDATe5CfH1iR6"
