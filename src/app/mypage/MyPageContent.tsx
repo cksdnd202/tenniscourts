@@ -61,6 +61,7 @@ const favoriteBadgeColorClass: Record<string, string> = {
   일반: "text-[#3896FB]",
   구민: "text-[#FD844C]",
   시민: "text-[#FD844C]",
+  주민: "text-[#FD844C]",
 };
 
 function formatDateTime(value: string | null | undefined) {

@@ -13,6 +13,7 @@ import { OrdinalContent } from "../ordinal";
 import { PhoneContent } from "../PhoneContent";
 import { RollingContent } from "../RollingContent";
 import { supabase } from "@/lib/supabase";
+import { hasPriorityEligibility } from "@/lib/bookingEligibility";
 
 type CourtForm = Partial<Court>;
 type CourtSortKey = "name" | "updated_at" | "use_or_not";
@@ -161,6 +162,7 @@ const fields: FieldConfig[] = [
       { label: "NULL", value: "" },
       { label: "resident(구민)", value: "resident" },
       { label: "citizen(시민)", value: "citizen" },
+      { label: "inhabitant(주민)", value: "inhabitant" },
     ],
   },
   { key: "booking_open_day_owner", label: "1순위 자격 오픈 일자", type: "number" },
@@ -486,6 +488,7 @@ export function AdminCourtManager() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<CourtForm>(emptyForm);
   const [blogLinks, setBlogLinks] = useState<CourtBlogLinkDraft[]>(createEmptyBlogLinks);
+  const [blogSeenUrls, setBlogSeenUrls] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<CourtSortKey>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -507,7 +510,7 @@ export function AdminCourtManager() {
     () => courts.find((court) => court.id === selectedId) ?? null,
     [courts, selectedId]
   );
-  const hasPriorityEligibility = ["resident", "citizen"].includes(
+  const hasPriorityEligibilitySelected = hasPriorityEligibility(
     stringifyValue(form.booking_eligibility_first)
   );
   const isNormalOpenEnabled = form.booking_eligibility_second === "normal";
@@ -527,7 +530,7 @@ export function AdminCourtManager() {
     if (ruleType === "lottery") {
       if (key === "booking_lottery_desc") return true;
       if (key === "booking_eligibility_first") return true;
-      if (key === "booking_open_time_owner") return hasPriorityEligibility;
+      if (key === "booking_open_time_owner") return hasPriorityEligibilitySelected;
       if (key === "booking_eligibility_second") return true;
       if (key === "booking_open_time_normal") return isNormalOpenEnabled;
       return false;
@@ -535,7 +538,7 @@ export function AdminCourtManager() {
 
     if (ruleType === "rolling") {
       if (key === "booking_eligibility_first") return true;
-      if (key === "booking_open_time_owner") return hasPriorityEligibility;
+      if (key === "booking_open_time_owner") return hasPriorityEligibilitySelected;
       if (key === "booking_eligibility_second") return true;
       if (key === "booking_open_time_normal") return isNormalOpenEnabled;
       if (key === "booking_open_offset") return true;
@@ -553,8 +556,8 @@ export function AdminCourtManager() {
         return true;
       }
 
-      if (key === "booking_open_day_owner") return hasPriorityEligibility && openType === "day";
-      if (key === "booking_open_time_owner") return hasPriorityEligibility;
+      if (key === "booking_open_day_owner") return hasPriorityEligibilitySelected && openType === "day";
+      if (key === "booking_open_time_owner") return hasPriorityEligibilitySelected;
       if (key === "booking_open_day_normal") return isNormalOpenEnabled && openType === "day";
       if (key === "booking_open_time_normal") return isNormalOpenEnabled;
       if (key === "booking_open_day_of_month" || key === "booking_open_day_of_week") {
@@ -573,7 +576,7 @@ export function AdminCourtManager() {
         return true;
       }
 
-      if (key === "booking_open_time_owner") return hasPriorityEligibility;
+      if (key === "booking_open_time_owner") return hasPriorityEligibilitySelected;
       if (key === "booking_open_time_normal") return isNormalOpenEnabled;
       if (key === "booking_open_day_of_week") return openType === "week";
       return false;
@@ -682,6 +685,15 @@ export function AdminCourtManager() {
     return nextLinks;
   }
 
+  function getBlogUrls(links: CourtBlogLinkDraft[]) {
+    return links.map((link) => stringifyValue(link.url).trim()).filter(Boolean);
+  }
+
+  function rememberBlogUrls(links: CourtBlogLinkDraft[]) {
+    const urls = getBlogUrls(links);
+    setBlogSeenUrls((current) => Array.from(new Set([...current, ...urls])));
+  }
+
   async function loadBlogLinks(courtId: string) {
     setIsLoadingBlogLinks(true);
 
@@ -692,9 +704,12 @@ export function AdminCourtManager() {
       );
       const data = await readAdminResponse(response, "블로그 링크를 불러오지 못했습니다.");
 
-      setBlogLinks(padBlogLinks(data.links ?? []));
+      const loadedLinks = padBlogLinks(data.links ?? []);
+      setBlogLinks(loadedLinks);
+      setBlogSeenUrls(getBlogUrls(loadedLinks));
     } catch (blogError) {
       setBlogLinks(createEmptyBlogLinks());
+      setBlogSeenUrls([]);
       setError(blogError instanceof Error ? blogError.message : "블로그 링크를 불러오지 못했습니다.");
     } finally {
       setIsLoadingBlogLinks(false);
@@ -709,6 +724,7 @@ export function AdminCourtManager() {
     setSelectedId(court.id);
     setForm(toForm(court));
     setBlogLinks(createEmptyBlogLinks());
+    setBlogSeenUrls([]);
     loadBlogLinks(court.id);
     setIsFormOpen(true);
     setMessage(null);
@@ -719,6 +735,7 @@ export function AdminCourtManager() {
     setSelectedId(null);
     setForm(emptyForm);
     setBlogLinks(createEmptyBlogLinks());
+    setBlogSeenUrls([]);
     setIsFormOpen(true);
     setMessage(null);
     setError(null);
@@ -731,7 +748,7 @@ export function AdminCourtManager() {
     setError(null);
   }
 
-  function importCourtDetails(source: Court) {
+  async function importCourtDetails(source: Court) {
     setForm((current) => {
       const keep = {
         id: current.id,
@@ -748,8 +765,34 @@ export function AdminCourtManager() {
     });
     setIsImportPickerOpen(false);
     setImportQuery("");
-    setMessage(`${source.basic_court_name ?? "선택한 테니스장"}의 정보를 불러왔습니다.`);
+    setIsLoadingBlogLinks(true);
+    setMessage(null);
     setError(null);
+
+    try {
+      const response = await adminFetch(
+        `/api/admin/courts/blog-links?courtId=${encodeURIComponent(source.id)}`,
+        { cache: "no-store" }
+      );
+      const data = await readAdminResponse(response, "블로그 링크를 불러오지 못했습니다.");
+
+      const importedBlogLinks = padBlogLinks(data.links ?? []);
+      setBlogLinks(importedBlogLinks);
+      setBlogSeenUrls(getBlogUrls(importedBlogLinks));
+      setMessage(
+        `${source.basic_court_name ?? "선택한 테니스장"}의 정보와 블로그글을 불러왔습니다.`
+      );
+    } catch (blogError) {
+      setBlogLinks(createEmptyBlogLinks());
+      setBlogSeenUrls([]);
+      setError(
+        blogError instanceof Error
+          ? blogError.message
+          : "블로그 링크를 불러오지 못했습니다."
+      );
+    } finally {
+      setIsLoadingBlogLinks(false);
+    }
   }
 
   function updateField(key: keyof Court, value: unknown) {
@@ -793,8 +836,7 @@ export function AdminCourtManager() {
 
       if (
         key === "booking_eligibility_first" &&
-        value !== "resident" &&
-        value !== "citizen"
+        !hasPriorityEligibility(stringifyValue(value))
       ) {
         return {
           ...current,
@@ -1008,8 +1050,10 @@ export function AdminCourtManager() {
         body: JSON.stringify({ courtName, region, city, count: 3 }),
       });
       const data = await readAdminResponse(response, "블로그를 불러오지 못했습니다.");
+      const nextLinks = padBlogLinks(data.links ?? []);
 
-      setBlogLinks(padBlogLinks(data.links ?? []));
+      setBlogLinks(nextLinks);
+      setBlogSeenUrls(getBlogUrls(nextLinks));
       setMessage(`네이버 블로그 검색 결과를 불러왔습니다. (${data.query ?? courtName})`);
     } catch (blogError) {
       setError(blogError instanceof Error ? blogError.message : "블로그를 불러오지 못했습니다.");
@@ -1033,9 +1077,7 @@ export function AdminCourtManager() {
     setError(null);
 
     try {
-      const excludeUrls = padBlogLinks(blogLinks)
-        .map((link) => stringifyValue(link.url).trim())
-        .filter(Boolean);
+      const excludeUrls = Array.from(new Set([...blogSeenUrls, ...getBlogUrls(blogLinks)]));
       const response = await adminFetch("/api/admin/courts/blog-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1054,6 +1096,7 @@ export function AdminCourtManager() {
           linkIndex === index ? { ...nextLink, sort_order: index } : link
         )
       );
+      rememberBlogUrls([nextLink]);
       setMessage(`블로그 ${index + 1}에 다른 글을 불러왔습니다.`);
     } catch (blogError) {
       setError(
@@ -1071,8 +1114,10 @@ export function AdminCourtManager() {
       body: JSON.stringify({ courtId, links: blogLinks }),
     });
     const data = await readAdminResponse(response, "블로그 링크를 저장하지 못했습니다.");
+    const savedLinks = padBlogLinks(data.links ?? []);
 
-    setBlogLinks(padBlogLinks(data.links ?? []));
+    setBlogLinks(savedLinks);
+    rememberBlogUrls(savedLinks);
   }
 
   async function saveCourt() {

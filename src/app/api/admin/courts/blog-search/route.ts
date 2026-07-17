@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { denyUnlessAdmin } from "@/lib/adminAuth";
 import { fetchBlogPreview } from "@/lib/blogPreview";
+import { storeBlogThumbnail } from "@/lib/blogThumbnailStorage";
 
 type NaverBlogItem = {
   title?: string;
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
     const query = [region, city, courtName, "테니스장 후기"].filter(Boolean).join(" ");
     const params = new URLSearchParams({
       query,
-      display: "30",
+      display: "100",
       start: "1",
       sort: "sim",
     });
@@ -97,7 +98,11 @@ export async function POST(req: NextRequest) {
           title: item.title ?? null,
           description: item.description ?? null,
           source: item.bloggername ?? null,
-        }).then((preview) => ({ ...preview, sort_order: index }))
+        }).then(async (preview) => ({
+          ...preview,
+          thumbnail_url: await storeBlogThumbnail(preview.thumbnail_url),
+          sort_order: index,
+        }))
       )
     );
 

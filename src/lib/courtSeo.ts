@@ -1,4 +1,5 @@
 import type { Court } from "@/app/types";
+import { getPriorityEligibilityLabel } from "@/lib/bookingEligibility";
 
 const SITE_NAME = "Courts Korea";
 
@@ -82,12 +83,9 @@ function buildWeekOpenPhrase(
 }
 
 function buildOwnerReservationSentence(court: Court): string | null {
-  const eligible =
-    court.booking_eligibility_first === "resident" ||
-    court.booking_eligibility_first === "citizen";
-  if (!eligible || !court.booking_open_time_owner?.trim()) return null;
+  const label = getPriorityEligibilityLabel(court.booking_eligibility_first);
+  if (!label || !court.booking_open_time_owner?.trim()) return null;
 
-  const label = court.booking_eligibility_first === "resident" ? "구민" : "시민";
   const time = formatTimeForSeo(court.booking_open_time_owner);
   const targetLabel = bookingTargetLabel(court, false);
   const rt = court.booking_rule_type;

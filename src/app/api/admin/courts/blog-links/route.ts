@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { denyUnlessAdmin } from "@/lib/adminAuth";
 import { fetchBlogPreview } from "@/lib/blogPreview";
+import { storeBlogThumbnail } from "@/lib/blogThumbnailStorage";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 type BlogLinkInput = {
@@ -95,12 +96,14 @@ export async function PUT(req: NextRequest) {
                 source: link.source,
               });
 
+        const thumbnailUrl = link.thumbnail_url ?? preview?.thumbnail_url ?? null;
+
         return {
           court_id: courtId,
           url: link.url,
           title: link.title ?? preview?.title ?? null,
           description: link.description ?? preview?.description ?? null,
-          thumbnail_url: link.thumbnail_url ?? preview?.thumbnail_url ?? null,
+          thumbnail_url: await storeBlogThumbnail(thumbnailUrl),
           source: link.source ?? preview?.source ?? null,
           sort_order: index,
           updated_at: new Date().toISOString(),

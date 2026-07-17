@@ -5,9 +5,9 @@ import {
 } from "./detailLayoutStyles";
 
 type Props = {
-  /** 구민 · 시민 · 일반 */
+  /** 구민 · 시민 · 주민 · 일반 */
   label: string;
-  /** 구민·시민: priority, 일반: general */
+  /** 구민·시민·주민: priority, 일반: general */
   labelTone: BookingOpenLabelTone;
   children: ReactNode;
 };

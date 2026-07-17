@@ -1,4 +1,5 @@
 import type { Court } from "../types";
+import { getPriorityEligibilityLabel } from "@/lib/bookingEligibility";
 import { formatTime } from "../styles";
 import { CourtDetailCommon } from "./CourtDetailCommon";
 import { BookingOpenCardRow } from "./BookingOpenCardRow";
@@ -8,15 +9,14 @@ const bookingGrid = "grid grid-cols-1 gap-3 min-[1032px]:grid-cols-2 min-[1032px
 
 /** lottery 전용: 예약 블록만 */
 export function LotteryBookingBlock({ court }: { court: Court }) {
-  const firstEligible =
-    court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen";
+  const priorityLabel = getPriorityEligibilityLabel(court.booking_eligibility_first);
 
   return (
     <div className={bookingGrid}>
       <div className={detailCard}>
-        {firstEligible ? (
+        {priorityLabel ? (
           <BookingOpenCardRow
-            label={court.booking_eligibility_first === "resident" ? "구민" : "시민"}
+            label={priorityLabel}
             labelTone="priority"
           >
             <span className="font-bold">

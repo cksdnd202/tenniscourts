@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Court } from "./types";
 import { getCourtDetailPath } from "@/lib/courtPath";
+import { getPriorityEligibilityLabel } from "@/lib/bookingEligibility";
 import { FavoriteButton } from "./FavoriteButton";
 import {
   courtitem_courtname,
@@ -44,6 +45,8 @@ const formatDayOfWeek = (day: number | null | undefined): string => {
 };
 
 export function FixedScheduleContent({ court }: { court: Court }) {
+  const priorityLabel = getPriorityEligibilityLabel(court.booking_eligibility_first);
+
   return (
     <>
       {/* 코트 이름, 찜하기 */}
@@ -57,11 +60,11 @@ export function FixedScheduleContent({ court }: { court: Court }) {
         {court.booking_open_type === "day" ? (
           <>
           {/* day 타입용 구조 */}
-            {court.booking_eligibility_first && (court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen") && (
+            {priorityLabel && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
                   <span className="text-[#6FCF97]">
-                    {court.booking_eligibility_first === "resident" ? "구민" : "시민"} :{" "}
+                    {priorityLabel} :{" "}
                   </span>
                   <span className="text-white font-semibold">
                     {court.booking_open_day_owner != null ? `${court.booking_open_day_owner}일 ` : ""}
@@ -100,11 +103,11 @@ export function FixedScheduleContent({ court }: { court: Court }) {
         ) : court.booking_open_type === "week" ? (
           <>
             {/* week 타입용 구조 */}
-            {court.booking_eligibility_first && (court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen") && (
+            {priorityLabel && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#2B523C]">
-                    {court.booking_eligibility_first === "resident" ? "구민" : "시민"} :{" "}
+                  <span className="text-[#6FCF97]">
+                    {priorityLabel} :{" "}
                   </span>
                   {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
                   <span className="text-white font-semibold">
@@ -152,11 +155,11 @@ export function FixedScheduleContent({ court }: { court: Court }) {
         ) : (
           // booking_open_type이 없거나 다른 값인 경우 day로 기본 처리
           <>
-            {court.booking_eligibility_first && (court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen") && (
+            {priorityLabel && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#2B523C]">
-                    {court.booking_eligibility_first === "resident" ? "구민" : "시민"} :{" "}
+                  <span className="text-[#6FCF97]">
+                    {priorityLabel} :{" "}
                   </span>
                   <span className="text-white font-normal">
                     {court.booking_open_day_owner != null ? `${court.booking_open_day_owner}일 ` : ""}

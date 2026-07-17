@@ -1,4 +1,5 @@
 import type { Court } from "../types";
+import { getPriorityEligibilityLabel } from "@/lib/bookingEligibility";
 import { formatTime } from "../styles";
 import { CourtDetailCommon } from "./CourtDetailCommon";
 import { BookingOpenCardRow } from "./BookingOpenCardRow";
@@ -28,16 +29,15 @@ const bookingGrid = "grid grid-cols-1 gap-3 min-[1032px]:grid-cols-2 min-[1032px
 
 /** ordinal 전용 상세 화면: 예약 오픈 정보 + 공통(주소/테이블/예약 버튼) */
 function OrdinalBookingBlock({ court }: { court: Court }) {
-  const firstEligible =
-    court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen";
+  const priorityLabel = getPriorityEligibilityLabel(court.booking_eligibility_first);
 
   if (court.booking_open_type === "week") {
     return (
       <div className={bookingGrid}>
         <div className={detailCard}>
-          {firstEligible ? (
+          {priorityLabel ? (
             <BookingOpenCardRow
-              label={court.booking_eligibility_first === "resident" ? "구민" : "시민"}
+              label={priorityLabel}
               labelTone="priority"
             >
               <>
@@ -88,9 +88,9 @@ function OrdinalBookingBlock({ court }: { court: Court }) {
   return (
     <div className={bookingGrid}>
       <div className={detailCard}>
-        {firstEligible ? (
+        {priorityLabel ? (
           <BookingOpenCardRow
-            label={court.booking_eligibility_first === "resident" ? "구민" : "시민"}
+            label={priorityLabel}
             labelTone="priority"
           >
             <>

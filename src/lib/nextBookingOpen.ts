@@ -1,4 +1,9 @@
 import type { Court } from "@/app/types";
+import {
+  getPriorityEligibilityLabel,
+  hasPriorityEligibility,
+  type PriorityEligibilityLabel,
+} from "@/lib/bookingEligibility";
 
 const SEOUL_OFFSET_HOURS = 9;
 
@@ -256,8 +261,7 @@ function wrap(inst: Date | null): NextOpenResult | null {
   return { instant: inst, dateLabel, timeLabel };
 }
 
-const firstEligible = (court: Court) =>
-  court.booking_eligibility_first === "resident" || court.booking_eligibility_first === "citizen";
+const firstEligible = (court: Court) => hasPriorityEligibility(court.booking_eligibility_first);
 
 function ownerOpenInstant(court: Court, from: Date): Date | null {
   const rt = court.booking_rule_type;
@@ -337,9 +341,9 @@ function normalOpenInstant(court: Court, from: Date): Date | null {
   return null;
 }
 
-export function getPriorityBookingLabel(court: Court): "구민" | "시민" | null {
+export function getPriorityBookingLabel(court: Court): PriorityEligibilityLabel | null {
   if (!firstEligible(court)) return null;
-  return court.booking_eligibility_first === "resident" ? "구민" : "시민";
+  return getPriorityEligibilityLabel(court.booking_eligibility_first);
 }
 
 export function getNextOwnerBookingOpen(court: Court, from: Date = new Date()): NextOpenResult | null {
