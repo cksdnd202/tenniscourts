@@ -40,7 +40,17 @@ export function CourtFilter({ courts }: Props) {
   const [tempOwnerTypes, setTempOwnerTypes] = useState<string[]>([]);
   
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const [isFilterClosing, setIsFilterClosing] = useState<boolean>(false);
   const asideRef = useRef<HTMLElement | null>(null);
+  const filterCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (filterCloseTimerRef.current) {
+        clearTimeout(filterCloseTimerRef.current);
+      }
+    };
+  }, []);
 
   // 좌측 필터 영역 스크롤 제어
   useEffect(() => {
@@ -166,10 +176,14 @@ export function CourtFilter({ courts }: Props) {
 
   // 팝업 열 때 임시 상태를 현재 상태로 초기화
   const handleOpenFilter = () => {
+    if (filterCloseTimerRef.current) {
+      clearTimeout(filterCloseTimerRef.current);
+    }
     setTempRegion(selectedRegion);
     setTempCity(selectedCity);
     setTempCourtTypes([...selectedCourtTypes]);
     setTempOwnerTypes([...selectedOwnerTypes]);
+    setIsFilterClosing(false);
     setIsFilterOpen(true);
   };
 
@@ -179,12 +193,17 @@ export function CourtFilter({ courts }: Props) {
     setSelectedCity(tempCity);
     setSelectedCourtTypes([...tempCourtTypes]);
     setSelectedOwnerTypes([...tempOwnerTypes]);
-    setIsFilterOpen(false);
+    handleCloseFilter();
   };
 
   // X 버튼 클릭 시 팝업만 닫기 (임시 상태는 버림)
   const handleCloseFilter = () => {
-    setIsFilterOpen(false);
+    if (!isFilterOpen || isFilterClosing) return;
+    setIsFilterClosing(true);
+    filterCloseTimerRef.current = setTimeout(() => {
+      setIsFilterOpen(false);
+      setIsFilterClosing(false);
+    }, 200);
   };
 
   // 필터 초기화
@@ -475,11 +494,17 @@ export function CourtFilter({ courts }: Props) {
         <>
           {/* 배경 오버레이 */}
           <div
-            className="fixed inset-0 bg-black/50 z-50 max-[1031px]:block min-[1032px]:hidden"
+            className={`fixed inset-0 bg-black/50 z-50 max-[1031px]:block min-[1032px]:hidden ${
+              isFilterClosing ? "mobile-fade-out" : "mobile-fade-in"
+            }`}
             onClick={handleCloseFilter}
           />
           {/* 필터 팝업 */}
-          <div className="fixed inset-0 z-50 max-[1031px]:flex min-[1032px]:hidden flex-col bg-[#1A1A1A] dark-theme">
+          <div
+            className={`fixed inset-0 z-50 max-[1031px]:flex min-[1032px]:hidden flex-col bg-[#1A1A1A] dark-theme ${
+              isFilterClosing ? "mobile-slide-out-bottom" : "mobile-slide-in-bottom"
+            }`}
+          >
             {/* 헤더 */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#2C2C2C]">
               <h2 className="text-xl font-bold text-white">필터</h2>

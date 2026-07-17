@@ -10,6 +10,7 @@ import {
 } from "./detailLayoutStyles";
 import type { CalendarAndroidEventPayload } from "./calendarAndroidPayload";
 import { CalendarRegisterButton } from "./CalendarRegisterButton";
+import { MobileScrollHideBar } from "./MobileScrollHideBar";
 
 const DEFAULT_CAL_DURATION_MIN = 10;
 
@@ -315,9 +316,10 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
     ) : null;
 
   return (
-    <div className="min-[1032px]:hidden fixed bottom-0 left-0 right-0 z-20 border-t border-[#2C2C2C] bg-black pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+    <MobileScrollHideBar>
+      <div className="border-t border-[#2C2C2C] bg-black pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       {previewBlocks ? (
-        <div className="rounded-t-2xl bg-[#000000] px-4 pt-3 border-x border-t border-[#2C2C2C] border-b-0">
+        <div className="bg-[#000000] px-4 pt-3">
           {previewBlocks}
         </div>
       ) : null}
@@ -340,6 +342,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
           </span>
         )}
       </div>
-    </div>
+      </div>
+    </MobileScrollHideBar>
   );
 }

@@ -168,14 +168,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-function CourtFavoriteBanner({ courtId }: { courtId: string }) {
-  return (
-    <div className="flex justify-end min-[1032px]:hidden">
-      <FavoriteButton courtId={courtId} />
-    </div>
-  );
-}
-
 export default async function CourtDetailPage({ params }: PageProps) {
   const { id: routeKey } = await params;
 
@@ -270,11 +262,9 @@ export default async function CourtDetailPage({ params }: PageProps) {
           <div className="min-[1032px]:grid min-[1032px]:grid-cols-12 min-[1032px]:gap-8 min-[1032px]:items-stretch">
             {/* 좌측 메인 (~70–75%) */}
             <div className="min-[1032px]:col-span-8 xl:col-span-9 space-y-6 min-w-0">
-              <CourtFavoriteBanner courtId={court.id} />
-
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex flex-wrap items-center gap-2 min-w-0">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-white truncate">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                  <h1 className="min-w-0 text-2xl sm:text-3xl font-bold leading-tight text-white break-keep">
                     {court.basic_court_name ?? "(이름 없음)"}
                   </h1>
                   {court.basic_owner_type ? (
@@ -283,7 +273,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
                     </span>
                   ) : null}
                 </div>
-                <div className="hidden min-[1032px]:inline-flex flex-shrink-0">
+                <div className="inline-flex flex-shrink-0">
                   <FavoriteButton courtId={court.id} />
                 </div>
               </div>

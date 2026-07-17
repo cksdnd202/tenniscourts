@@ -1088,6 +1088,31 @@ export function MyPageContent() {
     };
   }, []);
 
+  useEffect(() => {
+    const applyTabFromUrl = () => {
+      const tab = new URLSearchParams(window.location.search).get("tab");
+      if (tab === "favorites" || tab === "recent" || tab === "profile") {
+        setActiveTab(tab);
+      }
+    };
+
+    const handleTabEvent = (event: Event) => {
+      const tab = (event as CustomEvent<string | null>).detail;
+      if (tab === "favorites" || tab === "recent" || tab === "profile") {
+        setActiveTab(tab);
+      }
+    };
+
+    applyTabFromUrl();
+    window.addEventListener("popstate", applyTabFromUrl);
+    window.addEventListener("courtskorea:mypage-tab", handleTabEvent);
+
+    return () => {
+      window.removeEventListener("popstate", applyTabFromUrl);
+      window.removeEventListener("courtskorea:mypage-tab", handleTabEvent);
+    };
+  }, []);
+
   const handleSignOut = async () => {
     setIsSigningOut(true);
     await supabase.auth.signOut();
@@ -1146,27 +1171,6 @@ export function MyPageContent() {
       </aside>
 
       <section className="flex-1 h-full overflow-y-auto px-4 py-6 min-[1032px]:p-7.5 ml-0 min-[1032px]:ml-4">
-        <div className="min-[1032px]:hidden mb-5 space-y-3">
-          <div className="grid grid-cols-3 gap-2">
-            {menuItems.map((item) => {
-              const isActive = activeTab === item.id;
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveTab(item.id)}
-                  className={`px-3 py-3 text-sm font-bold transition-colors duration-200 ${
-                    isActive ? "text-white" : "text-[#7A7A7A] hover:text-white"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         <div className="mb-8">
           <p className="text-sm font-medium text-[#6FCF97]">내 계정</p>
           <h1 className="mt-2 text-3xl font-semibold">

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCourtDetailPath } from "@/lib/courtPath";
 import { supabase } from "@/lib/supabase";
+import type { User } from "@supabase/supabase-js";
 import type { Court } from "./types";
 
 /** 헤더 검색에 실제로 쓰이는 필드만 있으면 됨 */
@@ -22,10 +23,30 @@ export function CourtSearchHeader({ courts }: Props) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isMobileSearchClosing, setIsMobileSearchClosing] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileMenuClosing, setIsMobileMenuClosing] = useState(false);
   const [isLocalhost, setIsLocalhost] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<{ display_name?: string; avatar_url?: string | null } | null>(
+    null
+  );
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const mobileSearchCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mobileMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (mobileSearchCloseTimerRef.current) {
+        clearTimeout(mobileSearchCloseTimerRef.current);
+      }
+      if (mobileMenuCloseTimerRef.current) {
+        clearTimeout(mobileMenuCloseTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setIsLocalhost(
@@ -38,16 +59,34 @@ export function CourtSearchHeader({ courts }: Props) {
   useEffect(() => {
     let isMounted = true;
 
+    const syncProfile = async (nextUser: User | null) => {
+      setUser(nextUser);
+      setIsLoggedIn(Boolean(nextUser));
+
+      if (!nextUser) {
+        setProfile(null);
+        return;
+      }
+
+      const profiles = supabase.from("profiles" as never) as any;
+      const { data: userProfile } = await profiles
+        .select("display_name, avatar_url")
+        .eq("id", nextUser.id)
+        .maybeSingle();
+
+      setProfile(userProfile ?? null);
+    };
+
     supabase.auth.getSession().then(({ data }) => {
       if (isMounted) {
-        setIsLoggedIn(Boolean(data.session));
+        syncProfile(data.session?.user ?? null);
       }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(Boolean(session));
+      syncProfile(session?.user ?? null);
     });
 
     return () => {
@@ -91,7 +130,7 @@ export function CourtSearchHeader({ courts }: Props) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") {
       setIsOpen(false);
-      setIsMobileSearchOpen(false);
+      closeMobileSearch();
       inputRef.current?.blur();
     }
   };
@@ -99,7 +138,7 @@ export function CourtSearchHeader({ courts }: Props) {
   const handleSelectCourt = (court: CourtSearchListItem) => {
     router.push(getCourtDetailPath(court));
     setIsOpen(false);
-    setIsMobileSearchOpen(false);
+    closeMobileSearch();
   };
 
   const goToTestPage = () => {
@@ -131,6 +170,85 @@ export function CourtSearchHeader({ courts }: Props) {
 
   const showTestPageButton = process.env.NODE_ENV !== "production";
   const showAdminButton = isLocalhost;
+  const metadata = user?.user_metadata ?? {};
+  const profileImageUrl =
+    profile?.avatar_url ??
+    metadata.avatar_url ??
+    metadata.picture ??
+    metadata.profile_image_url ??
+    metadata.provider_avatar_url ??
+    null;
+  const profileName =
+    profile?.display_name ??
+    metadata.name ??
+    metadata.full_name ??
+    metadata.nickname ??
+    metadata.preferred_username ??
+    "내 계정";
+  const profileEmail = user?.email ?? metadata.email ?? "";
+
+  const openMobileSearch = () => {
+    if (mobileSearchCloseTimerRef.current) {
+      clearTimeout(mobileSearchCloseTimerRef.current);
+    }
+
+    const showSearch = () => {
+      setIsMobileSearchClosing(false);
+      setIsMobileSearchOpen(true);
+    };
+
+    if (isMobileMenuOpen) {
+      if (mobileMenuCloseTimerRef.current) {
+        clearTimeout(mobileMenuCloseTimerRef.current);
+      }
+      setIsMobileMenuClosing(true);
+      mobileMenuCloseTimerRef.current = setTimeout(() => {
+        setIsMobileMenuOpen(false);
+        setIsMobileMenuClosing(false);
+        showSearch();
+      }, 180);
+      return;
+    }
+
+    showSearch();
+  };
+
+  const closeMobileSearch = () => {
+    if (!isMobileSearchOpen || isMobileSearchClosing) return;
+    setIsMobileSearchClosing(true);
+    mobileSearchCloseTimerRef.current = setTimeout(() => {
+      setIsMobileSearchOpen(false);
+      setIsMobileSearchClosing(false);
+    }, 180);
+  };
+
+  const openMobileMenu = () => {
+    if (mobileMenuCloseTimerRef.current) {
+      clearTimeout(mobileMenuCloseTimerRef.current);
+    }
+    setIsMobileMenuClosing(false);
+    setIsMobileMenuOpen(true);
+  };
+
+  const closeMobileMenu = () => {
+    if (!isMobileMenuOpen || isMobileMenuClosing) return;
+    setIsMobileMenuClosing(true);
+    mobileMenuCloseTimerRef.current = setTimeout(() => {
+      setIsMobileMenuOpen(false);
+      setIsMobileMenuClosing(false);
+    }, 180);
+  };
+
+  const goToMobileMenuPath = (path: string) => {
+    closeMobileMenu();
+
+    if (path.startsWith("/mypage?tab=") && window.location.pathname === "/mypage") {
+      const tab = new URLSearchParams(path.split("?")[1] ?? "").get("tab");
+      window.dispatchEvent(new CustomEvent("courtskorea:mypage-tab", { detail: tab }));
+    }
+
+    router.push(path);
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-30 bg-[#000000] border-b border-[#2C2C2C]">
@@ -280,34 +398,9 @@ export function CourtSearchHeader({ courts }: Props) {
           </button>
           <button
             type="button"
-            onClick={goToLoginPage}
-            className="ml-auto mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white"
-          >
-            {isLoggedIn ? "내 계정" : "로그인"}
-          </button>
-          {showAdminButton ? (
-            <button
-              type="button"
-              onClick={goToAdminPage}
-              className="mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white"
-            >
-              어드민
-            </button>
-          ) : null}
-          {showTestPageButton ? (
-            <button
-              type="button"
-              onClick={goToTestPage}
-              className="mr-2 inline-flex h-9 items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 text-xs font-medium text-white"
-            >
-              테스트
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setIsMobileSearchOpen(true)}
+            onClick={openMobileSearch}
             data-coachmark="search-area-mobile"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] text-[#B0B0B0]"
+            className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] text-[#E7E7E7]"
             aria-label="코트 검색 열기"
           >
             <svg
@@ -333,19 +426,149 @@ export function CourtSearchHeader({ courts }: Props) {
               />
             </svg>
           </button>
+          <button
+            type="button"
+            onClick={openMobileMenu}
+            className="ml-3 inline-flex h-9 w-9 items-center justify-center text-white"
+            aria-label="메뉴 열기"
+          >
+            <span className="flex w-6 flex-col gap-1.5">
+              <span className="h-[3px] rounded-full bg-current" />
+              <span className="h-[3px] rounded-full bg-current" />
+            </span>
+          </button>
         </div>
       </div>
+
+      {/* 모바일/태블릿용 메뉴 레이어 */}
+      {isMobileMenuOpen && (
+        <>
+          <button
+            type="button"
+            className={`fixed inset-0 z-40 bg-black/60 min-[1032px]:hidden ${
+              isMobileMenuClosing ? "mobile-fade-out" : "mobile-fade-in"
+            }`}
+            aria-label="메뉴 닫기"
+            onClick={closeMobileMenu}
+          />
+          <aside
+            className={`fixed right-0 top-0 z-50 h-full w-[78vw] max-w-sm bg-[#202229] px-7 py-8 shadow-[-16px_0_40px_rgba(0,0,0,0.35)] min-[1032px]:hidden ${
+              isMobileMenuClosing ? "mobile-slide-out-right" : "mobile-slide-in-right"
+            }`}
+          >
+            <button
+              type="button"
+              onClick={closeMobileMenu}
+              className="absolute right-5 top-4 inline-flex h-9 w-9 items-center justify-center text-white"
+              aria-label="메뉴 닫기"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M18 6L6 18M6 6L18 18"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+
+            {isLoggedIn ? (
+              <div className="mt-14 flex items-center gap-3 border-b border-white/10 pb-6">
+                {profileImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profileImageUrl}
+                    alt=""
+                    className="h-12 w-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2C8B56] text-lg font-bold text-white">
+                    {profileName.slice(0, 1)}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-base font-bold text-white">{profileName}</p>
+                  {profileEmail ? (
+                    <p className="mt-0.5 truncate text-sm text-[#9A9EA6]">{profileEmail}</p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            <nav className={isLoggedIn ? "mt-8 flex flex-col gap-7" : "mt-24 flex flex-col gap-7"}>
+              <button
+                type="button"
+                onClick={() => goToMobileMenuPath("/")}
+                className="text-left text-xl font-semibold text-white transition-colors hover:text-[#6FCF97]"
+              >
+                홈
+              </button>
+              <button
+                type="button"
+                onClick={openMobileSearch}
+                className="text-left text-xl font-semibold text-white transition-colors hover:text-[#6FCF97]"
+              >
+                테니스장 검색하기
+              </button>
+
+              {isLoggedIn ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => goToMobileMenuPath("/mypage?tab=favorites")}
+                    className="text-left text-xl font-semibold text-white transition-colors hover:text-[#6FCF97]"
+                  >
+                    찜한 테니스장
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => goToMobileMenuPath("/mypage?tab=recent")}
+                    className="text-left text-xl font-semibold text-white transition-colors hover:text-[#6FCF97]"
+                  >
+                    최근 본 테니스장
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => goToMobileMenuPath("/mypage?tab=profile")}
+                    className="text-left text-xl font-semibold text-white transition-colors hover:text-[#6FCF97]"
+                  >
+                    내 프로필
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeMobileMenu();
+                    goToLoginPage();
+                  }}
+                  className="mt-3 inline-flex w-fit items-center rounded-full bg-[#2C8B56] px-7 py-3 text-lg font-bold text-white transition-colors hover:bg-[#35A667]"
+                >
+                  로그인
+                </button>
+              )}
+            </nav>
+          </aside>
+        </>
+      )}
 
       {/* 모바일/태블릿용 풀팝업 검색 */}
       {isMobileSearchOpen && (
         <>
           {/* 배경 오버레이 */}
           <div
-            className="fixed inset-0 z-40 bg-black/40 min-[1032px]:hidden"
-            onClick={() => setIsMobileSearchOpen(false)}
+            className={`fixed inset-0 z-40 bg-black/40 min-[1032px]:hidden ${
+              isMobileSearchClosing ? "mobile-fade-out" : "mobile-fade-in"
+            }`}
+            onClick={closeMobileSearch}
           />
           {/* 검색 팝업 */}
-          <div className="fixed inset-0 z-50 flex flex-col bg-[#1A1A1A] min-[1032px]:hidden">
+          <div
+            className={`fixed inset-0 z-50 flex flex-col bg-[#1A1A1A] min-[1032px]:hidden ${
+              isMobileSearchClosing ? "mobile-fade-out" : "mobile-fade-in"
+            }`}
+          >
             {/* 헤더 */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#2C2C2C]">
               <span className="text-base font-semibold text-white">
@@ -353,7 +576,7 @@ export function CourtSearchHeader({ courts }: Props) {
               </span>
               <button
                 type="button"
-                onClick={() => setIsMobileSearchOpen(false)}
+                onClick={closeMobileSearch}
                 className="p-1 text-[#B0B0B0] hover:text-white"
                 aria-label="검색 닫기"
               >
