@@ -19,6 +19,7 @@ type Props = {
 
 const courtitemstyle = 
 "grid w-full border rounded-xl border-transparent p-5 bg-[#191B1E] gap-2 transition duration-300 ease-in-out hover:-translate-y-1 hover:bg-[#2C2C2C] overflow-hidden min-w-0";
+const COURTS_PER_PAGE = 30;
 
 export function CourtFilter({ courts }: Props) {
   // 디버깅: 첫 번째 코트의 booking_opentime_normal 확인
@@ -41,7 +42,9 @@ export function CourtFilter({ courts }: Props) {
   
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [isFilterClosing, setIsFilterClosing] = useState<boolean>(false);
+  const [visibleCount, setVisibleCount] = useState(COURTS_PER_PAGE);
   const asideRef = useRef<HTMLElement | null>(null);
+  const resultsRef = useRef<HTMLElement | null>(null);
   const filterCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -173,6 +176,26 @@ export function CourtFilter({ courts }: Props) {
     selectedCourtTypes,
     selectedOwnerTypes,
   ]);
+  const visibleCourts = useMemo(
+    () => filteredCourts.slice(0, visibleCount),
+    [filteredCourts, visibleCount]
+  );
+  const hasMoreCourts = visibleCount < filteredCourts.length;
+
+  useEffect(() => {
+    setVisibleCount(COURTS_PER_PAGE);
+    resultsRef.current?.scrollTo({ top: 0 });
+  }, [selectedRegion, selectedCity, selectedCourtTypes, selectedOwnerTypes]);
+
+  const handleResultsScroll = () => {
+    const el = resultsRef.current;
+    if (!el || !hasMoreCourts) return;
+
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceToBottom < 600) {
+      setVisibleCount((current) => Math.min(current + COURTS_PER_PAGE, filteredCourts.length));
+    }
+  };
 
   // 팝업 열 때 임시 상태를 현재 상태로 초기화
   const handleOpenFilter = () => {
@@ -556,9 +579,11 @@ export function CourtFilter({ courts }: Props) {
 
       {/* 우측 결과 영역 */}
       <section
+        ref={resultsRef}
         data-coachmark="results-area"
         className="flex-1 h-full overflow-y-auto space-y-4 px-4 py-6 min-[1032px]:p-7.5 min-[1032px]:ml-4"
         style={{ scrollbarGutter: 'stable' }}
+        onScroll={handleResultsScroll}
       >
         {/* 모바일용 코트 정보 알려주기 배너 - 1031px 이하에서만 표시 */}
         <a
@@ -635,7 +660,7 @@ export function CourtFilter({ courts }: Props) {
           <p className="text-[#B0B0B0]">조건에 맞는 코트가 없습니다.</p>
         ) : (
           <ul className="grid grid-cols-1 gap-4 max-[768px]:grid-cols-1 min-[769px]:max-[1275px]:grid-cols-2 min-[1276px]:sm:grid-cols-2 min-[1276px]:lg:grid-cols-3 min-[1276px]:2xl:grid-cols-4">
-            {filteredCourts.map((c, index) => (
+            {visibleCourts.map((c, index) => (
               <li
                 key={c.id}
                 data-coachmark={index === 0 ? "first-court-card" : undefined}
@@ -646,6 +671,12 @@ export function CourtFilter({ courts }: Props) {
             ))}
           </ul>
         )}
+
+        {hasMoreCourts ? (
+          <div className="flex justify-center py-4">
+            <span className="text-sm text-[#8A8F98]">아래로 스크롤하면 더 보여드릴게요</span>
+          </div>
+        ) : null}
 
         <footer className="mt-40 min-h-[220px] border-t border-[#2C2C2C] px-1 py-12 text-[#8A8F98]">
           <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
