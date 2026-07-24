@@ -31,9 +31,9 @@ const STEPS: OnboardingStep[] = [
   },
   {
     eyebrow: "캘린더 등록",
-    title: "모바일에서는 예약 오픈일을 캘린더에 등록하세요",
+    title: "모바일에서는 예약 오픈일을\n캘린더에 등록하세요",
     description:
-      "상세페이지의 캘린더 등록하기 버튼을 누르면 휴대폰 캘린더 앱에 예약 오픈 알림을 남길 수 있어요.",
+      "캘린더 등록하기를 누르면 휴대폰 캘린더에 예약 오픈 날짜를 등록할 수 있어요",
     visual: "calendar",
   },
 ];
@@ -87,11 +87,11 @@ function FavoriteVisual() {
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl bg-[#101112] p-5">
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="onboarding-favorite-bookmark-only relative flex h-22 w-22 items-center justify-center rounded-2xl bg-[#2C2C2C]">
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="onboarding-favorite-bookmark-icon h-12 w-12" fill="none" stroke="#D8D8D8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <div className="onboarding-favorite-bookmark-only relative flex h-18 w-18 items-center justify-center rounded-2xl bg-[#2C2C2C] min-[760px]:h-22 min-[760px]:w-22">
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="onboarding-favorite-bookmark-icon h-10 w-10 min-[760px]:h-12 min-[760px]:w-12" fill="none" stroke="#D8D8D8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M5.8 4.9C5.8 3.85 6.65 3 7.7 3h8.6c1.05 0 1.9.85 1.9 1.9V20.4L12 15.5l-6.2 4.9V4.9Z" />
           </svg>
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="onboarding-favorite-bookmark-icon-filled absolute inset-0 m-auto h-12 w-12" fill="#6FCF97" stroke="#6FCF97" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="onboarding-favorite-bookmark-icon-filled absolute inset-0 m-auto h-10 w-10 min-[760px]:h-12 min-[760px]:w-12" fill="#6FCF97" stroke="#6FCF97" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="M5.8 4.9C5.8 3.85 6.65 3 7.7 3h8.6c1.05 0 1.9.85 1.9 1.9V20.4L12 15.5l-6.2 4.9V4.9Z" />
           </svg>
         </div>
@@ -152,7 +152,7 @@ function CalendarVisual() {
           <div className="text-xl font-bold text-[#6FCF97]">오전 10:00</div>
         </div>
       </div>
-      <div className="onboarding-phone-calendar absolute left-5 right-5 top-[calc(50%+72px)] rounded-xl bg-white p-3 text-[#1F1F1F] shadow-2xl">
+      <div className="onboarding-phone-calendar absolute left-5 right-5 top-[calc(50%+44px)] rounded-xl bg-white p-3 text-[#1F1F1F] shadow-2xl min-[760px]:top-[calc(50%+72px)]">
         <div className="flex items-center justify-between">
           <div className="text-[11px] font-semibold text-[#8A8F98]">캘린더</div>
           <div className="h-2 w-8 rounded bg-[#DADDE2]" />
@@ -224,24 +224,24 @@ export function ServiceOnboarding() {
         className="w-full max-w-[720px] overflow-hidden rounded-2xl border border-[#2C2C2C] bg-[#17191B] shadow-2xl"
       >
         <div className="grid min-[760px]:grid-cols-[1.05fr_0.95fr]">
-          <div className="h-[380px] bg-black p-3 min-[760px]:h-[440px]">
+          <div className="h-[330px] bg-black p-3 min-[760px]:h-[440px]">
             <OnboardingVisual visual={currentStep.visual} />
           </div>
-          <div className="flex min-h-[360px] flex-col p-6 min-[760px]:p-7">
+          <div className="flex h-[300px] flex-col px-5 pb-8 pt-5 min-[760px]:h-[440px] min-[760px]:p-7">
             <div className="flex items-center justify-start gap-4">
               <span className="text-xs font-semibold text-[#8A8F98]">
                 {stepIndex + 1} / {STEPS.length}
               </span>
             </div>
-            <div className="mt-7">
-              <h2 id="service-onboarding-title" className="mt-3 whitespace-pre-line break-keep text-[28px] font-bold leading-[1.5] text-white min-[760px]:text-[32px]">
+            <div className="mt-5 min-[760px]:mt-7">
+              <h2 id="service-onboarding-title" className="mt-3 whitespace-pre-line break-keep text-[20px] font-bold leading-[1.5] text-white min-[760px]:text-[32px]">
                 {currentStep.title}
               </h2>
-              <p className="mt-4 break-keep text-[18px] leading-8 text-[#C8C8C8]">
+              <p className="mt-3 break-keep text-[15px] leading-7 text-[#C8C8C8] min-[760px]:mt-4 min-[760px]:text-[18px] min-[760px]:leading-8">
                 {currentStep.description}
               </p>
             </div>
-            <div className="mt-auto">
+            <div className="mt-auto pt-8">
               <div className="grid grid-cols-[3fr_7fr] gap-2">
                 <button
                   type="button"
