@@ -60,6 +60,64 @@ body {
   animation: mobileSlideOutBottom 200ms ease-in both;
 }
 
+.onboarding-booking-card {
+  opacity: 0;
+  animation-duration: 5s;
+  animation-iteration-count: infinite;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.onboarding-booking-card:nth-child(1) {
+  animation-name: onboardingBookingCardOne;
+}
+
+.onboarding-booking-card:nth-child(2) {
+  animation-name: onboardingBookingCardTwo;
+}
+
+.onboarding-booking-card:nth-child(3) {
+  animation-name: onboardingBookingCardThree;
+}
+
+.onboarding-booking-card:nth-child(4) {
+  animation-name: onboardingBookingCardFour;
+}
+
+.onboarding-favorite-bookmark-only {
+  animation: onboardingFavoriteBookmarkOnly 5s ease-in-out infinite;
+}
+
+.onboarding-favorite-bookmark-icon {
+  animation: onboardingFavoriteBookmarkIcon 5s ease-in-out infinite;
+}
+
+.onboarding-favorite-bookmark-icon-filled {
+  opacity: 0;
+  animation: onboardingFavoriteBookmarkIconFilled 5s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.onboarding-favorite-calendar {
+  opacity: 0;
+  animation: onboardingFavoriteCalendar 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.onboarding-calendar-card {
+  animation: onboardingCalendarCard 5s ease-in-out infinite;
+}
+
+.onboarding-calendar-tap {
+  animation: onboardingCalendarTap 4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.onboarding-calendar-link {
+  animation: onboardingCalendarLink 4s ease-in-out infinite;
+}
+
+.onboarding-phone-calendar {
+  animation: onboardingPhoneCalendar 4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
 @keyframes mobileFadeIn {
   from {
     opacity: 0;
@@ -111,6 +169,225 @@ body {
   }
   to {
     transform: translateY(100%);
+  }
+}
+
+@keyframes onboardingBookingCardOne {
+  0% {
+    transform: translateY(42px);
+    opacity: 0;
+  }
+  13%,
+  90% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  90.1%,
+  100% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+}
+
+@keyframes onboardingBookingCardTwo {
+  0%,
+  13% {
+    transform: translateY(42px);
+    opacity: 0;
+  }
+  26%,
+  90% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  90.1%,
+  100% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+}
+
+@keyframes onboardingBookingCardThree {
+  0%,
+  26% {
+    transform: translateY(42px);
+    opacity: 0;
+  }
+  39%,
+  90% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  90.1%,
+  100% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+}
+
+@keyframes onboardingBookingCardFour {
+  0%,
+  39% {
+    transform: translateY(42px);
+    opacity: 0;
+  }
+  52%,
+  90% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  90.1%,
+  100% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+}
+
+@keyframes onboardingFavoriteBookmarkOnly {
+  0%,
+  34% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  44%,
+  100% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes onboardingFavoriteBookmarkIcon {
+  0%,
+  34% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  34.1%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes onboardingFavoriteBookmarkIconFilled {
+  0%,
+  8% {
+    opacity: 0;
+    clip-path: inset(100% 0 0 0);
+    transform: scale(1);
+  }
+  12% {
+    opacity: 1;
+    clip-path: inset(100% 0 0 0);
+    transform: scale(1);
+  }
+  20% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    transform: scale(1.18) rotate(5deg);
+  }
+  27%,
+  34% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    transform: scale(1) rotate(0deg);
+  }
+  44%,
+  100% {
+    opacity: 0;
+    clip-path: inset(0 0 0 0);
+    transform: scale(0.92);
+  }
+}
+
+@keyframes onboardingFavoriteCalendar {
+  0%,
+  34% {
+    opacity: 0;
+    transform: translateY(88px) translateY(-50%) scale(0.96);
+  }
+  50%,
+  92% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
+  92.1%,
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+@keyframes onboardingCalendarCard {
+  0% {
+    transform: translateY(18px);
+    opacity: 0.3;
+  }
+  32%,
+  78% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(18px);
+    opacity: 0.3;
+  }
+}
+
+@keyframes onboardingCalendarTap {
+  0%,
+  25% {
+    transform: translateY(-50%);
+  }
+  60%,
+  88% {
+    transform: translateY(-118%);
+  }
+  88.1%,
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes onboardingCalendarLink {
+  10%,
+  20% {
+    color: #FFFFFF;
+    background-color: rgba(111, 207, 151, 0.16);
+    text-shadow: 0 0 18px rgba(111, 207, 151, 0.36);
+    transform: scale(1.06);
+  }
+  25%,
+  25.1% {
+    color: #D8D8D8;
+    background-color: rgba(111, 207, 151, 0.08);
+    text-shadow: none;
+    transform: scale(0.98);
+  }
+  40%,
+  100% {
+    color: #8A8F98;
+    background-color: transparent;
+    text-shadow: none;
+    transform: scale(1);
+  }
+}
+
+@keyframes onboardingPhoneCalendar {
+  0%,
+  30% {
+    transform: translateY(52px);
+    opacity: 0;
+  }
+  68%,
+  88% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  88.1%,
+  100% {
+    transform: translateY(0);
+    opacity: 0;
   }
 }
 

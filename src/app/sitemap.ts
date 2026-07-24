@@ -1,10 +1,7 @@
 import type { MetadataRoute } from "next";
 import { supabase } from "@/lib/supabase";
 
-const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://courtskorea.com").replace(
-  /\/$/,
-  ""
-);
+const siteUrl = "https://courtskorea.com";
 
 async function fetchActiveCourtSlugs(): Promise<string[]> {
   const slugs: string[] = [];

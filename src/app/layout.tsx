@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { pretendard } from "./fonts";
+import { ServiceOnboarding } from "./ServiceOnboarding";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://courtskorea.com";
+const siteUrl = "https://courtskorea.com";
 const ogImage = "/courtskroea_ogimg.png?v=20260323-1";
 
 export const metadata: Metadata = {
@@ -75,6 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           />
         </noscript>
         {children}
+        <ServiceOnboarding />
 
       </body>
     </html>

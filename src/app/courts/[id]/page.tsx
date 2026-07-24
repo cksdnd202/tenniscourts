@@ -29,7 +29,7 @@ type RelatedCourt = Pick<
   | "booking_open_type"
 >;
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://courtskorea.com";
+const siteUrl = "https://courtskorea.com";
 const ogImage = "/courtskroea_ogimg.png?v=20260323-1";
 
 const METADATA_COURT_SELECT =

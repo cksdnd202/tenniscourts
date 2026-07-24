@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const FIRST_VISIT_COOKIE = "courtskorea_first_visit_done";
+const SERVICE_ONBOARDING_DONE_KEY = "courtskorea_service_onboarding_v1_done";
 
 const hasFirstVisitCookie = () => {
   if (typeof document === "undefined") return true;
@@ -10,6 +11,11 @@ const hasFirstVisitCookie = () => {
     .split(";")
     .map((cookie) => cookie.trim())
     .some((cookie) => cookie.startsWith(`${FIRST_VISIT_COOKIE}=`));
+};
+
+const hasCompletedServiceOnboarding = () => {
+  if (typeof window === "undefined") return true;
+  return window.localStorage.getItem(SERVICE_ONBOARDING_DONE_KEY) === "true";
 };
 
 const isLocalDevHost = () => {
@@ -67,7 +73,8 @@ const clamp = (value: number, min: number, max: number) =>
 
 export function FirstVisitCoachmark() {
   const [stepIndex, setStepIndex] = useState(() => {
-    if (isLocalDevHost()) return 0;
+    if (!hasCompletedServiceOnboarding()) return -1;
+    if (isLocalDevHost()) return hasFirstVisitCookie() ? -1 : 0;
     return hasFirstVisitCookie() ? -1 : 0;
   });
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
