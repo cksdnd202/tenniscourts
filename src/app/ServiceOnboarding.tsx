@@ -137,13 +137,13 @@ function FavoriteVisual() {
 function CalendarVisual() {
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl bg-[#0B0C0D] p-5">
-      <div className="onboarding-calendar-tap absolute left-5 right-5 top-1/2 rounded-xl border border-[#2C2C2C] bg-[#1A1A1B] p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="rounded-md border border-[#2C2C2C] bg-black px-2 py-1 text-[11px] font-bold text-[#4DA3FF]">일반</span>
-            <span className="whitespace-nowrap text-sm font-semibold text-white">다음 예약 오픈 일</span>
+      <div className="onboarding-calendar-tap absolute left-5 right-5 top-1/2 rounded-xl border border-[#2C2C2C] bg-[#1A1A1B] p-3 min-[760px]:p-4">
+        <div className="flex items-start justify-between gap-2 min-[760px]:gap-4">
+          <div className="flex min-w-0 items-center gap-2 min-[760px]:gap-3">
+            <span className="rounded-md border border-[#2C2C2C] bg-black px-1.5 py-1 text-[10px] font-bold text-[#4DA3FF] min-[760px]:px-2 min-[760px]:text-[11px]">일반</span>
+            <span className="whitespace-nowrap text-[12px] font-semibold text-white min-[760px]:text-sm">다음 예약 오픈 일</span>
           </div>
-          <button type="button" className="onboarding-calendar-link -mt-1 rounded-md px-2 py-1 text-sm font-semibold text-[#8A8F98] underline underline-offset-2">
+          <button type="button" className="onboarding-calendar-link -mt-1 shrink-0 whitespace-nowrap rounded-md px-1.5 py-1 text-[12px] font-semibold text-[#8A8F98] underline underline-offset-2 min-[760px]:px-2 min-[760px]:text-sm">
             캘린더 등록하기
           </button>
         </div>
@@ -178,7 +178,7 @@ export function ServiceOnboarding() {
   const [isOpen, setIsOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
 
-  const shouldUseOnboarding = pathname === "/" || pathname.startsWith("/courts/");
+  const shouldUseOnboarding = pathname === "/";
   const currentStep = useMemo(() => STEPS[stepIndex], [stepIndex]);
 
   useEffect(() => {
@@ -234,10 +234,14 @@ export function ServiceOnboarding() {
               </span>
             </div>
             <div className="mt-5 min-[760px]:mt-7">
-              <h2 id="service-onboarding-title" className="mt-3 whitespace-pre-line break-keep text-[20px] font-bold leading-[1.5] text-white min-[760px]:text-[32px]">
-                {currentStep.title}
+              <h2 id="service-onboarding-title" className="mt-3 break-keep text-[20px] font-bold leading-[1.5] text-white min-[760px]:text-[22px]">
+                {currentStep.title.split("\n").map((line) => (
+                  <span key={line} className="block whitespace-nowrap">
+                    {line}
+                  </span>
+                ))}
               </h2>
-              <p className="mt-3 break-keep text-[15px] leading-7 text-[#C8C8C8] min-[760px]:mt-4 min-[760px]:text-[18px] min-[760px]:leading-8">
+              <p className="mt-3 break-keep text-[15px] leading-7 text-[#C8C8C8] min-[760px]:mt-4 min-[760px]:text-base min-[760px]:leading-7">
                 {currentStep.description}
               </p>
             </div>
