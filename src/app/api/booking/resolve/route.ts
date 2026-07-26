@@ -9,8 +9,11 @@ import {
   getSeoulReservationSource,
   getSeoulReservationFreshnessScore,
   normalizeSeoulServiceName,
+  SEOUL_RESERVATION_ROWS_CACHE_TTL_MS,
 } from "@/lib/seoulReservation";
 import type { Court } from "@/app/types";
+
+const RECENT_SYNC_MAX_AGE_MS = 26 * 60 * 60 * 1000;
 
 function redirectTo(url: string) {
   return NextResponse.redirect(url, {
@@ -67,6 +70,7 @@ function scoreFallbackMatch(court: Court, source: ReturnType<typeof getSeoulRese
 
 export async function GET(req: NextRequest) {
   const courtId = req.nextUrl.searchParams.get("courtId") ?? "";
+  const forceResolve = req.nextUrl.searchParams.get("force") === "1";
 
   if (!courtId) {
     return NextResponse.json({ error: "courtId가 필요합니다." }, { status: 400 });
@@ -97,9 +101,21 @@ export async function GET(req: NextRequest) {
     return redirectTo(fallbackUrl);
   }
 
+  const syncedAt = typedCourt.source_synced_at ? new Date(typedCourt.source_synced_at).getTime() : 0;
+  const isRecentlySynced =
+    Boolean(typedCourt.source_match_key) &&
+    Number.isFinite(syncedAt) &&
+    Date.now() - syncedAt < RECENT_SYNC_MAX_AGE_MS;
+
+  if (!forceResolve && isRecentlySynced) {
+    return redirectTo(fallbackUrl);
+  }
+
   try {
     const apiKey = process.env.SEOUL_OPENAPI_KEY ?? "7248745a74636b733837426b724e4b";
-    const rows = await fetchAllSeoulTennisReservations(apiKey);
+    const rows = await fetchAllSeoulTennisReservations(apiKey, {
+      cacheTtlMs: SEOUL_RESERVATION_ROWS_CACHE_TTL_MS,
+    });
     const currentMatchKey = getCourtStoredSeoulMatchKey(typedCourt);
     const latestByMatchKey = buildLatestSeoulReservationMap(rows);
     const sources = rows.map((row) => ({ row, source: getSeoulReservationSource(row) }));

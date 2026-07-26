@@ -3,6 +3,15 @@ import type { Court } from "@/app/types";
 export const SEOUL_RESERVATION_PROVIDER = "seoul";
 
 const PAGE_SIZE = 100;
+const DEFAULT_ROWS_CACHE_TTL_MS = 10 * 60 * 1000;
+
+let rowsCache:
+  | {
+      apiKey: string;
+      fetchedAt: number;
+      rows: SeoulReservationRow[];
+    }
+  | null = null;
 
 export type SeoulReservationRow = {
   svcId: string;
@@ -199,7 +208,19 @@ export async function fetchSeoulReservationPage(apiKey: string, start: number, e
   return response.text();
 }
 
-export async function fetchAllSeoulTennisReservations(apiKey: string) {
+export async function fetchAllSeoulTennisReservations(
+  apiKey: string,
+  options: { cacheTtlMs?: number } = {}
+) {
+  const cacheTtlMs = options.cacheTtlMs ?? 0;
+  if (
+    cacheTtlMs > 0 &&
+    rowsCache?.apiKey === apiKey &&
+    Date.now() - rowsCache.fetchedAt < cacheTtlMs
+  ) {
+    return rowsCache.rows;
+  }
+
   const rows: SeoulReservationRow[] = [];
   let total = 0;
   let start = 1;
@@ -226,8 +247,18 @@ export async function fetchAllSeoulTennisReservations(apiKey: string) {
     }
   }
 
+  if (cacheTtlMs > 0) {
+    rowsCache = {
+      apiKey,
+      fetchedAt: Date.now(),
+      rows,
+    };
+  }
+
   return rows;
 }
+
+export const SEOUL_RESERVATION_ROWS_CACHE_TTL_MS = DEFAULT_ROWS_CACHE_TTL_MS;
 
 export function buildFallbackSeoulMatchKeyFromCourt(court: Partial<Court>) {
   return buildSeoulReservationMatchKey({
