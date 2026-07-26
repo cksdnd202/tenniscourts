@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import {
+  extractXmlTag,
+  fetchSeoulReservationPage,
+  getSeoulReservationSource,
+  parseSeoulReservationRow,
+} from "@/lib/seoulReservation";
 
 const PAGE_SIZE = 100;
 
-function extractTag(block: string, tag: string): string {
-  const match = block.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, "i"));
-  if (!match) return "";
-  return match[1]
-    .replace(/^<!\[CDATA\[/, "")
-    .replace(/\]\]>$/, "")
-    .trim();
-}
+const extractTag = extractXmlTag;
 
 function parseListTotalCount(xml: string): number {
   const m = xml.match(/<list_total_count>\s*(\d+)\s*<\/list_total_count>/i);
@@ -22,31 +21,18 @@ function findTennisRows(xml: string): string[] {
   return rows.filter((row) => extractTag(row, "MINCLASSNM") === "테니스장");
 }
 
-async function fetchSeoulPage(
-  apiKey: string,
-  start: number,
-  end: number
-): Promise<string> {
-  const res = await fetch(
-    `http://openapi.seoul.go.kr:8088/${apiKey}/xml/ListPublicReservationSport/${start}/${end}/%20/`,
-    { cache: "no-store" }
-  );
-  if (!res.ok) {
-    throw new Error(`서울시 API 실패: ${res.status}`);
-  }
-  return res.text();
-}
+const fetchSeoulPage = fetchSeoulReservationPage;
 
-async function getExistingBookingLinks(): Promise<Set<string>> {
+async function getExistingSeoulSources(): Promise<{ links: Set<string>; matchKeys: Set<string> }> {
   const links = new Set<string>();
+  const matchKeys = new Set<string>();
   const pageSize = 1000;
   let from = 0;
 
   for (;;) {
     const { data, error } = await getSupabaseAdmin()
       .from("courtinfo")
-      .select("booking_site_link")
-      .not("booking_site_link", "is", null)
+      .select("booking_site_link, source_match_key")
       .range(from, from + pageSize - 1);
 
     if (error) {
@@ -56,12 +42,14 @@ async function getExistingBookingLinks(): Promise<Set<string>> {
     for (const row of data) {
       const u = row.booking_site_link?.trim();
       if (u) links.add(u);
+      const key = row.source_match_key?.trim();
+      if (key) matchKeys.add(key);
     }
     if (data.length < pageSize) break;
     from += pageSize;
   }
 
-  return links;
+  return { links, matchKeys };
 }
 
 export async function POST(req: NextRequest) {
@@ -78,7 +66,7 @@ export async function POST(req: NextRequest) {
     process.env.SEOUL_OPENAPI_KEY ?? "7248745a74636b733837426b724e4b";
 
   try {
-    const existingLinks = await getExistingBookingLinks();
+    const existingSources = await getExistingSeoulSources();
 
     let total = 0;
     let start = 1;
@@ -96,8 +84,11 @@ export async function POST(req: NextRequest) {
       for (const row of tennisRows) {
         const url = extractTag(row, "SVCURL").trim();
         const name = extractTag(row, "SVCNM").trim();
+        const seoulRow = parseSeoulReservationRow(row);
+        const source = seoulRow ? getSeoulReservationSource(seoulRow) : null;
         if (!url || !name) continue;
-        if (existingLinks.has(url)) continue;
+        if (existingSources.links.has(url)) continue;
+        if (source?.source_match_key && existingSources.matchKeys.has(source.source_match_key)) continue;
 
         const payload = {
           basic_court_name: name,
@@ -112,6 +103,7 @@ export async function POST(req: NextRequest) {
           use_or_not: false,
           booking_booking_provide: "public_site",
           time_of_use_same: true,
+          ...(source ?? {}),
         };
 
         const { data, error } = await getSupabaseAdmin()
@@ -132,7 +124,8 @@ export async function POST(req: NextRequest) {
           row: data,
           meta: {
             apiRange: `${start}-${end}`,
-            skippedExistingByUrl: existingLinks.size,
+            skippedExistingByUrl: existingSources.links.size,
+            skippedExistingByMatchKey: existingSources.matchKeys.size,
           },
         });
       }

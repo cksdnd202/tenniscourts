@@ -46,6 +46,15 @@ const editableFields = [
   "booking_today_booking_possible",
   "booking_booking_provide",
   "etc_desc",
+  "source_provider",
+  "source_service_id",
+  "source_service_name",
+  "source_place_name",
+  "source_area_name",
+  "source_time_min",
+  "source_time_max",
+  "source_match_key",
+  "source_synced_at",
 ] as const;
 
 const numberFields = new Set([

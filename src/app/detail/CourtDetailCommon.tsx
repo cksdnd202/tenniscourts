@@ -2,6 +2,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type { Court } from "../types";
+import { getReservationHref } from "@/lib/reservationLink";
 
 const KAKAO_JAVASCRIPT_KEY = (process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY ?? "").trim();
 
@@ -213,6 +214,8 @@ export function CourtDetailTable({ court }: { court: Court }) {
 
 /** 상세 페이지 공통: 주소, 코트 수 테이블, 예약하러가기 버튼 (상세보기 버튼 없음) */
 export function CourtDetailCommon({ court }: { court: Court }) {
+  const reservationHref = getReservationHref(court);
+
   return (
     <>
       <CourtDetailAddress court={court} />
@@ -220,7 +223,7 @@ export function CourtDetailCommon({ court }: { court: Court }) {
       <div className="mt-3 flex gap-2 text-sm">
         {court.booking_site_link ? (
           <a
-            href={court.booking_site_link}
+            href={reservationHref}
             target="_blank"
             rel="noopener noreferrer"
             data-gtm="reserve_click"

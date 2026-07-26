@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Court } from "./types";
 import { getCourtDetailPath } from "@/lib/courtPath";
+import { getReservationHref } from "@/lib/reservationLink";
 import { FavoriteButton } from "./FavoriteButton";
 import {
   courtitem_courtname,
@@ -15,6 +16,8 @@ import {
 } from "./styles";
 
 export function PhoneContent({ court }: { court: Court }) {
+  const reservationHref = getReservationHref(court);
+
   return (
     <>
       {/* phone 타입용 구조 - 필요에 따라 수정하세요 */}
@@ -121,7 +124,7 @@ export function PhoneContent({ court }: { court: Court }) {
         {/* 예약하러가기 버튼 - 예약 사이트로 이동 */}
         {court.booking_site_link && (
           <a
-            href={court.booking_site_link}
+            href={reservationHref}
             target="_blank"
             rel="noopener noreferrer"
             data-gtm="reserve_click"

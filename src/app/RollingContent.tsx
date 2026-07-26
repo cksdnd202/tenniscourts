@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Court } from "./types";
 import { getCourtDetailPath } from "@/lib/courtPath";
+import { getReservationHref } from "@/lib/reservationLink";
 import { getPriorityEligibilityLabel } from "@/lib/bookingEligibility";
 import { FavoriteButton } from "./FavoriteButton";
 import {
@@ -17,6 +18,7 @@ import {
 
 export function RollingContent({ court }: { court: Court }) {
   const priorityLabel = getPriorityEligibilityLabel(court.booking_eligibility_first);
+  const reservationHref = getReservationHref(court);
 
   return (
     <>
@@ -166,7 +168,7 @@ export function RollingContent({ court }: { court: Court }) {
         {/* 예약하러가기 버튼 - 예약 사이트로 이동 */}
         {court.booking_site_link && (
           <a
-            href={court.booking_site_link}
+            href={reservationHref}
             target="_blank"
             rel="noopener noreferrer"
             data-gtm="reserve_click"

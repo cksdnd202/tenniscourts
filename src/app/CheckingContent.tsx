@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Court } from "./types";
 import { getCourtDetailPath } from "@/lib/courtPath";
+import { getReservationHref } from "@/lib/reservationLink";
 import { FavoriteButton } from "./FavoriteButton";
 import {
   courtitem_courtname,
@@ -43,6 +44,8 @@ const formatDayOfWeek = (day: number | null | undefined): string => {
 };
 
 export function CheckingContent({ court }: { court: Court }) {
+  const reservationHref = getReservationHref(court);
+
   return (
     <>
       {/* 코트 이름, 찜하기 */}
@@ -151,7 +154,7 @@ export function CheckingContent({ court }: { court: Court }) {
         {/* 예약하러가기 버튼 - 예약 사이트로 이동 */}
         {court.booking_site_link && (
           <a
-            href={court.booking_site_link}
+            href={reservationHref}
             target="_blank"
             rel="noopener noreferrer"
             data-gtm="reserve_click"

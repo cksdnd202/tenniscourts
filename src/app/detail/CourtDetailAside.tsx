@@ -11,6 +11,7 @@ import {
 import type { CalendarAndroidEventPayload } from "./calendarAndroidPayload";
 import { CalendarRegisterButton } from "./CalendarRegisterButton";
 import { MobileScrollHideBar } from "./MobileScrollHideBar";
+import { getReservationHref } from "@/lib/reservationLink";
 
 const DEFAULT_CAL_DURATION_MIN = 10;
 
@@ -164,6 +165,7 @@ export function CourtDetailAside({ court }: { court: Court }) {
   const ownerOpen = getNextOwnerBookingOpen(court);
   const normalOpen = getNextNormalBookingOpen(court);
   const priorityLabel = getPriorityBookingLabel(court);
+  const reservationHref = getReservationHref(court);
 
   return (
     <div className="sticky top-[calc(73px+0.75rem)] z-20 w-full min-w-0">
@@ -204,7 +206,7 @@ export function CourtDetailAside({ court }: { court: Court }) {
 
         {court.booking_site_link ? (
           <a
-            href={court.booking_site_link}
+            href={reservationHref}
             target="_blank"
             rel="noopener noreferrer"
             data-gtm="reserve_click"
@@ -229,6 +231,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
   const ownerOpen = getNextOwnerBookingOpen(court);
   const normalOpen = getNextNormalBookingOpen(court);
   const priorityLabel = getPriorityBookingLabel(court);
+  const reservationHref = getReservationHref(court);
   const hasPriorityPreview = Boolean(ownerOpen && priorityLabel);
   const hasNormalPreview = Boolean(normalOpen);
   const hasBothPreview = hasPriorityPreview && hasNormalPreview;
@@ -326,7 +329,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
       <div className="px-4 pt-3">
         {court.booking_site_link ? (
           <a
-            href={court.booking_site_link}
+            href={reservationHref}
             target="_blank"
             rel="noopener noreferrer"
             data-gtm="reserve_click"

@@ -63,6 +63,17 @@ export type Court = {
   booking_today_booking_possible: boolean | null;
   booking_booking_provide: string | null;
   etc_desc: string | null;
+
+  /*외부 예약 데이터 원본 매칭 정보*/
+  source_provider?: string | null;
+  source_service_id?: string | null;
+  source_service_name?: string | null;
+  source_place_name?: string | null;
+  source_area_name?: string | null;
+  source_time_min?: string | null;
+  source_time_max?: string | null;
+  source_match_key?: string | null;
+  source_synced_at?: string | null;
 };
 
 export type CourtBlogLink = {

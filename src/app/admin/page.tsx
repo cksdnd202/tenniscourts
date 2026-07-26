@@ -1,10 +1,5 @@
-import { AdminAuthGate } from "./AdminAuthGate";
-import { AdminCourtManager } from "./AdminCourtManager";
+import { redirect } from "next/navigation";
 
 export default function AdminPage() {
-  return (
-    <AdminAuthGate>
-      <AdminCourtManager />
-    </AdminAuthGate>
-  );
+  redirect("/admin/courtslist");
 }

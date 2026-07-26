@@ -1,7 +1,5 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { Court, CourtBlogLink } from "../types";
 import { CheckingContent } from "../CheckingContent";
@@ -291,6 +289,18 @@ const numberFieldKeys = new Set(
   fields.filter((field) => field.type === "number").map((field) => field.key)
 );
 
+const sourceFieldKeys = [
+  "source_provider",
+  "source_service_id",
+  "source_service_name",
+  "source_place_name",
+  "source_area_name",
+  "source_time_min",
+  "source_time_max",
+  "source_match_key",
+  "source_synced_at",
+] satisfies Array<keyof Court>;
+
 const courtCountFieldKeys = new Set<keyof Court>([
   "court_count_hard_indoor",
   "court_count_hard_outdoor",
@@ -478,6 +488,12 @@ function normalizeForSave(form: CourtForm) {
 
   if (form.id) {
     payload.id = form.id;
+  }
+
+  for (const key of sourceFieldKeys) {
+    if (key in form) {
+      payload[key] = form[key] ?? null;
+    }
   }
 
   return payload;
@@ -1190,25 +1206,11 @@ export function AdminCourtManager() {
   }
 
   return (
-    <main className="min-h-screen bg-black text-white">
-      <header className="border-b border-[#2c2c2c] px-5 py-4 md:px-8">
-        <Link href="/" aria-label="메인페이지로 이동" className="inline-flex items-center">
-          <Image
-            src="/courtskroea_logo_svg.svg"
-            alt="Courts Korea"
-            width={200}
-            height={40}
-            className="h-7 w-auto object-contain"
-            priority
-          />
-        </Link>
-      </header>
-
-      <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-6 md:px-8">
+      <div className="flex flex-col gap-5">
         <section className="flex flex-col gap-4 border-b border-[#2c2c2c] pb-5 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm text-[#a7a7a7]">localhost 전용</p>
-            <h1 className="mt-2 text-3xl font-semibold">테니스장 어드민</h1>
+            <p className="text-sm text-[#a7a7a7]">courtinfo DB 관리</p>
+            <h1 className="mt-2 text-3xl font-semibold">테니스장 목록</h1>
           </div>
           <div className="flex gap-2">
             <button
@@ -1840,6 +1842,5 @@ export function AdminCourtManager() {
           ) : null}
         </div>
       </div>
-    </main>
   );
 }

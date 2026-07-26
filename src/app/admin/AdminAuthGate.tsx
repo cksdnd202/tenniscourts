@@ -54,7 +54,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "kakao",
       options: {
-        redirectTo: `${window.location.origin}/admin`,
+        redirectTo: `${window.location.origin}${window.location.pathname}`,
       },
     });
 

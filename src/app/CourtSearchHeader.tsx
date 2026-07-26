@@ -146,7 +146,7 @@ export function CourtSearchHeader({ courts }: Props) {
   };
 
   const goToAdminPage = () => {
-    router.push("/admin");
+    router.push("/admin/courtslist");
   };
 
   const goToLoginPage = async () => {
