@@ -3,9 +3,11 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   SEOUL_RESERVATION_PROVIDER,
   buildFallbackSeoulMatchKeyFromCourt,
+  buildLatestSeoulReservationMap,
   fetchAllSeoulTennisReservations,
   getCourtStoredSeoulMatchKey,
   getSeoulReservationSource,
+  getSeoulReservationFreshnessScore,
   normalizeSeoulServiceName,
 } from "@/lib/seoulReservation";
 import type { Court } from "@/app/types";
@@ -99,15 +101,19 @@ export async function GET(req: NextRequest) {
     const apiKey = process.env.SEOUL_OPENAPI_KEY ?? "7248745a74636b733837426b724e4b";
     const rows = await fetchAllSeoulTennisReservations(apiKey);
     const currentMatchKey = getCourtStoredSeoulMatchKey(typedCourt);
+    const latestByMatchKey = buildLatestSeoulReservationMap(rows);
     const sources = rows.map((row) => ({ row, source: getSeoulReservationSource(row) }));
 
-    const exactMatch = sources.find(({ source }) => source.source_match_key === currentMatchKey);
+    const exactMatch = latestByMatchKey.get(currentMatchKey);
     const fallbackMatch =
       exactMatch ??
       sources
         .map((item) => ({ ...item, score: scoreFallbackMatch(typedCourt, item.source) }))
         .filter((item) => item.score >= 7)
-        .sort((a, b) => b.score - a.score)[0];
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return getSeoulReservationFreshnessScore(b.row) - getSeoulReservationFreshnessScore(a.row);
+        })[0];
 
     if (!fallbackMatch) {
       return redirectTo(fallbackUrl);

@@ -129,6 +129,63 @@ export function getSeoulReservationSource(row: SeoulReservationRow): SeoulReserv
   };
 }
 
+function parseSeoulDateValue(value: string | null | undefined) {
+  const text = (value ?? "").trim();
+  if (!text) return 0;
+
+  const normalized = text
+    .replace(/\./g, "-")
+    .replace(/\//g, "-")
+    .replace(/\s+/g, " ")
+    .replace(/(\d{4}-\d{1,2}-\d{1,2})$/, "$1 23:59:59");
+  const time = new Date(normalized).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function getServiceMonthScore(row: SeoulReservationRow) {
+  const match = row.svcName.match(/^\s*(\d{1,2})\s*월/);
+  if (!match) return 0;
+
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const month = Number(match[1]);
+  if (!Number.isFinite(month)) return 0;
+
+  let year = now.getFullYear();
+  if (month < currentMonth - 6) year += 1;
+
+  return new Date(year, month - 1, 1).getTime();
+}
+
+export function getSeoulReservationFreshnessScore(row: SeoulReservationRow) {
+  const dateScore = Math.max(
+    parseSeoulDateValue(extractXmlTag(row.raw, "RCPTENDDT")),
+    parseSeoulDateValue(extractXmlTag(row.raw, "RCPTBGNDT")),
+    parseSeoulDateValue(extractXmlTag(row.raw, "SVCOPNENDDT")),
+    parseSeoulDateValue(extractXmlTag(row.raw, "SVCOPNBGNDT")),
+    parseSeoulDateValue(extractXmlTag(row.raw, "USEENDDT")),
+    parseSeoulDateValue(extractXmlTag(row.raw, "USEBGNDT"))
+  );
+
+  return Math.max(dateScore, getServiceMonthScore(row));
+}
+
+export function buildLatestSeoulReservationMap(rows: SeoulReservationRow[]) {
+  const map = new Map<string, { row: SeoulReservationRow; source: SeoulReservationSource }>();
+
+  for (const row of rows) {
+    const source = getSeoulReservationSource(row);
+    if (!source.source_match_key) continue;
+
+    const current = map.get(source.source_match_key);
+    if (!current || getSeoulReservationFreshnessScore(row) > getSeoulReservationFreshnessScore(current.row)) {
+      map.set(source.source_match_key, { row, source });
+    }
+  }
+
+  return map;
+}
+
 export async function fetchSeoulReservationPage(apiKey: string, start: number, end: number) {
   const response = await fetch(
     `http://openapi.seoul.go.kr:8088/${apiKey}/xml/ListPublicReservationSport/${start}/${end}/%20/`,

@@ -2,6 +2,7 @@ import type { Court } from "@/app/types";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   SEOUL_RESERVATION_PROVIDER,
+  buildLatestSeoulReservationMap,
   fetchAllSeoulTennisReservations,
   getCourtStoredSeoulMatchKey,
   getSeoulReservationSource,
@@ -10,12 +11,7 @@ import {
 export async function syncSeoulReservationLinks() {
   const apiKey = process.env.SEOUL_OPENAPI_KEY ?? "7248745a74636b733837426b724e4b";
   const rows = await fetchAllSeoulTennisReservations(apiKey);
-  const latestByMatchKey = new Map(
-    rows.map((row) => {
-      const source = getSeoulReservationSource(row);
-      return [source.source_match_key, { row, source }] as const;
-    })
-  );
+  const latestByMatchKey = buildLatestSeoulReservationMap(rows);
   const latestByUrl = new Map(rows.map((row) => [row.svcUrl.trim(), { row, source: getSeoulReservationSource(row) }]));
 
   const { data, error } = await getSupabaseAdmin()
