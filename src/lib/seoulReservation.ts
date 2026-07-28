@@ -2,8 +2,9 @@ import type { Court } from "@/app/types";
 
 export const SEOUL_RESERVATION_PROVIDER = "seoul";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 1000;
 const DEFAULT_ROWS_CACHE_TTL_MS = 10 * 60 * 1000;
+const SEOUL_API_TIMEOUT_MS = 4500;
 
 let rowsCache:
   | {
@@ -216,10 +217,18 @@ export function buildLatestSeoulReservationMap(rows: SeoulReservationRow[]) {
 }
 
 export async function fetchSeoulReservationPage(apiKey: string, start: number, end: number) {
-  const response = await fetch(
-    `http://openapi.seoul.go.kr:8088/${apiKey}/xml/ListPublicReservationSport/${start}/${end}/%20/`,
-    { cache: "no-store" }
-  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SEOUL_API_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `http://openapi.seoul.go.kr:8088/${apiKey}/xml/ListPublicReservationSport/${start}/${end}/%20/`,
+      { cache: "no-store", signal: controller.signal }
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     throw new Error(`서울시 API 실패: ${response.status}`);
