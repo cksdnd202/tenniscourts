@@ -8,6 +8,8 @@ import {
   getCourtStoredSeoulMatchKey,
   getSeoulReservationSource,
   getSeoulReservationFreshnessScore,
+  getSeoulServiceMonth,
+  isStaleSeoulMonthlyService,
   normalizeSeoulServiceName,
   SEOUL_RESERVATION_ROWS_CACHE_TTL_MS,
 } from "@/lib/seoulReservation";
@@ -24,19 +26,6 @@ function redirectTo(url: string) {
   });
 }
 
-function getServiceMonth(value: string | null | undefined) {
-  const match = (value ?? "").match(/(?:^|[^\d])(\d{1,2})\s*월/);
-  if (!match) return null;
-
-  const month = Number(match[1]);
-  return Number.isInteger(month) && month >= 1 && month <= 12 ? month : null;
-}
-
-function isServiceMonthAhead(serviceMonth: number, currentMonth: number) {
-  if (currentMonth === 12 && serviceMonth === 1) return true;
-  return serviceMonth > currentMonth;
-}
-
 function shouldTrustRecentSync(court: Court) {
   const syncedAt = court.source_synced_at ? new Date(court.source_synced_at).getTime() : 0;
   const isRecentlySynced =
@@ -46,18 +35,29 @@ function shouldTrustRecentSync(court: Court) {
 
   if (!isRecentlySynced) return false;
 
-  const serviceMonth = getServiceMonth(court.source_service_name);
+  const serviceMonth = getSeoulServiceMonth(court.source_service_name);
   if (!serviceMonth) return true;
-
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentDay = now.getDate();
 
   // 서울시 월별 예약 상품은 보통 말일 전후 다음 달 상품이 먼저 올라온다.
   // 20일 이후인데 저장된 링크가 이번 달 이하라면 최신 API 확인을 생략하지 않는다.
-  if (currentDay >= 20 && !isServiceMonthAhead(serviceMonth, currentMonth)) return false;
+  if (isStaleSeoulMonthlyService(court.source_service_name)) return false;
 
   return true;
+}
+
+function getSeoulTennisSearchUrl(court: Court) {
+  const keyword = (court.source_place_name || court.basic_court_name || "").replace(/0?\d{1,2}\s*월/g, "").trim();
+  const baseUrl = "https://yeyak.seoul.go.kr/web/search/selectPageListDetailSearchImg.do";
+  const params = new URLSearchParams({
+    code: "T100",
+    dCode: "T108",
+  });
+
+  if (keyword) {
+    params.set("searchText", keyword);
+  }
+
+  return `${baseUrl}?${params.toString()}`;
 }
 
 function normalizeLoose(value: string | null | undefined) {
@@ -150,11 +150,15 @@ export async function GET(req: NextRequest) {
     const latestByMatchKey = buildLatestSeoulReservationMap(rows);
     const sources = rows.map((row) => ({ row, source: getSeoulReservationSource(row) }));
 
+    const storedLinkIsStale = isStaleSeoulMonthlyService(typedCourt.source_service_name);
     const exactMatch = latestByMatchKey.get(currentMatchKey);
+    const usableExactMatch =
+      exactMatch && !isStaleSeoulMonthlyService(exactMatch.source.source_service_name) ? exactMatch : undefined;
     const fallbackMatch =
-      exactMatch ??
+      usableExactMatch ??
       sources
         .map((item) => ({ ...item, score: scoreFallbackMatch(typedCourt, item.source) }))
+        .filter((item) => !isStaleSeoulMonthlyService(item.source.source_service_name))
         .filter((item) => item.score >= 7)
         .sort((a, b) => {
           if (b.score !== a.score) return b.score - a.score;
@@ -162,6 +166,10 @@ export async function GET(req: NextRequest) {
         })[0];
 
     if (!fallbackMatch) {
+      if (storedLinkIsStale) {
+        return redirectTo(getSeoulTennisSearchUrl(typedCourt));
+      }
+
       return redirectTo(fallbackUrl);
     }
 

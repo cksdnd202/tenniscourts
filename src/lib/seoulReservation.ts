@@ -66,6 +66,28 @@ export function normalizeSeoulServiceName(value: string | null | undefined) {
     .trim();
 }
 
+export function getSeoulServiceMonth(value: string | null | undefined) {
+  const match = (value ?? "").match(/(?:^|[^\d])(\d{1,2})\s*월/);
+  if (!match) return null;
+
+  const month = Number(match[1]);
+  return Number.isInteger(month) && month >= 1 && month <= 12 ? month : null;
+}
+
+function isSeoulServiceMonthAhead(serviceMonth: number, currentMonth: number) {
+  if (currentMonth === 12 && serviceMonth === 1) return true;
+  return serviceMonth > currentMonth;
+}
+
+export function isStaleSeoulMonthlyService(value: string | null | undefined, now = new Date()) {
+  const serviceMonth = getSeoulServiceMonth(value);
+  if (!serviceMonth) return false;
+
+  const currentMonth = now.getMonth() + 1;
+  const currentDay = now.getDate();
+  return currentDay >= 20 && !isSeoulServiceMonthAhead(serviceMonth, currentMonth);
+}
+
 function normalizePlaceName(value: string | null | undefined) {
   return normalizeText(value)
     .replace(/\([^)]*\)/g, "")
@@ -152,13 +174,11 @@ function parseSeoulDateValue(value: string | null | undefined) {
 }
 
 function getServiceMonthScore(row: SeoulReservationRow) {
-  const match = row.svcName.match(/(?:^|[^\d])(\d{1,2})\s*월/);
-  if (!match) return 0;
+  const month = getSeoulServiceMonth(row.svcName);
+  if (!month) return 0;
 
   const now = new Date();
   const currentMonth = now.getMonth() + 1;
-  const month = Number(match[1]);
-  if (!Number.isFinite(month)) return 0;
 
   let year = now.getFullYear();
   if (month < currentMonth - 6) year += 1;
