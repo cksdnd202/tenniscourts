@@ -122,6 +122,20 @@ export function buildSeoulReservationMatchKey(input: {
     .join("|");
 }
 
+export function buildSeoulReservationLooseMatchKey(input: {
+  areaName?: string | null;
+  placeName?: string | null;
+  serviceName?: string | null;
+}) {
+  const area = normalizeText(input.areaName);
+  const place = normalizePlaceName(input.placeName);
+  const service = normalizeSeoulServiceName(input.serviceName);
+
+  return [SEOUL_RESERVATION_PROVIDER, area, place, service]
+    .map((part) => part || "-")
+    .join("|");
+}
+
 export function parseSeoulReservationRow(raw: string): SeoulReservationRow | null {
   if (extractXmlTag(raw, "MINCLASSNM") !== "테니스장") return null;
 
@@ -178,6 +192,22 @@ function getStartOfDayTime(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
 }
 
+function getSeoulReservationStartTime(row: SeoulReservationRow) {
+  return Math.max(
+    parseSeoulDateValue(extractXmlTag(row.raw, "RCPTBGNDT")),
+    parseSeoulDateValue(extractXmlTag(row.raw, "SVCOPNBGNDT")),
+    parseSeoulDateValue(extractXmlTag(row.raw, "USEBGNDT"))
+  );
+}
+
+function getSeoulReservationReceptionStartTime(row: SeoulReservationRow) {
+  return parseSeoulDateValue(extractXmlTag(row.raw, "RCPTBGNDT"));
+}
+
+function getSeoulReservationReceptionEndTime(row: SeoulReservationRow) {
+  return parseSeoulDateValue(extractXmlTag(row.raw, "RCPTENDDT"));
+}
+
 export function getSeoulReservationEndTime(row: SeoulReservationRow) {
   return Math.max(
     parseSeoulDateValue(extractXmlTag(row.raw, "RCPTENDDT")),
@@ -196,6 +226,52 @@ export function isExpiredSeoulReservationRow(row: SeoulReservationRow, now = new
   if (!endTime) return false;
 
   return endTime < getStartOfDayTime(now);
+}
+
+function getSeoulReservationNextTiming(row: SeoulReservationRow, now = new Date()) {
+  const nowTime = now.getTime();
+  const startOfToday = getStartOfDayTime(now);
+  const receptionStartTime = getSeoulReservationReceptionStartTime(row);
+  const receptionEndTime = getSeoulReservationReceptionEndTime(row);
+  const fallbackStartTime = getSeoulReservationStartTime(row);
+  const fallbackEndTime = getSeoulReservationEndTime(row);
+
+  if (
+    receptionStartTime &&
+    receptionEndTime &&
+    receptionStartTime <= nowTime &&
+    receptionEndTime >= startOfToday
+  ) {
+    return { rank: 0, distance: 0 };
+  }
+
+  if (receptionStartTime && receptionStartTime > nowTime) {
+    return { rank: 1, distance: receptionStartTime - nowTime };
+  }
+
+  if (!receptionStartTime && fallbackStartTime && fallbackStartTime > nowTime) {
+    return { rank: 2, distance: fallbackStartTime - nowTime };
+  }
+
+  if (!receptionEndTime && fallbackEndTime && fallbackEndTime >= startOfToday) {
+    return { rank: 3, distance: Math.max(0, fallbackEndTime - nowTime) };
+  }
+
+  return { rank: 4, distance: Number.MAX_SAFE_INTEGER };
+}
+
+export function compareSeoulReservationRowsForNext(
+  a: SeoulReservationRow,
+  b: SeoulReservationRow,
+  now = new Date()
+) {
+  const aTiming = getSeoulReservationNextTiming(a, now);
+  const bTiming = getSeoulReservationNextTiming(b, now);
+
+  if (aTiming.rank !== bTiming.rank) return aTiming.rank - bTiming.rank;
+  if (aTiming.distance !== bTiming.distance) return aTiming.distance - bTiming.distance;
+
+  return getSeoulReservationFreshnessScore(b) - getSeoulReservationFreshnessScore(a);
 }
 
 function getServiceMonthScore(row: SeoulReservationRow) {
@@ -234,8 +310,29 @@ export function buildLatestSeoulReservationMap(rows: SeoulReservationRow[]) {
     if (!source.source_match_key) continue;
 
     const current = map.get(source.source_match_key);
-    if (!current || getSeoulReservationFreshnessScore(row) > getSeoulReservationFreshnessScore(current.row)) {
+    if (!current || compareSeoulReservationRowsForNext(row, current.row) < 0) {
       map.set(source.source_match_key, { row, source });
+    }
+  }
+
+  return map;
+}
+
+export function buildNextSeoulReservationLooseMap(rows: SeoulReservationRow[]) {
+  const map = new Map<string, { row: SeoulReservationRow; source: SeoulReservationSource }>();
+
+  for (const row of rows) {
+    if (isExpiredSeoulReservationRow(row)) continue;
+
+    const key = buildSeoulReservationLooseMatchKey({
+      areaName: row.areaName,
+      placeName: row.placeName,
+      serviceName: row.svcName,
+    });
+    const source = getSeoulReservationSource(row);
+    const current = map.get(key);
+    if (!current || compareSeoulReservationRowsForNext(row, current.row) < 0) {
+      map.set(key, { row, source });
     }
   }
 
@@ -327,4 +424,16 @@ export function buildFallbackSeoulMatchKeyFromCourt(court: Partial<Court>) {
 
 export function getCourtStoredSeoulMatchKey(court: Partial<Court>) {
   return court.source_match_key || buildFallbackSeoulMatchKeyFromCourt(court);
+}
+
+export function buildFallbackSeoulLooseMatchKeyFromCourt(court: Partial<Court>) {
+  return buildSeoulReservationLooseMatchKey({
+    areaName: court.source_area_name || court.basic_city,
+    placeName: court.source_place_name || court.basic_address || court.basic_court_name,
+    serviceName: court.source_service_name || court.basic_court_name,
+  });
+}
+
+export function getCourtStoredSeoulLooseMatchKey(court: Partial<Court>) {
+  return buildFallbackSeoulLooseMatchKeyFromCourt(court);
 }

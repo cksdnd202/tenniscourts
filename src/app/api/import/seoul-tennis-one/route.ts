@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
+  buildSeoulReservationLooseMatchKey,
   buildSeoulReservationMatchKey,
+  compareSeoulReservationRowsForNext,
   extractXmlTag,
   fetchSeoulReservationPage,
   getSeoulReservationSource,
@@ -9,7 +11,7 @@ import {
   parseSeoulReservationRow,
 } from "@/lib/seoulReservation";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 1000;
 
 const extractTag = extractXmlTag;
 
@@ -25,9 +27,14 @@ function findTennisRows(xml: string): string[] {
 
 const fetchSeoulPage = fetchSeoulReservationPage;
 
-async function getExistingSeoulSources(): Promise<{ links: Set<string>; matchKeys: Set<string> }> {
+async function getExistingSeoulSources(): Promise<{
+  links: Set<string>;
+  matchKeys: Set<string>;
+  looseMatchKeys: Set<string>;
+}> {
   const links = new Set<string>();
   const matchKeys = new Set<string>();
+  const looseMatchKeys = new Set<string>();
   const pageSize = 1000;
   let from = 0;
 
@@ -56,12 +63,32 @@ async function getExistingSeoulSources(): Promise<{ links: Set<string>; matchKey
         maxTime: row.source_time_max ?? row.basic_time_of_use_weekday_to,
       });
       if (rebuiltKey) matchKeys.add(rebuiltKey);
+      const visibleNameKey = buildSeoulReservationMatchKey({
+        areaName: row.source_area_name ?? row.basic_city,
+        placeName: row.source_place_name ?? row.basic_address ?? row.basic_court_name,
+        serviceName: row.basic_court_name,
+        minTime: row.source_time_min ?? row.basic_time_of_use_weekday_from,
+        maxTime: row.source_time_max ?? row.basic_time_of_use_weekday_to,
+      });
+      if (visibleNameKey) matchKeys.add(visibleNameKey);
+      const looseSourceKey = buildSeoulReservationLooseMatchKey({
+        areaName: row.source_area_name ?? row.basic_city,
+        placeName: row.source_place_name ?? row.basic_address ?? row.basic_court_name,
+        serviceName: row.source_service_name ?? row.basic_court_name,
+      });
+      if (looseSourceKey) looseMatchKeys.add(looseSourceKey);
+      const looseVisibleNameKey = buildSeoulReservationLooseMatchKey({
+        areaName: row.source_area_name ?? row.basic_city,
+        placeName: row.source_place_name ?? row.basic_address ?? row.basic_court_name,
+        serviceName: row.basic_court_name,
+      });
+      if (looseVisibleNameKey) looseMatchKeys.add(looseVisibleNameKey);
     }
     if (data.length < pageSize) break;
     from += pageSize;
   }
 
-  return { links, matchKeys };
+  return { links, matchKeys, looseMatchKeys };
 }
 
 export async function POST(req: NextRequest) {
@@ -79,6 +106,15 @@ export async function POST(req: NextRequest) {
 
   try {
     const existingSources = await getExistingSeoulSources();
+    const candidateOrder: string[] = [];
+    const candidates = new Map<
+      string,
+      {
+        raw: string;
+        row: NonNullable<ReturnType<typeof parseSeoulReservationRow>>;
+        source: ReturnType<typeof getSeoulReservationSource>;
+      }
+    >();
 
     let total = 0;
     let start = 1;
@@ -102,55 +138,33 @@ export async function POST(req: NextRequest) {
         if (seoulRow && isExpiredSeoulReservationRow(seoulRow)) continue;
         if (existingSources.links.has(url)) continue;
         if (source?.source_match_key && existingSources.matchKeys.has(source.source_match_key)) continue;
+        if (!seoulRow || !source) continue;
 
-        const payload = {
-          basic_court_name: name,
-          booking_site_link: url,
-          basic_city: extractTag(row, "AREANM"),
-          basic_latitude: null,
-          basic_longitude: null,
-          etc_desc: extractTag(row, "DTLCONT"),
-          basic_time_of_use_weekday_from: extractTag(row, "V_MIN"),
-          basic_time_of_use_weekday_to: extractTag(row, "V_MAX"),
-          basic_region: "서울",
-          use_or_not: false,
-          booking_booking_provide: "public_site",
-          time_of_use_same: true,
-          ...(source ?? {}),
-        };
-
-        const { data, error } = await getSupabaseAdmin()
-          .from("courtinfo")
-          .insert(payload)
-          .select("id,basic_court_name,booking_site_link")
-          .single();
-
-        if (error) {
-          return NextResponse.json(
-            { error: error.message, details: error },
-            { status: 500 }
-          );
+        const looseMatchKey = buildSeoulReservationLooseMatchKey({
+          areaName: seoulRow.areaName,
+          placeName: seoulRow.placeName,
+          serviceName: seoulRow.svcName,
+        });
+        if (
+          existingSources.looseMatchKeys.has(looseMatchKey)
+        ) {
+          continue;
         }
 
-        return NextResponse.json({
-          ok: true,
-          row: data,
-          meta: {
-            apiRange: `${start}-${end}`,
-            skippedExistingByUrl: existingSources.links.size,
-            skippedExistingByMatchKey: existingSources.matchKeys.size,
-          },
-        });
+        const current = candidates.get(looseMatchKey);
+        if (!current) {
+          candidateOrder.push(looseMatchKey);
+          candidates.set(looseMatchKey, { raw: row, row: seoulRow, source });
+          continue;
+        }
+
+        if (compareSeoulReservationRowsForNext(seoulRow, current.row) < 0) {
+          candidates.set(looseMatchKey, { raw: row, row: seoulRow, source });
+        }
       }
 
       if (total > 0 && end >= total) {
-        return NextResponse.json(
-          {
-            error:
-              "더 넣을 신규 테니스장이 없습니다. (API에 있는 테니스장은 모두 예약 링크가 DB에 있습니다)",
-          },
-          { status: 409 }
-        );
+        break;
       }
 
       start += PAGE_SIZE;
@@ -162,6 +176,58 @@ export async function POST(req: NextRequest) {
         );
       }
     }
+
+    const firstCandidateKey = candidateOrder.find((key) => candidates.has(key));
+    const firstCandidate = firstCandidateKey ? candidates.get(firstCandidateKey) : null;
+
+    if (!firstCandidate) {
+      return NextResponse.json(
+        {
+          error:
+            "더 넣을 신규 테니스장이 없습니다. (API에 있는 테니스장은 모두 예약 링크가 DB에 있습니다)",
+        },
+        { status: 409 }
+      );
+    }
+
+    const payload = {
+      basic_court_name: firstCandidate.row.svcName,
+      booking_site_link: firstCandidate.row.svcUrl,
+      basic_city: extractTag(firstCandidate.raw, "AREANM"),
+      basic_latitude: null,
+      basic_longitude: null,
+      etc_desc: extractTag(firstCandidate.raw, "DTLCONT"),
+      basic_time_of_use_weekday_from: extractTag(firstCandidate.raw, "V_MIN"),
+      basic_time_of_use_weekday_to: extractTag(firstCandidate.raw, "V_MAX"),
+      basic_region: "서울",
+      use_or_not: false,
+      booking_booking_provide: "public_site",
+      time_of_use_same: true,
+      ...firstCandidate.source,
+    };
+
+    const { data, error } = await getSupabaseAdmin()
+      .from("courtinfo")
+      .insert(payload)
+      .select("id,basic_court_name,booking_site_link")
+      .single();
+
+    if (error) {
+      return NextResponse.json(
+        { error: error.message, details: error },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      row: data,
+      meta: {
+        apiRange: `1-${total || "unknown"}`,
+        skippedExistingByUrl: existingSources.links.size,
+        skippedExistingByMatchKey: existingSources.matchKeys.size,
+      },
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : "알 수 없는 오류";
     return NextResponse.json({ error: message }, { status: 500 });

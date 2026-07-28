@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { denyUnlessAdmin } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
+  buildSeoulReservationLooseMatchKey,
   buildSeoulReservationMatchKey,
+  compareSeoulReservationRowsForNext,
   extractXmlTag,
   fetchSeoulReservationPage,
   getSeoulReservationSource,
@@ -10,7 +12,7 @@ import {
   parseSeoulReservationRow,
 } from "@/lib/seoulReservation";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 1000;
 const DEFAULT_COURT_COUNTS = {
   court_count_hard_indoor: 0,
   court_count_hard_outdoor: 0,
@@ -41,6 +43,7 @@ const fetchSeoulPage = fetchSeoulReservationPage;
 async function getExistingSeoulSources() {
   const links = new Set<string>();
   const matchKeys = new Set<string>();
+  const looseMatchKeys = new Set<string>();
   const pageSize = 1000;
   let from = 0;
 
@@ -71,13 +74,33 @@ async function getExistingSeoulSources() {
         maxTime: row.source_time_max ?? row.basic_time_of_use_weekday_to,
       });
       if (rebuiltMatchKey) matchKeys.add(rebuiltMatchKey);
+      const visibleNameMatchKey = buildSeoulReservationMatchKey({
+        areaName: row.source_area_name ?? row.basic_city,
+        placeName: row.source_place_name ?? row.basic_address ?? row.basic_court_name,
+        serviceName: row.basic_court_name,
+        minTime: row.source_time_min ?? row.basic_time_of_use_weekday_from,
+        maxTime: row.source_time_max ?? row.basic_time_of_use_weekday_to,
+      });
+      if (visibleNameMatchKey) matchKeys.add(visibleNameMatchKey);
+      const looseSourceKey = buildSeoulReservationLooseMatchKey({
+        areaName: row.source_area_name ?? row.basic_city,
+        placeName: row.source_place_name ?? row.basic_address ?? row.basic_court_name,
+        serviceName: row.source_service_name ?? row.basic_court_name,
+      });
+      if (looseSourceKey) looseMatchKeys.add(looseSourceKey);
+      const looseVisibleNameKey = buildSeoulReservationLooseMatchKey({
+        areaName: row.source_area_name ?? row.basic_city,
+        placeName: row.source_place_name ?? row.basic_address ?? row.basic_court_name,
+        serviceName: row.basic_court_name,
+      });
+      if (looseVisibleNameKey) looseMatchKeys.add(looseVisibleNameKey);
     }
 
     if (data.length < pageSize) break;
     from += pageSize;
   }
 
-  return { links, matchKeys };
+  return { links, matchKeys, looseMatchKeys };
 }
 
 async function searchKakaoPlace(name: string) {
@@ -181,6 +204,14 @@ export async function GET(req: NextRequest) {
 
   try {
     const existingSources = await getExistingSeoulSources();
+    const candidateOrder: string[] = [];
+    const candidates = new Map<
+      string,
+      {
+        raw: string;
+        row: NonNullable<ReturnType<typeof parseSeoulReservationRow>>;
+      }
+    >();
 
     let total = 0;
     let start = 1;
@@ -205,25 +236,33 @@ export async function GET(req: NextRequest) {
         if (seoulRow && isExpiredSeoulReservationRow(seoulRow)) continue;
         if (existingSources.links.has(url)) continue;
         if (source?.source_match_key && existingSources.matchKeys.has(source.source_match_key)) continue;
+        if (!seoulRow) continue;
 
-        return NextResponse.json({
-          court: await toCourtCandidate(row),
-          meta: {
-            apiRange: `${start}-${end}`,
-            skippedExistingByUrl: existingSources.links.size,
-            skippedExistingByMatchKey: existingSources.matchKeys.size,
-          },
+        const looseMatchKey = buildSeoulReservationLooseMatchKey({
+          areaName: seoulRow.areaName,
+          placeName: seoulRow.placeName,
+          serviceName: seoulRow.svcName,
         });
+        if (
+          existingSources.looseMatchKeys.has(looseMatchKey)
+        ) {
+          continue;
+        }
+
+        const current = candidates.get(looseMatchKey);
+        if (!current) {
+          candidateOrder.push(looseMatchKey);
+          candidates.set(looseMatchKey, { raw: row, row: seoulRow });
+          continue;
+        }
+
+        if (compareSeoulReservationRowsForNext(seoulRow, current.row) < 0) {
+          candidates.set(looseMatchKey, { raw: row, row: seoulRow });
+        }
       }
 
       if (total > 0 && end >= total) {
-        return NextResponse.json(
-          {
-            error:
-              "더 가져올 신규 테니스장이 없습니다. (API에 있는 테니스장은 모두 예약 링크가 DB에 있습니다)",
-          },
-          { status: 409 }
-        );
+        break;
       }
 
       start += PAGE_SIZE;
@@ -235,6 +274,28 @@ export async function GET(req: NextRequest) {
         );
       }
     }
+
+    const firstCandidateKey = candidateOrder.find((key) => candidates.has(key));
+    const firstCandidate = firstCandidateKey ? candidates.get(firstCandidateKey) : null;
+
+    if (!firstCandidate) {
+      return NextResponse.json(
+        {
+          error:
+            "더 가져올 신규 테니스장이 없습니다. (API에 있는 테니스장은 모두 예약 링크가 DB에 있습니다)",
+        },
+        { status: 409 }
+      );
+    }
+
+    return NextResponse.json({
+      court: await toCourtCandidate(firstCandidate.raw),
+      meta: {
+        apiRange: `1-${total || "unknown"}`,
+        skippedExistingByUrl: existingSources.links.size,
+        skippedExistingByMatchKey: existingSources.matchKeys.size,
+      },
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "알 수 없는 오류" },

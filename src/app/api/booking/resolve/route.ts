@@ -4,10 +4,10 @@ import {
   SEOUL_RESERVATION_PROVIDER,
   buildFallbackSeoulMatchKeyFromCourt,
   buildLatestSeoulReservationMap,
+  compareSeoulReservationRowsForNext,
   fetchAllSeoulTennisReservations,
   getCourtStoredSeoulMatchKey,
   getSeoulReservationSource,
-  getSeoulReservationFreshnessScore,
   isExpiredSeoulReservationRow,
   isStaleSeoulMonthlyService,
   normalizeSeoulServiceName,
@@ -146,7 +146,7 @@ export async function GET(req: NextRequest) {
         .filter((item) => item.score >= 7)
         .sort((a, b) => {
           if (b.score !== a.score) return b.score - a.score;
-          return getSeoulReservationFreshnessScore(b.row) - getSeoulReservationFreshnessScore(a.row);
+          return compareSeoulReservationRowsForNext(a.row, b.row);
         })[0];
 
     if (!fallbackMatch) {

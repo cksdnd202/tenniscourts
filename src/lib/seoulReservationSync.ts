@@ -3,7 +3,9 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   SEOUL_RESERVATION_PROVIDER,
   buildLatestSeoulReservationMap,
+  buildNextSeoulReservationLooseMap,
   fetchAllSeoulTennisReservations,
+  getCourtStoredSeoulLooseMatchKey,
   getCourtStoredSeoulMatchKey,
   getSeoulReservationSource,
   isExpiredSeoulReservationRow,
@@ -14,6 +16,7 @@ export async function syncSeoulReservationLinks() {
   const rows = await fetchAllSeoulTennisReservations(apiKey);
   const activeRows = rows.filter((row) => !isExpiredSeoulReservationRow(row));
   const latestByMatchKey = buildLatestSeoulReservationMap(activeRows);
+  const latestByLooseMatchKey = buildNextSeoulReservationLooseMap(activeRows);
   const latestByUrl = new Map(
     activeRows.map((row) => [row.svcUrl.trim(), { row, source: getSeoulReservationSource(row) }])
   );
@@ -67,7 +70,8 @@ export async function syncSeoulReservationLinks() {
     }
 
     const matchKey = getCourtStoredSeoulMatchKey(court);
-    const match = latestByMatchKey.get(matchKey);
+    const looseMatchKey = getCourtStoredSeoulLooseMatchKey(court);
+    const match = latestByMatchKey.get(matchKey) ?? latestByLooseMatchKey.get(looseMatchKey);
     if (!match) continue;
 
     const nextUrl = match.row.svcUrl.trim();
