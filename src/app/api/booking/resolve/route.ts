@@ -24,6 +24,42 @@ function redirectTo(url: string) {
   });
 }
 
+function getServiceMonth(value: string | null | undefined) {
+  const match = (value ?? "").match(/(?:^|[^\d])(\d{1,2})\s*월/);
+  if (!match) return null;
+
+  const month = Number(match[1]);
+  return Number.isInteger(month) && month >= 1 && month <= 12 ? month : null;
+}
+
+function isServiceMonthAhead(serviceMonth: number, currentMonth: number) {
+  if (currentMonth === 12 && serviceMonth === 1) return true;
+  return serviceMonth > currentMonth;
+}
+
+function shouldTrustRecentSync(court: Court) {
+  const syncedAt = court.source_synced_at ? new Date(court.source_synced_at).getTime() : 0;
+  const isRecentlySynced =
+    Boolean(court.source_match_key) &&
+    Number.isFinite(syncedAt) &&
+    Date.now() - syncedAt < RECENT_SYNC_MAX_AGE_MS;
+
+  if (!isRecentlySynced) return false;
+
+  const serviceMonth = getServiceMonth(court.source_service_name);
+  if (!serviceMonth) return true;
+
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentDay = now.getDate();
+
+  // 서울시 월별 예약 상품은 보통 말일 전후 다음 달 상품이 먼저 올라온다.
+  // 20일 이후인데 저장된 링크가 이번 달 이하라면 최신 API 확인을 생략하지 않는다.
+  if (currentDay >= 20 && !isServiceMonthAhead(serviceMonth, currentMonth)) return false;
+
+  return true;
+}
+
 function normalizeLoose(value: string | null | undefined) {
   return normalizeSeoulServiceName(value)
     .replace(/테니스장|테니스|야외코트|실내코트|코트|대관/g, "")
@@ -101,13 +137,7 @@ export async function GET(req: NextRequest) {
     return redirectTo(fallbackUrl);
   }
 
-  const syncedAt = typedCourt.source_synced_at ? new Date(typedCourt.source_synced_at).getTime() : 0;
-  const isRecentlySynced =
-    Boolean(typedCourt.source_match_key) &&
-    Number.isFinite(syncedAt) &&
-    Date.now() - syncedAt < RECENT_SYNC_MAX_AGE_MS;
-
-  if (!forceResolve && isRecentlySynced) {
+  if (!forceResolve && shouldTrustRecentSync(typedCourt)) {
     return redirectTo(fallbackUrl);
   }
 

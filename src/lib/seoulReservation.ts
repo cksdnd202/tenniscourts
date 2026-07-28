@@ -59,8 +59,8 @@ function normalizeText(value: string | null | undefined) {
 
 export function normalizeSeoulServiceName(value: string | null | undefined) {
   return normalizeText(value)
-    .replace(/^\d{1,2}\s*월\s*/g, "")
-    .replace(/^\d{4}\s*년\s*\d{1,2}\s*월\s*/g, "")
+    .replace(/\d{4}\s*년\s*0?\d{1,2}\s*월/g, "")
+    .replace(/0?\d{1,2}\s*월/g, "")
     .replace(/^테니스장\s*\d+\s*/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -152,7 +152,7 @@ function parseSeoulDateValue(value: string | null | undefined) {
 }
 
 function getServiceMonthScore(row: SeoulReservationRow) {
-  const match = row.svcName.match(/^\s*(\d{1,2})\s*월/);
+  const match = row.svcName.match(/(?:^|[^\d])(\d{1,2})\s*월/);
   if (!match) return 0;
 
   const now = new Date();

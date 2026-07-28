@@ -38,7 +38,7 @@ export async function syncSeoulReservationLinks() {
   for (const court of courts) {
     const currentUrl = court.booking_site_link?.trim();
     const urlMatch = currentUrl ? latestByUrl.get(currentUrl) : null;
-    if (urlMatch && !court.source_match_key) {
+    if (urlMatch && court.source_match_key !== urlMatch.source.source_match_key) {
       const { error: backfillError } = await getSupabaseAdmin()
         .from("courtinfo")
         .update({
