@@ -6,6 +6,7 @@ import {
   extractXmlTag,
   fetchSeoulReservationPage,
   getSeoulReservationSource,
+  isExpiredSeoulReservationRow,
   parseSeoulReservationRow,
 } from "@/lib/seoulReservation";
 
@@ -201,6 +202,7 @@ export async function GET(req: NextRequest) {
         const source = seoulRow ? getSeoulReservationSource(seoulRow) : null;
 
         if (!url || !name) continue;
+        if (seoulRow && isExpiredSeoulReservationRow(seoulRow)) continue;
         if (existingSources.links.has(url)) continue;
         if (source?.source_match_key && existingSources.matchKeys.has(source.source_match_key)) continue;
 

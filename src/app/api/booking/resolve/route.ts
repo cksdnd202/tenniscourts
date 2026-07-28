@@ -8,6 +8,7 @@ import {
   getCourtStoredSeoulMatchKey,
   getSeoulReservationSource,
   getSeoulReservationFreshnessScore,
+  isExpiredSeoulReservationRow,
   isStaleSeoulMonthlyService,
   normalizeSeoulServiceName,
   SEOUL_RESERVATION_ROWS_CACHE_TTL_MS,
@@ -140,6 +141,7 @@ export async function GET(req: NextRequest) {
       usableExactMatch ??
       sources
         .map((item) => ({ ...item, score: scoreFallbackMatch(typedCourt, item.source) }))
+        .filter((item) => !isExpiredSeoulReservationRow(item.row))
         .filter((item) => !isStaleSeoulMonthlyService(item.source.source_service_name))
         .filter((item) => item.score >= 7)
         .sort((a, b) => {

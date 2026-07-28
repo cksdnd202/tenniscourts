@@ -174,6 +174,30 @@ function parseSeoulDateValue(value: string | null | undefined) {
   return Number.isFinite(time) ? time : 0;
 }
 
+function getStartOfDayTime(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+}
+
+export function getSeoulReservationEndTime(row: SeoulReservationRow) {
+  return Math.max(
+    parseSeoulDateValue(extractXmlTag(row.raw, "RCPTENDDT")),
+    parseSeoulDateValue(extractXmlTag(row.raw, "SVCOPNENDDT")),
+    parseSeoulDateValue(extractXmlTag(row.raw, "USEENDDT"))
+  );
+}
+
+export function isExpiredSeoulReservationRow(row: SeoulReservationRow, now = new Date()) {
+  const receptionEndTime = parseSeoulDateValue(extractXmlTag(row.raw, "RCPTENDDT"));
+  if (receptionEndTime) {
+    return receptionEndTime < getStartOfDayTime(now);
+  }
+
+  const endTime = getSeoulReservationEndTime(row);
+  if (!endTime) return false;
+
+  return endTime < getStartOfDayTime(now);
+}
+
 function getServiceMonthScore(row: SeoulReservationRow) {
   const month = getSeoulServiceMonth(row.svcName);
   if (!month) return 0;
@@ -204,6 +228,8 @@ export function buildLatestSeoulReservationMap(rows: SeoulReservationRow[]) {
   const map = new Map<string, { row: SeoulReservationRow; source: SeoulReservationSource }>();
 
   for (const row of rows) {
+    if (isExpiredSeoulReservationRow(row)) continue;
+
     const source = getSeoulReservationSource(row);
     if (!source.source_match_key) continue;
 

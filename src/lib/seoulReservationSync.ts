@@ -6,13 +6,17 @@ import {
   fetchAllSeoulTennisReservations,
   getCourtStoredSeoulMatchKey,
   getSeoulReservationSource,
+  isExpiredSeoulReservationRow,
 } from "@/lib/seoulReservation";
 
 export async function syncSeoulReservationLinks() {
   const apiKey = process.env.SEOUL_OPENAPI_KEY ?? "7248745a74636b733837426b724e4b";
   const rows = await fetchAllSeoulTennisReservations(apiKey);
-  const latestByMatchKey = buildLatestSeoulReservationMap(rows);
-  const latestByUrl = new Map(rows.map((row) => [row.svcUrl.trim(), { row, source: getSeoulReservationSource(row) }]));
+  const activeRows = rows.filter((row) => !isExpiredSeoulReservationRow(row));
+  const latestByMatchKey = buildLatestSeoulReservationMap(activeRows);
+  const latestByUrl = new Map(
+    activeRows.map((row) => [row.svcUrl.trim(), { row, source: getSeoulReservationSource(row) }])
+  );
 
   const { data, error } = await getSupabaseAdmin()
     .from("courtinfo")
