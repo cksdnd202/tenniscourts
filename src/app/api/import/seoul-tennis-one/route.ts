@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
+  buildSeoulReservationMatchKey,
   extractXmlTag,
   fetchSeoulReservationPage,
   getSeoulReservationSource,
@@ -32,7 +33,9 @@ async function getExistingSeoulSources(): Promise<{ links: Set<string>; matchKey
   for (;;) {
     const { data, error } = await getSupabaseAdmin()
       .from("courtinfo")
-      .select("booking_site_link, source_match_key")
+      .select(
+        "booking_site_link, source_match_key, source_area_name, source_place_name, source_service_name, source_time_min, source_time_max, basic_city, basic_address, basic_court_name, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to"
+      )
       .range(from, from + pageSize - 1);
 
     if (error) {
@@ -44,6 +47,14 @@ async function getExistingSeoulSources(): Promise<{ links: Set<string>; matchKey
       if (u) links.add(u);
       const key = row.source_match_key?.trim();
       if (key) matchKeys.add(key);
+      const rebuiltKey = buildSeoulReservationMatchKey({
+        areaName: row.source_area_name ?? row.basic_city,
+        placeName: row.source_place_name ?? row.basic_address ?? row.basic_court_name,
+        serviceName: row.source_service_name ?? row.basic_court_name,
+        minTime: row.source_time_min ?? row.basic_time_of_use_weekday_from,
+        maxTime: row.source_time_max ?? row.basic_time_of_use_weekday_to,
+      });
+      if (rebuiltKey) matchKeys.add(rebuiltKey);
     }
     if (data.length < pageSize) break;
     from += pageSize;
