@@ -8,14 +8,11 @@ import {
   getCourtStoredSeoulMatchKey,
   getSeoulReservationSource,
   getSeoulReservationFreshnessScore,
-  getSeoulServiceMonth,
   isStaleSeoulMonthlyService,
   normalizeSeoulServiceName,
   SEOUL_RESERVATION_ROWS_CACHE_TTL_MS,
 } from "@/lib/seoulReservation";
 import type { Court } from "@/app/types";
-
-const RECENT_SYNC_MAX_AGE_MS = 26 * 60 * 60 * 1000;
 
 function redirectTo(url: string) {
   return NextResponse.redirect(url, {
@@ -24,25 +21,6 @@ function redirectTo(url: string) {
       "Cache-Control": "no-store",
     },
   });
-}
-
-function shouldTrustRecentSync(court: Court) {
-  const syncedAt = court.source_synced_at ? new Date(court.source_synced_at).getTime() : 0;
-  const isRecentlySynced =
-    Boolean(court.source_match_key) &&
-    Number.isFinite(syncedAt) &&
-    Date.now() - syncedAt < RECENT_SYNC_MAX_AGE_MS;
-
-  if (!isRecentlySynced) return false;
-
-  const serviceMonth = getSeoulServiceMonth(court.source_service_name);
-  if (!serviceMonth) return true;
-
-  // 서울시 월별 예약 상품은 보통 말일 전후 다음 달 상품이 먼저 올라온다.
-  // 20일 이후인데 저장된 링크가 이번 달 이하라면 최신 API 확인을 생략하지 않는다.
-  if (isStaleSeoulMonthlyService(court.source_service_name)) return false;
-
-  return true;
 }
 
 function getSeoulTennisSearchUrl(court: Court) {
@@ -137,7 +115,11 @@ export async function GET(req: NextRequest) {
     return redirectTo(fallbackUrl);
   }
 
-  if (!forceResolve && shouldTrustRecentSync(typedCourt)) {
+  if (!forceResolve) {
+    if (isStaleSeoulMonthlyService(typedCourt.source_service_name)) {
+      return redirectTo(getSeoulTennisSearchUrl(typedCourt));
+    }
+
     return redirectTo(fallbackUrl);
   }
 

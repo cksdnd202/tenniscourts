@@ -510,6 +510,7 @@ export function AdminCourtManager() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSyncingSeoulLinks, setIsSyncingSeoulLinks] = useState(false);
   const [isFetchingSeoulCandidate, setIsFetchingSeoulCandidate] = useState(false);
   const [isFetchingBlogs, setIsFetchingBlogs] = useState(false);
   const [fetchingBlogIndex, setFetchingBlogIndex] = useState<number | null>(null);
@@ -685,6 +686,28 @@ export function AdminCourtManager() {
       setError(loadError instanceof Error ? loadError.message : "목록을 불러오지 못했습니다.");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function syncSeoulLinks() {
+    setIsSyncingSeoulLinks(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const response = await adminFetch("/api/admin/courts/seoul-link-sync", {
+        method: "POST",
+      });
+      const data = await readAdminResponse(response, "서울시 예약 링크를 동기화하지 못했습니다.");
+
+      await loadCourts();
+      setMessage(
+        `서울시 예약 링크 동기화 완료: ${data.checkedCourts ?? 0}개 확인, ${data.updatedCourts ?? 0}개 업데이트`
+      );
+    } catch (syncError) {
+      setError(syncError instanceof Error ? syncError.message : "서울시 예약 링크를 동기화하지 못했습니다.");
+    } finally {
+      setIsSyncingSeoulLinks(false);
     }
   }
 
@@ -1219,6 +1242,14 @@ export function AdminCourtManager() {
               className="rounded-lg border border-[#3c3c3c] bg-[#151515] px-4 py-2 text-sm font-medium hover:bg-[#242424]"
             >
               새로고침
+            </button>
+            <button
+              type="button"
+              onClick={syncSeoulLinks}
+              disabled={isSyncingSeoulLinks}
+              className="rounded-lg border border-[#2C8B56] bg-[#102217] px-4 py-2 text-sm font-medium text-[#b7f7cd] hover:bg-[#183824] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSyncingSeoulLinks ? "동기화 중..." : "서울시 링크 동기화"}
             </button>
             <button
               type="button"
