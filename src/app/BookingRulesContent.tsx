@@ -53,6 +53,12 @@ function formatRuleDayOfMonth(value: number | null | undefined) {
   return map[value] ?? `${value}일`;
 }
 
+function formatRuleDaySchedule(value: number | null | undefined) {
+  if (value == null) return "";
+  if (value === -1) return "말일";
+  return `${value}일`;
+}
+
 function formatRuleOrdinal(value: number | null | undefined) {
   if (value == null) return "";
   if (value === -1) return "마지막주";
@@ -108,7 +114,7 @@ export function formatBookingRuleCardText(rule: CourtBookingRule) {
     return `${[prefix, time].filter(Boolean).join(" ")}${offset ? `, ${offset}` : ""} 예약 오픈`.trim();
   }
 
-  const day = rule.open_day_of_month != null ? `${rule.open_day_of_month}일` : "";
+  const day = formatRuleDaySchedule(rule.open_day_of_month);
   return `${[day, time].filter(Boolean).join(" ")}${offset ? `, ${offset}` : ""} 예약 오픈`.trim();
 }
 

@@ -46,6 +46,12 @@ const formatDayOfWeek = (day: number | null | undefined): string => {
   return dayMap[day] || "";
 };
 
+const formatDayOfMonth = (day: number | null | undefined): string => {
+  if (day == null) return "";
+  if (Number(day) === -1) return "말일";
+  return `${day}일`;
+};
+
 export function FixedScheduleContent({ court }: { court: Court }) {
   const priorityLabel = getPriorityEligibilityLabel(court.booking_eligibility_first);
   const reservationHref = getReservationHref(court);
@@ -73,7 +79,7 @@ export function FixedScheduleContent({ court }: { court: Court }) {
                     {priorityLabel} :{" "}
                   </span>
                   <span className="text-white font-semibold">
-                    {court.booking_open_day_owner != null ? `${court.booking_open_day_owner}일 ` : ""}
+                    {court.booking_open_day_owner != null ? `${formatDayOfMonth(court.booking_open_day_owner)} ` : ""}
                     {formatTime(court.booking_open_time_owner)}
                     {`, `}
                   </span>
@@ -87,7 +93,7 @@ export function FixedScheduleContent({ court }: { court: Court }) {
                 <p className={`${courtitem_courtopentime} break-words`}>
                   <span className="text-[#6FCF97]">전체 : </span>
                   <span className="text-white font-semibold">
-                    {court.booking_open_day_normal != null ? `${court.booking_normal_iscurrentmonth ? "당월 " : ""}${court.booking_open_day_normal}일 ` : ""}
+                    {court.booking_open_day_normal != null ? `${court.booking_normal_iscurrentmonth ? "당월 " : ""}${formatDayOfMonth(court.booking_open_day_normal)} ` : ""}
                     {formatTime(court.booking_open_time_normal)}
                     {(() => {
                       if (court.booking_normal_iscurrentmonth === true) return ", 당월 ";
@@ -168,7 +174,7 @@ export function FixedScheduleContent({ court }: { court: Court }) {
                     {priorityLabel} :{" "}
                   </span>
                   <span className="text-white font-normal">
-                    {court.booking_open_day_owner != null ? `${court.booking_open_day_owner}일 ` : ""}
+                    {court.booking_open_day_owner != null ? `${formatDayOfMonth(court.booking_open_day_owner)} ` : ""}
                     {formatTime(court.booking_open_time_owner)} 예약 오픈
                   </span>
                 </p>
@@ -179,7 +185,7 @@ export function FixedScheduleContent({ court }: { court: Court }) {
                 <p className={`${courtitem_courtopentime} break-words`}>
                   <span className="text-[#6FCF97]">전체 : </span>
                   <span className="text-white font-normal">
-                    {court.booking_open_day_normal != null ? `${court.booking_open_day_normal}일 ` : ""}
+                    {court.booking_open_day_normal != null ? `${formatDayOfMonth(court.booking_open_day_normal)} ` : ""}
                     {formatTime(court.booking_open_time_normal)} 예약 오픈
                   </span>
                 </p>

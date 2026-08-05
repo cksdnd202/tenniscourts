@@ -136,7 +136,7 @@ function buildDayOpenPhrase(
   time: string,
   targetLabel: string
 ): string {
-  const dayPart = day != null ? `매월 ${day}일` : "매월 정해진 날";
+  const dayPart = day === -1 ? "매월 말일" : day != null ? `매월 ${day}일` : "매월 정해진 날";
   const timePart = time ? ` ${time}` : "";
   return `${dayPart}${timePart}에 ${targetLabel} 예약이 오픈됩니다.`;
 }

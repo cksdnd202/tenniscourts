@@ -181,6 +181,12 @@ function formatKoreanTime(value: string | null | undefined) {
   return `${meridiem} ${hour12}:${String(minute).padStart(2, "0")}`;
 }
 
+function formatMonthlyOpenDay(value: number | null | undefined) {
+  if (value == null) return "";
+  if (Number(value) === -1) return "말일";
+  return `${value}일`;
+}
+
 function getCourtBookingSummary(court: Court) {
   const priorityLabel = getPriorityBookingLabel(court);
 
@@ -200,7 +206,7 @@ function getCourtBookingSummary(court: Court) {
     return {
       audience: `${audience.replace(/\s+/g, " ").trim()} 우선 예약`,
       label: `${priorityLabel} 예약 오픈 시간`,
-      text: `매월 ${court.booking_open_day_owner}일 ${formatKoreanTime(court.booking_open_time_owner)}, ${offset} 예약 오픈`,
+      text: `매월 ${formatMonthlyOpenDay(court.booking_open_day_owner)} ${formatKoreanTime(court.booking_open_time_owner)}, ${offset} 예약 오픈`,
     };
   }
 
@@ -210,7 +216,7 @@ function getCourtBookingSummary(court: Court) {
     return {
       audience: "전체 예약",
       label: "전체 예약 오픈 시간",
-      text: `매월 ${court.booking_open_day_normal}일 ${formatKoreanTime(court.booking_open_time_normal)}, ${offset} 예약 오픈`,
+      text: `매월 ${formatMonthlyOpenDay(court.booking_open_day_normal)} ${formatKoreanTime(court.booking_open_time_normal)}, ${offset} 예약 오픈`,
     };
   }
 

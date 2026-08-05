@@ -7,6 +7,12 @@ import { detailCard, detailNoNormalClass, detailNoPriorityClass } from "./detail
 
 const bookingGrid = "grid grid-cols-1 gap-3 min-[1032px]:grid-cols-2 min-[1032px]:gap-4";
 
+const formatDayOfMonth = (day: number | null | undefined): string => {
+  if (day == null) return "";
+  if (Number(day) === -1) return "말일";
+  return `${day}일`;
+};
+
 /** lottery 전용: 예약 블록만 */
 export function LotteryBookingBlock({ court }: { court: Court }) {
   const priorityLabel = getPriorityEligibilityLabel(court.booking_eligibility_first);
@@ -20,7 +26,7 @@ export function LotteryBookingBlock({ court }: { court: Court }) {
             labelTone="priority"
           >
             <span className="font-bold">
-              {court.booking_open_day_owner != null ? `${court.booking_open_day_owner}일 ` : ""}
+              {court.booking_open_day_owner != null ? `${formatDayOfMonth(court.booking_open_day_owner)} ` : ""}
               {formatTime(court.booking_open_time_owner)}
               {court.booking_open_offset != null ? `, ${court.booking_open_offset}` : ""} 예약 오픈
             </span>
@@ -34,7 +40,7 @@ export function LotteryBookingBlock({ court }: { court: Court }) {
           <BookingOpenCardRow label="전체" labelTone="general">
             <span className="font-bold">
               {court.booking_open_day_normal != null
-                ? `${court.booking_normal_iscurrentmonth ? "당월 " : ""}${court.booking_open_day_normal}일 `
+                ? `${court.booking_normal_iscurrentmonth ? "당월 " : ""}${formatDayOfMonth(court.booking_open_day_normal)} `
                 : ""}
               {formatTime(court.booking_open_time_normal)}
               {(() => {

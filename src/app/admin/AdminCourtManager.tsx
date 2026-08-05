@@ -1115,7 +1115,7 @@ function formatRuleCardText(rule: CourtBookingRule) {
     return [parts, time].filter(Boolean).join(" ") + `${offset ? `, ${offset}` : ""} 예약 오픈`;
   }
 
-  const day = rule.open_day_of_month != null ? `${rule.open_day_of_month}일` : "";
+  const day = formatRuleDayOfMonth(rule.open_day_of_month);
   const openText = [day, time].filter(Boolean).join(" ");
   return `${openText}${offset ? `, ${offset}` : ""} 예약 오픈`.trim();
 }

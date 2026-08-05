@@ -23,6 +23,12 @@ const formatDayOfWeek = (day: number | null | undefined): string => {
   return dayMap[day] || "";
 };
 
+const formatDayOfMonth = (day: number | null | undefined): string => {
+  if (day == null) return "";
+  if (Number(day) === -1) return "말일";
+  return `${day}일`;
+};
+
 const bookingGrid = "grid grid-cols-1 gap-3 min-[1032px]:grid-cols-2 min-[1032px]:gap-4";
 
 /** fixed_schedule 전용 상세 화면: 예약 오픈 정보 + 공통(주소/테이블/예약 버튼) */
@@ -39,7 +45,7 @@ function FixedScheduleBookingBlock({ court }: { court: Court }) {
               labelTone="priority"
             >
               <span className="font-bold">
-                {court.booking_open_day_owner != null ? `${court.booking_open_day_owner}일 ` : ""}
+                {court.booking_open_day_owner != null ? `${formatDayOfMonth(court.booking_open_day_owner)} ` : ""}
                 {formatTime(court.booking_open_time_owner)}
                 {court.booking_open_offset != null ? `, ${court.booking_open_offset}` : ""} 예약 오픈
               </span>
@@ -53,7 +59,7 @@ function FixedScheduleBookingBlock({ court }: { court: Court }) {
             <BookingOpenCardRow label="전체" labelTone="general">
               <span className="font-bold">
                 {court.booking_open_day_normal != null
-                  ? `${court.booking_normal_iscurrentmonth ? "당월 " : ""}${court.booking_open_day_normal}일 `
+                  ? `${court.booking_normal_iscurrentmonth ? "당월 " : ""}${formatDayOfMonth(court.booking_open_day_normal)} `
                   : ""}
                 {formatTime(court.booking_open_time_normal)}
                 {(() => {
@@ -136,7 +142,7 @@ function FixedScheduleBookingBlock({ court }: { court: Court }) {
             labelTone="priority"
           >
             <span className="font-bold">
-              {court.booking_open_day_owner != null ? `${court.booking_open_day_owner}일 ` : ""}
+              {court.booking_open_day_owner != null ? `${formatDayOfMonth(court.booking_open_day_owner)} ` : ""}
               {formatTime(court.booking_open_time_owner)} 예약 오픈
             </span>
           </BookingOpenCardRow>
@@ -148,7 +154,7 @@ function FixedScheduleBookingBlock({ court }: { court: Court }) {
         {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" ? (
           <BookingOpenCardRow label="전체" labelTone="general">
             <span className="font-bold">
-              {court.booking_open_day_normal != null ? `${court.booking_open_day_normal}일 ` : ""}
+              {court.booking_open_day_normal != null ? `${formatDayOfMonth(court.booking_open_day_normal)} ` : ""}
               {formatTime(court.booking_open_time_normal)} 예약 오픈
             </span>
           </BookingOpenCardRow>

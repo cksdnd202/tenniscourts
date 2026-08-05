@@ -129,12 +129,12 @@ function nextDayOfMonthOpen(
   from: Date
 ): Date | null {
   const dayOfMonth = toFiniteInt(dayOfMonthRaw);
-  if (dayOfMonth == null || dayOfMonth < 1 || dayOfMonth > 31) return null;
+  if (dayOfMonth == null || dayOfMonth < -1 || dayOfMonth === 0 || dayOfMonth > 31) return null;
   const t = parseTimeParts(timeStr);
   if (!t) return null;
   const { y, m, d } = getSeoulYMDFromInstant(from);
   const dim = daysInMonth(y, m);
-  const dom = Math.min(dayOfMonth, dim);
+  const dom = dayOfMonth === -1 ? dim : Math.min(dayOfMonth, dim);
   let cand = seoulWallToUtc(y, m, dom, t.h, t.m, 0);
   if (cand.getTime() > from.getTime()) return cand;
   let nm = m + 1;
@@ -144,7 +144,7 @@ function nextDayOfMonthOpen(
     ny += 1;
   }
   const dim2 = daysInMonth(ny, nm);
-  const dom2 = Math.min(dayOfMonth, dim2);
+  const dom2 = dayOfMonth === -1 ? dim2 : Math.min(dayOfMonth, dim2);
   return seoulWallToUtc(ny, nm, dom2, t.h, t.m, 0);
 }
 
@@ -159,7 +159,7 @@ function nextNormalDayOfMonthOpen(court: Court, from: Date): Date | null {
   const { y, m } = getSeoulYMDFromInstant(from);
   const tryMonth = (yy: number, mm: number): Date | null => {
     const dim = daysInMonth(yy, mm);
-    const dom = Math.min(day, dim);
+    const dom = day === -1 ? dim : Math.min(day, dim);
     return seoulWallToUtc(yy, mm, dom, t.h, t.m, 0);
   };
 
