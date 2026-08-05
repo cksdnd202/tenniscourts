@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack --hostname 127.0.0.1",
-    "build": "next build",
+    "dev": "node scripts/run-next-filtered.js dev --webpack --hostname 127.0.0.1",
+    "build": "node scripts/run-next-filtered.js build",
     "start": "next start",
     "lint": "eslint"
   },
@@ -20,7 +20,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
-    "baseline-browser-mapping": "^2.10.40",
+    "baseline-browser-mapping": "^2.11.12",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
     "tailwindcss": "^4",

@@ -122,24 +122,24 @@ function buildNormalReservationSentence(court: Court): string | null {
   const rt = court.booking_rule_type;
 
   if (rt === "rolling") {
-    return `일반 예약은 매일 ${time}에 새 예약이 오픈됩니다.`;
+    return `전체 예약은 매일 ${time}에 새 예약이 오픈됩니다.`;
   }
 
   if (rt === "fixed_schedule" || rt === "ordinal") {
     if (court.booking_open_type === "day") {
-      return `일반 예약은 ${buildDayOpenPhrase(court.booking_open_day_normal, time, targetLabel)}`;
+      return `전체 예약은 ${buildDayOpenPhrase(court.booking_open_day_normal, time, targetLabel)}`;
     }
     if (court.booking_open_type === "week") {
       const ordinal =
         rt === "ordinal" ? court.booking_open_ordinal : court.booking_open_day_of_month;
-      return `일반 예약은 ${buildWeekOpenPhrase(
+    return `전체 예약은 ${buildWeekOpenPhrase(
         ordinal,
         court.booking_open_day_of_week,
         time,
         targetLabel
       )}`;
     }
-    return `일반 예약은 ${buildDayOpenPhrase(court.booking_open_day_normal, time, targetLabel)}`;
+    return `전체 예약은 ${buildDayOpenPhrase(court.booking_open_day_normal, time, targetLabel)}`;
   }
 
   return null;

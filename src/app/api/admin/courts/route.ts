@@ -130,6 +130,41 @@ function adminApiError(error: unknown) {
   );
 }
 
+async function attachBookingRules<T extends { id?: string | null }>(courts: T[]) {
+  const ids = courts.map((court) => court.id).filter((id): id is string => Boolean(id));
+  if (!ids.length) return courts.map((court) => ({ ...court, court_booking_rules: [] }));
+
+  const { data: rules, error } = await getSupabaseAdmin()
+    .from("court_booking_rules")
+    .select("*")
+    .in("court_id", ids)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const rulesByCourtId = new Map<string, unknown[]>();
+  for (const rule of rules ?? []) {
+    const courtId = typeof rule.court_id === "string" ? rule.court_id : "";
+    if (!courtId) continue;
+    const currentRules = rulesByCourtId.get(courtId) ?? [];
+    currentRules.push(rule);
+    rulesByCourtId.set(courtId, currentRules);
+  }
+
+  return courts.map((court) => ({
+    ...court,
+    court_booking_rules: court.id ? rulesByCourtId.get(court.id) ?? [] : [],
+  }));
+}
+
+async function attachBookingRulesToCourt<T extends { id?: string | null }>(court: T) {
+  const [courtWithRules] = await attachBookingRules([court]);
+  return courtWithRules;
+}
+
 export async function GET(req: NextRequest) {
   const denied = await denyUnlessAdmin(req);
   if (denied) return denied;
@@ -144,7 +179,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ courts: data ?? [] }, { headers: { "Cache-Control": "no-store" } });
+    const courts = await attachBookingRules(data ?? []);
+
+    return NextResponse.json({ courts }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return adminApiError(error);
   }
@@ -171,7 +208,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ court: data }, { status: 201 });
+    const court = await attachBookingRulesToCourt(data);
+
+    return NextResponse.json({ court }, { status: 201 });
   } catch (error) {
     return adminApiError(error);
   }
@@ -203,7 +242,9 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ court: data });
+    const court = await attachBookingRulesToCourt(data);
+
+    return NextResponse.json({ court });
   } catch (error) {
     return adminApiError(error);
   }

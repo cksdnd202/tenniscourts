@@ -64,7 +64,7 @@ function BookingVisual() {
           ["시민", "10일 09:00, 다음달 예약 오픈"],
           ["구민", "13일 10:00, 다음달 예약 오픈"],
           ["주민", "15일 14:00, 다음달 예약 오픈"],
-          ["일반", "20일 10:00, 다음달 예약 오픈"],
+          ["전체", "20일 10:00, 다음달 예약 오픈"],
         ].map(([label, text], index) => (
           <div
             key={label}
@@ -140,7 +140,7 @@ function CalendarVisual() {
       <div className="onboarding-calendar-tap absolute left-5 right-5 top-1/2 rounded-xl border border-[#2C2C2C] bg-[#1A1A1B] p-3 min-[760px]:p-4">
         <div className="flex items-start justify-between gap-2 min-[760px]:gap-4">
           <div className="flex min-w-0 items-center gap-2 min-[760px]:gap-3">
-            <span className="rounded-md border border-[#2C2C2C] bg-black px-1.5 py-1 text-[10px] font-bold text-[#4DA3FF] min-[760px]:px-2 min-[760px]:text-[11px]">일반</span>
+            <span className="rounded-md border border-[#2C2C2C] bg-black px-1.5 py-1 text-[10px] font-bold text-[#4DA3FF] min-[760px]:px-2 min-[760px]:text-[11px]">전체</span>
             <span className="whitespace-nowrap text-[12px] font-semibold text-white min-[760px]:text-sm">다음 예약 오픈 일</span>
           </div>
           <button type="button" className="onboarding-calendar-link -mt-1 shrink-0 whitespace-nowrap rounded-md px-1.5 py-1 text-[12px] font-semibold text-[#8A8F98] underline underline-offset-2 min-[760px]:px-2 min-[760px]:text-sm">

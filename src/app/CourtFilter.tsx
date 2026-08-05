@@ -12,22 +12,17 @@ import { OnSiteContent } from "./OnSiteContent";
 import { IrregularContent } from "./IrregularContent";
 import { CheckingContent } from "./CheckingContent";
 import { FirstVisitCoachmark } from "./FirstVisitCoachmark";
+import { hasActiveBookingRules } from "./BookingRulesContent";
 
 type Props = {
   courts: Court[];
 };
 
 const courtitemstyle = 
-"grid w-full border rounded-xl border-transparent p-5 bg-[#191B1E] gap-2 transition duration-300 ease-in-out hover:-translate-y-1 hover:bg-[#2C2C2C] overflow-hidden min-w-0";
+"grid w-full min-h-[380px] content-start border rounded-xl border-transparent p-5 bg-[#191B1E] gap-2 transition duration-300 ease-in-out hover:-translate-y-1 hover:bg-[#2C2C2C] overflow-hidden min-w-0";
 const COURTS_PER_PAGE = 30;
 
 export function CourtFilter({ courts }: Props) {
-  // 디버깅: 첫 번째 코트의 booking_opentime_normal 확인
-  if (courts.length > 0) {
-    console.log("CourtFilter - 첫 번째 코트:", courts[0]);
-    console.log("CourtFilter - booking_open_time_normal:", courts[0]?.booking_open_time_normal);
-  }
-
   // 실제 필터 상태 (필터링에 사용)
   const [selectedRegion, setSelectedRegion] = useState<string>("");
   const [selectedCity, setSelectedCity] = useState<string>("");
@@ -251,6 +246,10 @@ export function CourtFilter({ courts }: Props) {
 
   // booking_rule_type에 따라 적절한 컴포넌트를 반환
   const renderCourtContent = (c: Court) => {
+    if (hasActiveBookingRules(c)) {
+      return <FixedScheduleContent court={c} />;
+    }
+
     const ruleType = c.booking_rule_type;
     
     switch (ruleType) {

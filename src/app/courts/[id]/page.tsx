@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { buildCourtDetailMetadata } from "@/lib/courtSeo";
 import { getCourtDetailPath } from "@/lib/courtPath";
 import type { Metadata } from "next";
@@ -200,7 +201,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
     detailError = detailByIdRes.error;
   }
 
-  const court = detailData as Court | null;
+  let court = detailData as Court | null;
   const courtsForSearch = searchRes.data ?? [];
 
   if (court?.slug && court.slug !== routeKey) {
@@ -224,6 +225,18 @@ export default async function CourtDetailPage({ params }: PageProps) {
       </main>
     );
   }
+
+  const { data: bookingRulesData } = await getSupabaseAdmin()
+    .from("court_booking_rules")
+    .select("*")
+    .eq("court_id", court.id)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+
+  court = {
+    ...court,
+    court_booking_rules: (bookingRulesData ?? []) as NonNullable<Court["court_booking_rules"]>,
+  };
 
   let relatedCourts: RelatedCourt[] = [];
   let blogLinks: CourtBlogLink[] = [];

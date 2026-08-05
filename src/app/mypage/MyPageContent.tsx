@@ -7,12 +7,13 @@ import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { getCourtDetailPath } from "@/lib/courtPath";
 import {
+  getNextBookingRuleOpen,
   getNextNormalBookingOpen,
   getNextOwnerBookingOpen,
   getPriorityBookingLabel,
   type NextOpenResult,
 } from "@/lib/nextBookingOpen";
-import type { Court } from "../types";
+import type { Court, CourtBookingRule } from "../types";
 import { CheckingContent } from "../CheckingContent";
 import { FixedScheduleContent } from "../FixedScheduleContent";
 import { IrregularContent } from "../IrregularContent";
@@ -21,6 +22,7 @@ import { OnSiteContent } from "../OnSiteContent";
 import { OrdinalContent } from "../ordinal";
 import { PhoneContent } from "../PhoneContent";
 import { RollingContent } from "../RollingContent";
+import { formatBookingRuleEligibility, hasActiveBookingRules } from "../BookingRulesContent";
 
 type MyPageTab = "favorites" | "recent" | "profile";
 type FavoriteViewMode = "card" | "date" | "calendar";
@@ -30,6 +32,15 @@ type CalendarEvent = {
   courtName: string;
   badge: string;
   timeLabel: string;
+};
+type FavoriteOpenItem = {
+  key: string;
+  badge: string;
+  open: NextOpenResult;
+};
+type FavoriteOpenGroup = {
+  title: string;
+  items: FavoriteOpenItem[];
 };
 type CalendarDay = {
   date: Date;
@@ -50,7 +61,7 @@ const menuItems: Array<{ id: MyPageTab; label: string }> = [
 ];
 
 const courtCardClass =
-  "grid overflow-hidden rounded-xl border border-transparent bg-[#191B1E] p-5 gap-2 min-w-0 transition duration-300 ease-in-out hover:-translate-y-1 hover:bg-[#2C2C2C]";
+  "grid min-h-[380px] content-start overflow-hidden rounded-xl border border-transparent bg-[#191B1E] p-5 gap-2 min-w-0 transition duration-300 ease-in-out hover:-translate-y-1 hover:bg-[#2C2C2C]";
 const favoriteViewTabs: Array<{ id: FavoriteViewMode; label: string }> = [
   { id: "card", label: "카드형" },
   { id: "date", label: "날짜형" },
@@ -58,7 +69,7 @@ const favoriteViewTabs: Array<{ id: FavoriteViewMode; label: string }> = [
 ];
 const calendarWeekdays = ["일", "월", "화", "수", "목", "금", "토"];
 const favoriteBadgeColorClass: Record<string, string> = {
-  일반: "text-[#3896FB]",
+  전체: "text-[#3896FB]",
   구민: "text-[#FD844C]",
   시민: "text-[#FD844C]",
   주민: "text-[#FD844C]",
@@ -96,6 +107,10 @@ function getProvider(user: User | null) {
 }
 
 function renderCourtContent(court: Court) {
+  if (hasActiveBookingRules(court)) {
+    return <FixedScheduleContent court={court} />;
+  }
+
   switch (court.booking_rule_type) {
     case "rolling":
       return <RollingContent court={court} />;
@@ -117,19 +132,92 @@ function renderCourtContent(court: Court) {
   }
 }
 
-function getNextFavoriteOpens(court: Court): Array<{
-  badge: string;
-  open: NextOpenResult;
-}> {
+function sortActiveBookingRules(rules: CourtBookingRule[] | null | undefined) {
+  return (rules ?? [])
+    .filter((rule) => rule.is_active)
+    .slice()
+    .sort((a, b) => {
+      const orderDiff = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+      if (orderDiff !== 0) return orderDiff;
+      return (a.label ?? "").localeCompare(b.label ?? "", "ko");
+    });
+}
+
+function getNextFavoriteOpens(court: Court): FavoriteOpenItem[] {
+  const activeRules = sortActiveBookingRules(court.court_booking_rules);
+
+  if (activeRules.length > 0) {
+    return activeRules
+      .map((rule) => {
+        const open = getNextBookingRuleOpen(court, rule);
+
+        return open
+          ? {
+              key: rule.id,
+              badge: formatBookingRuleEligibility(rule.eligibility),
+              open,
+            }
+          : null;
+      })
+      .filter((item): item is { key: string; badge: string; open: NextOpenResult } =>
+        Boolean(item)
+      )
+      .sort((a, b) => a.open.instant.getTime() - b.open.instant.getTime());
+  }
+
   const priorityLabel = getPriorityBookingLabel(court);
   const ownerOpen = priorityLabel ? getNextOwnerBookingOpen(court) : null;
   const normalOpen = getNextNormalBookingOpen(court);
   const candidates = [
-    ownerOpen && priorityLabel ? { badge: priorityLabel, open: ownerOpen } : null,
-    normalOpen ? { badge: "일반", open: normalOpen } : null,
-  ].filter((item): item is { badge: string; open: NextOpenResult } => Boolean(item));
+    ownerOpen && priorityLabel ? { key: "priority", badge: priorityLabel, open: ownerOpen } : null,
+    normalOpen ? { key: "normal", badge: "전체", open: normalOpen } : null,
+  ].filter((item): item is { key: string; badge: string; open: NextOpenResult } =>
+    Boolean(item)
+  );
 
-  return candidates.sort((a, b) => a.open.instant.getTime() - b.open.instant.getTime()).slice(0, 2);
+  return candidates.sort((a, b) => a.open.instant.getTime() - b.open.instant.getTime());
+}
+
+function groupFavoriteOpens(items: FavoriteOpenItem[]): FavoriteOpenGroup[] {
+  if (items.length === 0) return [];
+
+  const counts = items.reduce<Record<string, number>>((acc, item) => {
+    acc[item.badge] = (acc[item.badge] ?? 0) + 1;
+    return acc;
+  }, {});
+  const hasRepeatedBadge = Object.values(counts).some((count) => count > 1);
+
+  if (hasRepeatedBadge) {
+    const seenByBadge: Record<string, number> = {};
+    const groups = new Map<number, FavoriteOpenItem[]>();
+
+    for (const item of items) {
+      const phase = (seenByBadge[item.badge] ?? 0) + 1;
+      seenByBadge[item.badge] = phase;
+
+      const current = groups.get(phase) ?? [];
+      current.push(item);
+      groups.set(phase, current);
+    }
+
+    return Array.from(groups.entries()).map(([phase, groupItems]) => ({
+      title: `${phase}차 예약`,
+      items: groupItems,
+    }));
+  }
+
+  if (items.length > 1) {
+    const priorityItems = items.filter((item) => item.badge !== "전체");
+    const normalItems = items.filter((item) => item.badge === "전체");
+    const groups: FavoriteOpenGroup[] = [];
+
+    if (priorityItems.length > 0) groups.push({ title: "우선 예약", items: priorityItems });
+    if (normalItems.length > 0) groups.push({ title: "전체 예약", items: normalItems });
+
+    return groups;
+  }
+
+  return [{ title: items[0]?.badge === "전체" ? "전체 예약" : "우선 예약", items }];
 }
 
 function getCalendarMonthStart(date: Date) {
@@ -188,7 +276,7 @@ function getCalendarEventMap(courts: Court[], monthStarts: Date[]) {
       const dateKey = formatCalendarDateKey(openDate);
       const events = eventMap.get(dateKey) ?? [];
       events.push({
-        courtId: court.id,
+        courtId: `${court.id}-${nextOpen.key}`,
         href: getCourtDetailPath(court),
         courtName: court.basic_court_name ?? "(이름 없음)",
         badge: nextOpen.badge,
@@ -212,7 +300,7 @@ function FavoriteDateList({ courts }: { courts: Court[] }) {
   return (
     <ul className="divide-y divide-[#2C2C2C] overflow-hidden rounded-xl border border-[#2C2C2C] bg-[#191B1E]">
       {courts.map((court) => {
-        const nextOpens = getNextFavoriteOpens(court);
+        const nextOpenGroups = groupFavoriteOpens(getNextFavoriteOpens(court));
 
         return (
           <li key={court.id}>
@@ -229,20 +317,35 @@ function FavoriteDateList({ courts }: { courts: Court[] }) {
                 </p>
               </div>
 
-              {nextOpens.length > 0 ? (
-                <div className="mt-3 flex flex-col gap-2 min-[760px]:flex-row min-[760px]:flex-wrap min-[760px]:gap-x-6">
-                  {nextOpens.map((nextOpen) => (
-                    <div key={nextOpen.badge} className="flex min-w-0 items-center gap-2">
-                      <span
-                        className={`shrink-0 rounded-md bg-[#0D0D0F] px-2.5 py-1 text-xs font-semibold ${
-                          favoriteBadgeColorClass[nextOpen.badge] ?? "text-[#6FCF97]"
-                        }`}
-                      >
-                        {nextOpen.badge}
-                      </span>
-                      <span className="min-w-0 truncate text-sm font-semibold text-[#6FCF97]">
-                        {nextOpen.open.dateLabel} {nextOpen.open.timeLabel}
-                      </span>
+              {nextOpenGroups.length > 0 ? (
+                <div className="mt-4 grid gap-3 min-[900px]:grid-cols-2">
+                  {nextOpenGroups.map((group) => (
+                    <div
+                      key={group.title}
+                      className="rounded-lg border border-[#2C2C2C] bg-[#111214] px-4 py-3"
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-3 border-b border-white/10 pb-2">
+                        <p className="text-sm font-semibold text-white">{group.title}</p>
+                        <span className="shrink-0 text-xs font-medium text-[#8A8F98]">
+                          {group.items.length}개
+                        </span>
+                      </div>
+                      <div className="grid gap-2">
+                        {group.items.map((nextOpen) => (
+                          <div key={nextOpen.key} className="flex min-w-0 items-center gap-2">
+                            <span
+                              className={`shrink-0 rounded-md bg-[#0D0D0F] px-2.5 py-1 text-xs font-semibold ${
+                                favoriteBadgeColorClass[nextOpen.badge] ?? "text-[#6FCF97]"
+                              }`}
+                            >
+                              {nextOpen.badge}
+                            </span>
+                            <span className="min-w-0 truncate text-sm font-semibold text-[#6FCF97]">
+                              {nextOpen.open.dateLabel} {nextOpen.open.timeLabel}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>

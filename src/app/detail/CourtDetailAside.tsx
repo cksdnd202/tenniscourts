@@ -1,8 +1,10 @@
 import type { Court } from "../types";
 import {
+  getNextBookingRuleOpen,
   getNextNormalBookingOpen,
   getNextOwnerBookingOpen,
   getPriorityBookingLabel,
+  type NextOpenResult,
 } from "@/lib/nextBookingOpen";
 import {
   bookingOpenLabelTextClass,
@@ -12,8 +14,60 @@ import type { CalendarAndroidEventPayload } from "./calendarAndroidPayload";
 import { CalendarRegisterButton } from "./CalendarRegisterButton";
 import { MobileScrollHideBar } from "./MobileScrollHideBar";
 import { getReservationHref } from "@/lib/reservationLink";
+import { formatBookingRuleEligibility } from "../BookingRulesContent";
 
 const DEFAULT_CAL_DURATION_MIN = 10;
+
+type NextOpenPreview = {
+  key: string;
+  badge: string;
+  badgeTone: BookingOpenLabelTone;
+  open: NextOpenResult;
+};
+
+function sortActiveBookingRules(court: Court) {
+  return (court.court_booking_rules ?? [])
+    .filter((rule) => rule.is_active)
+    .slice()
+    .sort((a, b) => {
+      const orderDiff = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+      if (orderDiff !== 0) return orderDiff;
+      return (a.label ?? "").localeCompare(b.label ?? "", "ko");
+    });
+}
+
+function getNextOpenPreviews(court: Court): NextOpenPreview[] {
+  const activeRules = sortActiveBookingRules(court);
+
+  if (activeRules.length > 0) {
+    return activeRules
+      .map((rule) => {
+        const open = getNextBookingRuleOpen(court, rule);
+        if (!open) return null;
+        const badge = formatBookingRuleEligibility(rule.eligibility);
+        return {
+          key: rule.id,
+          badge,
+          badgeTone: badge === "전체" ? "general" : "priority",
+          open,
+        };
+      })
+      .filter((item): item is NextOpenPreview => Boolean(item));
+  }
+
+  const priorityLabel = getPriorityBookingLabel(court);
+  const ownerOpen = priorityLabel ? getNextOwnerBookingOpen(court) : null;
+  const normalOpen = getNextNormalBookingOpen(court);
+
+  const fallbackPreviews: Array<NextOpenPreview | null> = [
+    ownerOpen && priorityLabel
+      ? { key: "priority", badge: priorityLabel, badgeTone: "priority" as const, open: ownerOpen }
+      : null,
+    normalOpen ? { key: "normal", badge: "전체", badgeTone: "general" as const, open: normalOpen } : null,
+  ];
+
+  return fallbackPreviews.filter((item): item is NextOpenPreview => Boolean(item));
+}
 
 function buildDeviceCalendarUrl(params: {
   courtName: string;
@@ -133,7 +187,7 @@ function NextOpenPreviewCard({
             googleCalendarUrl={calendarLinks.google}
             androidEvent={calendarLinks.androidEvent}
             compact={compact}
-            gtmAction={badge === "일반" ? "calendar_register_general_click" : "calendar_register_priority_click"}
+            gtmAction={badge === "전체" ? "calendar_register_general_click" : "calendar_register_priority_click"}
             courtId={courtId}
             courtName={courtName ?? undefined}
             badge={badge}
@@ -162,47 +216,29 @@ function NextOpenPreviewCard({
 
 /** PC 우측 사이드: 다음 오픈 일 + 예약 CTA */
 export function CourtDetailAside({ court }: { court: Court }) {
-  const ownerOpen = getNextOwnerBookingOpen(court);
-  const normalOpen = getNextNormalBookingOpen(court);
-  const priorityLabel = getPriorityBookingLabel(court);
+  const previews = getNextOpenPreviews(court);
   const reservationHref = getReservationHref(court);
 
   return (
     <div className="sticky top-[calc(73px+0.75rem)] z-20 w-full min-w-0">
       <aside className="flex flex-col gap-4 w-full">
-        {ownerOpen && priorityLabel ? (
+        {previews.map((preview) => (
           <NextOpenPreviewCard
-            badge={priorityLabel}
-            badgeTone="priority"
-            dateLabel={ownerOpen.dateLabel}
-            timeLabel={ownerOpen.timeLabel}
+            key={preview.key}
+            badge={preview.badge}
+            badgeTone={preview.badgeTone}
+            dateLabel={preview.open.dateLabel}
+            timeLabel={preview.open.timeLabel}
             calendarLinks={buildCalendarLinks({
               courtName: court.basic_court_name ?? "테니스장",
-              badge: priorityLabel,
-              start: ownerOpen.instant,
+              badge: preview.badge,
+              start: preview.open.instant,
               address: court.basic_address,
             })}
             courtId={court.id}
             courtName={court.basic_court_name}
           />
-        ) : null}
-
-        {normalOpen ? (
-          <NextOpenPreviewCard
-            badge="일반"
-            badgeTone="general"
-            dateLabel={normalOpen.dateLabel}
-            timeLabel={normalOpen.timeLabel}
-            calendarLinks={buildCalendarLinks({
-              courtName: court.basic_court_name ?? "테니스장",
-              badge: "일반",
-              start: normalOpen.instant,
-              address: court.basic_address,
-            })}
-            courtId={court.id}
-            courtName={court.basic_court_name}
-          />
-        ) : null}
+        ))}
 
         {court.booking_site_link ? (
           <a
@@ -228,30 +264,26 @@ export function CourtDetailAside({ court }: { court: Court }) {
 
 /** 모바일 하단 고정: 다음 오픈 + 예약 CTA */
 export function CourtDetailMobileBookBar({ court }: { court: Court }) {
-  const ownerOpen = getNextOwnerBookingOpen(court);
-  const normalOpen = getNextNormalBookingOpen(court);
-  const priorityLabel = getPriorityBookingLabel(court);
+  const previews = getNextOpenPreviews(court);
   const reservationHref = getReservationHref(court);
-  const hasPriorityPreview = Boolean(ownerOpen && priorityLabel);
-  const hasNormalPreview = Boolean(normalOpen);
-  const hasBothPreview = hasPriorityPreview && hasNormalPreview;
+  const hasMultiplePreviews = previews.length > 1;
 
   const previewBlocks =
-    hasPriorityPreview || hasNormalPreview ? (
-      <div className={hasBothPreview ? "" : "space-y-3"}>
-        {hasBothPreview ? (
+    previews.length > 0 ? (
+      <div className={hasMultiplePreviews ? "" : "space-y-3"}>
+        {hasMultiplePreviews ? (
           <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {ownerOpen && priorityLabel ? (
-              <div className="w-[86%] min-w-[86%] snap-start">
+            {previews.map((preview) => (
+              <div key={preview.key} className="w-[86%] min-w-[86%] snap-start">
                 <NextOpenPreviewCard
-                  badge={priorityLabel}
-                  badgeTone="priority"
-                  dateLabel={ownerOpen.dateLabel}
-                  timeLabel={ownerOpen.timeLabel}
+                  badge={preview.badge}
+                  badgeTone={preview.badgeTone}
+                  dateLabel={preview.open.dateLabel}
+                  timeLabel={preview.open.timeLabel}
                   calendarLinks={buildCalendarLinks({
                     courtName: court.basic_court_name ?? "테니스장",
-                    badge: priorityLabel,
-                    start: ownerOpen.instant,
+                    badge: preview.badge,
+                    start: preview.open.instant,
                     address: court.basic_address,
                   })}
                   courtId={court.id}
@@ -259,55 +291,19 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
                   compact
                 />
               </div>
-            ) : null}
-            {normalOpen ? (
-              <div className="w-[86%] min-w-[86%] snap-start">
-                <NextOpenPreviewCard
-                  badge="일반"
-                  badgeTone="general"
-                  dateLabel={normalOpen.dateLabel}
-                  timeLabel={normalOpen.timeLabel}
-                  calendarLinks={buildCalendarLinks({
-                    courtName: court.basic_court_name ?? "테니스장",
-                    badge: "일반",
-                    start: normalOpen.instant,
-                    address: court.basic_address,
-                  })}
-                  courtId={court.id}
-                  courtName={court.basic_court_name}
-                  compact
-                />
-              </div>
-            ) : null}
+            ))}
           </div>
         ) : null}
-        {!hasBothPreview && ownerOpen && priorityLabel ? (
+        {!hasMultiplePreviews && previews[0] ? (
           <NextOpenPreviewCard
-            badge={priorityLabel}
-            badgeTone="priority"
-            dateLabel={ownerOpen.dateLabel}
-            timeLabel={ownerOpen.timeLabel}
+            badge={previews[0].badge}
+            badgeTone={previews[0].badgeTone}
+            dateLabel={previews[0].open.dateLabel}
+            timeLabel={previews[0].open.timeLabel}
             calendarLinks={buildCalendarLinks({
               courtName: court.basic_court_name ?? "테니스장",
-              badge: priorityLabel,
-              start: ownerOpen.instant,
-              address: court.basic_address,
-            })}
-            courtId={court.id}
-            courtName={court.basic_court_name}
-            compact
-          />
-        ) : null}
-        {!hasBothPreview && normalOpen ? (
-          <NextOpenPreviewCard
-            badge="일반"
-            badgeTone="general"
-            dateLabel={normalOpen.dateLabel}
-            timeLabel={normalOpen.timeLabel}
-            calendarLinks={buildCalendarLinks({
-              courtName: court.basic_court_name ?? "테니스장",
-              badge: "일반",
-              start: normalOpen.instant,
+              badge: previews[0].badge,
+              start: previews[0].open.instant,
               address: court.basic_address,
             })}
             courtId={court.id}

@@ -4,6 +4,7 @@ import { getCourtDetailPath } from "@/lib/courtPath";
 import { getReservationHref } from "@/lib/reservationLink";
 import { getPriorityEligibilityLabel } from "@/lib/bookingEligibility";
 import { FavoriteButton } from "./FavoriteButton";
+import { BookingRulesCompactContent, hasActiveBookingRules } from "./BookingRulesContent";
 import {
   courtitem_courtname,
   courtitem_courtopentime,
@@ -48,6 +49,7 @@ const formatDayOfWeek = (day: number | null | undefined): string => {
 export function FixedScheduleContent({ court }: { court: Court }) {
   const priorityLabel = getPriorityEligibilityLabel(court.booking_eligibility_first);
   const reservationHref = getReservationHref(court);
+  const useNewBookingRules = hasActiveBookingRules(court);
 
   return (
     <>
@@ -58,8 +60,10 @@ export function FixedScheduleContent({ court }: { court: Court }) {
       </div>
 
       {/* fixed_schedule 타입용 구조 - 필요에 따라 수정하세요 */}
-      <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-md my-2 h-[56px] flex flex-col justify-center">
-        {court.booking_open_type === "day" ? (
+      <div className="text-sm px-3 py-3.5 bg-[#2C2C2C] rounded-md my-2 h-[112px] flex flex-col justify-center">
+        {useNewBookingRules ? (
+          <BookingRulesCompactContent court={court} />
+        ) : court.booking_open_type === "day" ? (
           <>
           {/* day 타입용 구조 */}
             {priorityLabel && (
@@ -81,7 +85,7 @@ export function FixedScheduleContent({ court }: { court: Court }) {
             {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#6FCF97]">일반 : </span>
+                  <span className="text-[#6FCF97]">전체 : </span>
                   <span className="text-white font-semibold">
                     {court.booking_open_day_normal != null ? `${court.booking_normal_iscurrentmonth ? "당월 " : ""}${court.booking_open_day_normal}일 ` : ""}
                     {formatTime(court.booking_open_time_normal)}
@@ -132,7 +136,7 @@ export function FixedScheduleContent({ court }: { court: Court }) {
             {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#6FCF97]">일반 : </span>
+                  <span className="text-[#6FCF97]">전체 : </span>
                   {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
                   <span className="text-white font-semibold">
                     {(() => {
@@ -173,7 +177,7 @@ export function FixedScheduleContent({ court }: { court: Court }) {
             {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#6FCF97]">일반 : </span>
+                  <span className="text-[#6FCF97]">전체 : </span>
                   <span className="text-white font-normal">
                     {court.booking_open_day_normal != null ? `${court.booking_open_day_normal}일 ` : ""}
                     {formatTime(court.booking_open_time_normal)} 예약 오픈

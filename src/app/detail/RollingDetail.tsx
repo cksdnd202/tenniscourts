@@ -31,7 +31,7 @@ function RollingBookingBlock({ court }: { court: Court }) {
       </div>
       <div className={detailCard}>
         {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" ? (
-          <BookingOpenCardRow label="일반" labelTone="general">
+          <BookingOpenCardRow label="전체" labelTone="general">
             <span className="font-bold">
               매일 {formatTime(court.booking_open_time_normal)}
               {court.booking_open_offset != null ? `, +${court.booking_open_offset}일 ` : " "}
@@ -39,7 +39,7 @@ function RollingBookingBlock({ court }: { court: Court }) {
             </span>
           </BookingOpenCardRow>
         ) : (
-          <span className={detailNoNormalClass}>일반 예약 권한 없음</span>
+          <span className={detailNoNormalClass}>전체 예약 정보 없음</span>
         )}
       </div>
     </div>

@@ -12,7 +12,7 @@ function isLocalHostname(hostname: string): boolean {
   );
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   if (!isLocalHostname(request.nextUrl.hostname)) {
     return new NextResponse(null, { status: 404 });
   }

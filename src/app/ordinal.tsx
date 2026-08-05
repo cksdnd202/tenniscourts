@@ -59,7 +59,7 @@ export function OrdinalContent({ court }: { court: Court }) {
       </div>
 
       {/* ordinal 타입용 구조 - 필요에 따라 수정하세요 */}
-      <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-md my-2 h-[56px] flex flex-col justify-center">
+      <div className="text-sm px-3 py-3.5 bg-[#2C2C2C] rounded-md my-2 h-[112px] flex flex-col justify-center">
         {court.booking_open_type === "week" ? (
           <>
             {/* week 타입용 구조 */}
@@ -89,7 +89,7 @@ export function OrdinalContent({ court }: { court: Court }) {
             {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#6FCF97]">일반 : </span>
+                  <span className="text-[#6FCF97]">전체 : </span>
                   {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
                   <span className="text-white font-semibold">
                     {(() => {
@@ -139,7 +139,7 @@ export function OrdinalContent({ court }: { court: Court }) {
             {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#6FCF97]">일반 : </span>
+                  <span className="text-[#6FCF97]">전체 : </span>
                   {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
                   <span className="text-white] font-semibold">
                     {(() => {

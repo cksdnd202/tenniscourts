@@ -152,7 +152,7 @@ function getBookingLines(court: Court) {
 
   if (normal) {
     lines.push({
-      label: "일반",
+      label: "전체",
       text: `${normal.dateLabel} ${normal.timeLabel}`,
       color: "#4DA3FF",
     });
@@ -208,8 +208,8 @@ function getCourtBookingSummary(court: Court) {
     const offset = court.booking_open_offset || "다음달";
 
     return {
-      audience: "일반 예약",
-      label: "일반 예약 오픈 시간",
+      audience: "전체 예약",
+      label: "전체 예약 오픈 시간",
       text: `매월 ${court.booking_open_day_normal}일 ${formatKoreanTime(court.booking_open_time_normal)}, ${offset} 예약 오픈`,
     };
   }

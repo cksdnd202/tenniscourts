@@ -1,4 +1,4 @@
-import type { Court } from "@/app/types";
+import type { Court, CourtBookingRule } from "@/app/types";
 import {
   getPriorityEligibilityLabel,
   hasPriorityEligibility,
@@ -262,6 +262,49 @@ function wrap(inst: Date | null): NextOpenResult | null {
 }
 
 const firstEligible = (court: Court) => hasPriorityEligibility(court.booking_eligibility_first);
+
+function isNormalBookingRule(rule: CourtBookingRule) {
+  return rule.eligibility === "normal";
+}
+
+function bookingRuleUsesCurrentMonth(rule: CourtBookingRule) {
+  const offset = rule.open_offset?.trim();
+  return offset === "당월" || offset === "해당월";
+}
+
+export function buildCourtFromBookingRule(court: Court, rule: CourtBookingRule): Court {
+  const isNormal = isNormalBookingRule(rule);
+
+  return {
+    ...court,
+    court_booking_rules: [],
+    booking_rule_type: rule.rule_type,
+    booking_open_type: rule.open_type,
+    booking_lottery_desc: rule.lottery_desc,
+    booking_eligibility_first: isNormal ? null : rule.eligibility,
+    booking_eligibility_second: isNormal ? rule.eligibility : null,
+    booking_open_day_owner: isNormal ? null : rule.open_day_of_month,
+    booking_open_time_owner: isNormal ? null : rule.open_time,
+    booking_open_day_normal: isNormal ? rule.open_day_of_month : null,
+    booking_open_time_normal: isNormal ? rule.open_time : null,
+    booking_normal_iscurrentmonth: isNormal ? bookingRuleUsesCurrentMonth(rule) : court.booking_normal_iscurrentmonth,
+    booking_open_day_of_month: rule.open_day_of_month,
+    booking_open_day_of_week: rule.open_day_of_week,
+    booking_open_ordinal: rule.open_ordinal,
+    booking_open_offset: rule.open_offset,
+  };
+}
+
+export function getNextBookingRuleOpen(
+  court: Court,
+  rule: CourtBookingRule,
+  from: Date = new Date()
+): NextOpenResult | null {
+  const ruleCourt = buildCourtFromBookingRule(court, rule);
+  return isNormalBookingRule(rule)
+    ? getNextNormalBookingOpen(ruleCourt, from)
+    : getNextOwnerBookingOpen(ruleCourt, from);
+}
 
 function ownerOpenInstant(court: Court, from: Date): Date | null {
   const rt = court.booking_rule_type;

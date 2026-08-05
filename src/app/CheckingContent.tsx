@@ -55,7 +55,7 @@ export function CheckingContent({ court }: { court: Court }) {
       </div>
 
       {/* checking 타입용 구조 - 필요에 따라 수정하세요 */}
-      <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-md my-2 h-[56px] flex items-center justify-center">
+      <div className="text-sm px-3 py-3.5 bg-[#2C2C2C] rounded-md my-2 h-[112px] flex items-center justify-center">
         <span className="text-[#828995] font-semibold">예약 오픈 시간 확인중</span>
       </div>
 

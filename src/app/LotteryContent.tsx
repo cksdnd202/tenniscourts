@@ -27,7 +27,7 @@ export function LotteryContent({ court }: { court: Court }) {
       </div>
 
 
-      <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-md my-2 h-[56px] flex flex-col justify-center">
+      <div className="text-sm px-3 py-3.5 bg-[#2C2C2C] rounded-md my-2 h-[112px] flex flex-col justify-center">
         <p className={`${courtitem_courtopentime} break-words`}>
           <span className="text-[#6FCF97]">추첨 : </span>
           <span className="text-white font-semibold">

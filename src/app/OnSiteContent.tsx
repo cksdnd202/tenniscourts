@@ -28,7 +28,7 @@ export function OnSiteContent({ court }: { court: Court }) {
 
 
       {/* on_site 타입 전용 내용을 여기에 추가하세요 */}
-      <div className="text-sm px-2.5 py-2 bg-[#2C2C2C] rounded-md my-2 h-[56px]"></div>
+      <div className="text-sm px-3 py-3.5 bg-[#2C2C2C] rounded-md my-2 h-[112px]"></div>
 
       {/* 주소, 지도보기, 코트 종류 정보, 예약하러가기 */}
       {court.basic_address && (

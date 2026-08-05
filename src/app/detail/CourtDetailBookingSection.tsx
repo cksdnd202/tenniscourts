@@ -7,9 +7,14 @@ import { PhoneBookingBlock } from "./PhoneDetail";
 import { OnSiteBookingBlock } from "./OnSiteDetail";
 import { IrregularBookingBlock } from "./IrregularDetail";
 import { CheckingBookingBlock } from "./CheckingDetail";
+import { BookingRulesDetailBlock, hasActiveBookingRules } from "../BookingRulesContent";
 
 /** ruleType별 예약 오픈 시간 블록만 (상세 페이지 섹션 2용) */
 export function CourtDetailBookingSection({ court }: { court: Court }) {
+  if (hasActiveBookingRules(court)) {
+    return <BookingRulesDetailBlock court={court} />;
+  }
+
   const ruleType = court.booking_rule_type;
   switch (ruleType) {
     case "rolling":

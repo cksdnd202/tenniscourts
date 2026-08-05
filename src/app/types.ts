@@ -74,6 +74,28 @@ export type Court = {
   source_time_max?: string | null;
   source_match_key?: string | null;
   source_synced_at?: string | null;
+
+  /*새 예약 규칙 테이블 - 전환 테스트용*/
+  court_booking_rules?: CourtBookingRule[];
+};
+
+export type CourtBookingRule = {
+  id: string;
+  court_id: string;
+  label: string | null;
+  eligibility: string | null;
+  rule_type: string | null;
+  open_type: string | null;
+  open_day_of_month: number | null;
+  open_day_of_week: number | null;
+  open_ordinal: number | null;
+  open_time: string | null;
+  open_offset: string | null;
+  lottery_desc: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 export type CourtBlogLink = {
