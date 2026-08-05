@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { buildCourtDetailMetadata } from "@/lib/courtSeo";
 import { getCourtDetailPath } from "@/lib/courtPath";
-import { getSlugRedirectCandidates } from "@/lib/slugRedirect";
+import { getSlugRedirectCandidates, removeMonthlySlugToken } from "@/lib/slugRedirect";
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
 import type { Court, CourtBlogLink } from "../../types";
@@ -40,6 +40,9 @@ const METADATA_COURT_SELECT =
 const DETAIL_COURT_SELECT =
   "id, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_lottery_desc, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, basic_latitude, basic_longitude, booking_booking_provide, etc_desc";
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 async function fetchCourtByRouteKey(routeKey: string, selectFields: string) {
   const { data: slugData, error: slugError } = await supabase
     .from("courtinfo")
@@ -49,13 +52,15 @@ async function fetchCourtByRouteKey(routeKey: string, selectFields: string) {
 
   if (slugData || slugError) return { data: slugData, error: slugError };
 
-  const { data: idData, error: idError } = await supabase
-    .from("courtinfo")
-    .select(selectFields)
-    .eq("id", routeKey)
-    .maybeSingle();
+  if (UUID_PATTERN.test(routeKey)) {
+    const { data: idData, error: idError } = await supabase
+      .from("courtinfo")
+      .select(selectFields)
+      .eq("id", routeKey)
+      .maybeSingle();
 
-  if (idData || idError) return { data: idData, error: idError };
+    if (idData || idError) return { data: idData, error: idError };
+  }
 
   for (const candidate of getSlugRedirectCandidates(routeKey)) {
     const { data: candidateData, error: candidateError } = await supabase
@@ -69,7 +74,32 @@ async function fetchCourtByRouteKey(routeKey: string, selectFields: string) {
     }
   }
 
+  if (removeMonthlySlugToken(routeKey) === routeKey) {
+    const { data: monthlySlugRows, error: monthlySlugError } = await supabase
+      .from("courtinfo")
+      .select(selectFields)
+      .not("slug", "is", null);
+
+    if (monthlySlugError) return { data: null, error: monthlySlugError };
+
+    const reverseMatchedCourt =
+      (monthlySlugRows as Array<{ slug?: string | null }> | null)?.find(
+        (row) => removeMonthlySlugToken(String(row.slug ?? "")) === routeKey
+      ) ?? null;
+
+    if (reverseMatchedCourt) return { data: reverseMatchedCourt, error: null };
+  }
+
   return { data: null, error: null };
+}
+
+function getCanonicalCourtPath(court: Court) {
+  if (court.slug?.trim()) {
+    const canonicalSlug = removeMonthlySlugToken(court.slug.trim());
+    if (canonicalSlug) return `/courts/${canonicalSlug}`;
+  }
+
+  return getCourtDetailPath(court);
 }
 
 async function attachActiveBookingRules(court: Court) {
@@ -180,7 +210,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         description:
           "테니스장의 예약 오픈 시간, 주소, 코트 종류, 예약 사이트 정보를 확인하세요.",
       };
-  const pageUrl = court ? `${siteUrl}${getCourtDetailPath(court)}` : `${siteUrl}/courts/${routeKey}`;
+  const pageUrl = court ? `${siteUrl}${getCanonicalCourtPath(court)}` : `${siteUrl}/courts/${routeKey}`;
 
   return {
     title,
@@ -223,8 +253,13 @@ export default async function CourtDetailPage({ params }: PageProps) {
   let court = detailData as Court | null;
   const courtsForSearch = searchRes.data ?? [];
 
+  const slugRedirectCandidate = getSlugRedirectCandidates(routeKey)[0];
+  if (court && slugRedirectCandidate) {
+    permanentRedirect(`/courts/${slugRedirectCandidate}`);
+  }
+
   if (court?.slug && court.slug !== routeKey) {
-    permanentRedirect(getCourtDetailPath(court));
+    permanentRedirect(getCanonicalCourtPath(court));
   }
 
   if (detailError) {

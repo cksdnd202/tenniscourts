@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { supabase } from "@/lib/supabase";
+import { removeMonthlySlugToken } from "@/lib/slugRedirect";
 
 const siteUrl = "https://courtskorea.com";
 
@@ -51,12 +52,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 1,
   };
 
-  const courtEntries: MetadataRoute.Sitemap = courts.map((court) => ({
-    url: `${siteUrl}/courts/${court.slug?.trim()}`,
-    lastModified: court.updated_at ? new Date(court.updated_at) : lastModified,
-    changeFrequency: "weekly",
-    priority: 0.8,
-  }));
+  const seenCourtUrls = new Set<string>();
+  const courtEntries: MetadataRoute.Sitemap = courts.flatMap((court) => {
+    const slug = removeMonthlySlugToken(court.slug?.trim() ?? "");
+    const url = `${siteUrl}/courts/${slug}`;
+
+    if (!slug || seenCourtUrls.has(url)) return [];
+    seenCourtUrls.add(url);
+
+    return [{
+      url,
+      lastModified: court.updated_at ? new Date(court.updated_at) : lastModified,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    }];
+  });
 
   return [homeEntry, ...courtEntries];
 }
