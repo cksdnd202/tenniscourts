@@ -12,4 +12,5 @@ Disallow: /admin/
 # API 경로 (검색 결과에 노출할 필요 없음)
 Disallow: /api/
 
+# 배포 갱신 확인용 주석
 Sitemap: https://courtskorea.com/sitemap.xml
