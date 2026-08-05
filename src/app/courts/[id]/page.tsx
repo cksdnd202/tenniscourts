@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { buildCourtDetailMetadata } from "@/lib/courtSeo";
 import { getCourtDetailPath } from "@/lib/courtPath";
+import { getSlugRedirectCandidates } from "@/lib/slugRedirect";
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
 import type { Court, CourtBlogLink } from "../../types";
@@ -35,6 +36,55 @@ const ogImage = "/courtskroea_ogimg.png?v=20260323-1";
 
 const METADATA_COURT_SELECT =
   "id, slug, basic_court_name, booking_rule_type, booking_open_type, booking_eligibility_first, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset";
+
+const DETAIL_COURT_SELECT =
+  "id, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_lottery_desc, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, basic_latitude, basic_longitude, booking_booking_provide, etc_desc";
+
+async function fetchCourtByRouteKey(routeKey: string, selectFields: string) {
+  const { data: slugData, error: slugError } = await supabase
+    .from("courtinfo")
+    .select(selectFields)
+    .eq("slug", routeKey)
+    .maybeSingle();
+
+  if (slugData || slugError) return { data: slugData, error: slugError };
+
+  const { data: idData, error: idError } = await supabase
+    .from("courtinfo")
+    .select(selectFields)
+    .eq("id", routeKey)
+    .maybeSingle();
+
+  if (idData || idError) return { data: idData, error: idError };
+
+  for (const candidate of getSlugRedirectCandidates(routeKey)) {
+    const { data: candidateData, error: candidateError } = await supabase
+      .from("courtinfo")
+      .select(selectFields)
+      .eq("slug", candidate)
+      .maybeSingle();
+
+    if (candidateData || candidateError) {
+      return { data: candidateData, error: candidateError };
+    }
+  }
+
+  return { data: null, error: null };
+}
+
+async function attachActiveBookingRules(court: Court) {
+  const { data: bookingRulesData } = await getSupabaseAdmin()
+    .from("court_booking_rules")
+    .select("*")
+    .eq("court_id", court.id)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+
+  return {
+    ...court,
+    court_booking_rules: (bookingRulesData ?? []) as NonNullable<Court["court_booking_rules"]>,
+  };
+}
 
 function RelatedReservationInfo({ courts }: { courts: RelatedCourt[] }) {
   if (courts.length === 0) return null;
@@ -120,21 +170,8 @@ function CourtBlogLinks({ links }: { links: CourtBlogLink[] }) {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id: routeKey } = await params;
-  const { data: slugData } = await supabase
-    .from("courtinfo")
-    .select(METADATA_COURT_SELECT)
-    .eq("slug", routeKey)
-    .maybeSingle();
-
-  let court = slugData as Court | null;
-  if (!court) {
-    const { data: idData } = await supabase
-      .from("courtinfo")
-      .select(METADATA_COURT_SELECT)
-      .eq("id", routeKey)
-      .maybeSingle();
-    court = idData as Court | null;
-  }
+  const { data } = await fetchCourtByRouteKey(routeKey, METADATA_COURT_SELECT);
+  const court = data ? await attachActiveBookingRules(data as Court) : null;
 
   const { title, description } = court
     ? buildCourtDetailMetadata(court)
@@ -172,14 +209,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function CourtDetailPage({ params }: PageProps) {
   const { id: routeKey } = await params;
 
-  const [detailBySlugRes, searchRes] = await Promise.all([
-    supabase
-      .from("courtinfo")
-      .select(
-        "id, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_lottery_desc, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, basic_latitude, basic_longitude, booking_booking_provide, etc_desc"
-      )
-      .eq("slug", routeKey)
-      .maybeSingle(),
+  const [detailRes, searchRes] = await Promise.all([
+    fetchCourtByRouteKey(routeKey, DETAIL_COURT_SELECT),
     supabase
       .from("courtinfo")
       .select("id, slug, basic_court_name, basic_region, basic_city")
@@ -187,20 +218,8 @@ export default async function CourtDetailPage({ params }: PageProps) {
       .order("basic_court_name", { ascending: true }),
   ]);
 
-  let detailData = detailBySlugRes.data;
-  let detailError = detailBySlugRes.error;
-  if (!detailData && !detailError) {
-    const detailByIdRes = await supabase
-      .from("courtinfo")
-      .select(
-        "id, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_lottery_desc, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, basic_latitude, basic_longitude, booking_booking_provide, etc_desc"
-      )
-      .eq("id", routeKey)
-      .maybeSingle();
-    detailData = detailByIdRes.data;
-    detailError = detailByIdRes.error;
-  }
-
+  let detailData = detailRes.data;
+  const detailError = detailRes.error;
   let court = detailData as Court | null;
   const courtsForSearch = searchRes.data ?? [];
 
@@ -226,17 +245,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
     );
   }
 
-  const { data: bookingRulesData } = await getSupabaseAdmin()
-    .from("court_booking_rules")
-    .select("*")
-    .eq("court_id", court.id)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
-
-  court = {
-    ...court,
-    court_booking_rules: (bookingRulesData ?? []) as NonNullable<Court["court_booking_rules"]>,
-  };
+  court = await attachActiveBookingRules(court);
 
   let relatedCourts: RelatedCourt[] = [];
   let blogLinks: CourtBlogLink[] = [];

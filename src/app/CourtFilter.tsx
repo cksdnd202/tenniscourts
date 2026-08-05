@@ -677,6 +677,26 @@ export function CourtFilter({ courts }: Props) {
           </div>
         ) : null}
 
+        {filteredCourts.length > 0 ? (
+          <nav
+            aria-label="전체 테니스장 바로가기"
+            className="mt-12 rounded-xl border border-[#242426] bg-[#101112] p-5"
+          >
+            <h2 className="text-sm font-semibold text-white">전체 테니스장 바로가기</h2>
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+              {filteredCourts.map((court) => (
+                <Link
+                  key={court.id}
+                  href={`/courts/${court.slug || court.id}`}
+                  className="text-xs leading-5 text-[#8A8F98] underline-offset-2 transition hover:text-white hover:underline"
+                >
+                  {court.basic_court_name || "이름 없는 테니스장"}
+                </Link>
+              ))}
+            </div>
+          </nav>
+        ) : null}
+
         <footer className="mt-40 min-h-[220px] border-t border-[#2C2C2C] px-1 py-12 text-[#8A8F98]">
           <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
             <div>

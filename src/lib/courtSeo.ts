@@ -1,4 +1,4 @@
-import type { Court } from "@/app/types";
+import type { Court, CourtBookingRule } from "@/app/types";
 import { getPriorityEligibilityLabel } from "@/lib/bookingEligibility";
 
 const SITE_NAME = "Courts Korea";
@@ -46,6 +46,78 @@ const formatDayOfWeek = (day: number | null | undefined): string => {
   };
   return dayMap[day] || "";
 };
+
+function formatEligibilityForSeo(value: string | null | undefined): string {
+  switch (value) {
+    case "resident":
+      return "구민";
+    case "citizen":
+      return "시민";
+    case "inhabitant":
+      return "주민";
+    case "normal":
+      return "전체";
+    default:
+      return getPriorityEligibilityLabel(value) || "전체";
+  }
+}
+
+function bookingRuleTargetLabel(rule: CourtBookingRule): string {
+  const offset = rule.open_offset?.trim();
+  if (offset === "당월" || offset === "해당월") return "당월";
+  if (offset) return offset.replace(/\s*예약\s*$/u, "").trim() || offset;
+  return "다음 달";
+}
+
+function buildBookingRuleReservationSentence(rule: CourtBookingRule): string | null {
+  const label = formatEligibilityForSeo(rule.eligibility);
+  const time = formatTimeForSeo(rule.open_time);
+  const targetLabel = bookingRuleTargetLabel(rule);
+
+  if (rule.rule_type === "lottery") {
+    return rule.lottery_desc?.trim()
+      ? `${label} 예약은 ${rule.lottery_desc.trim()} 방식으로 진행됩니다.`
+      : `${label} 예약은 추첨 방식으로 진행됩니다.`;
+  }
+
+  if (rule.rule_type === "rolling") {
+    if (!time) return `${label} 예약은 매일 새 예약이 오픈됩니다.`;
+    return `${label} 예약은 매일 ${time}에 새 예약이 오픈됩니다.`;
+  }
+
+  if (rule.rule_type === "fixed_schedule" || rule.rule_type === "ordinal") {
+    if (rule.open_type === "week") {
+      const ordinal = rule.rule_type === "ordinal" ? rule.open_ordinal : rule.open_day_of_month;
+      return `${label} 예약은 ${buildWeekOpenPhrase(
+        ordinal,
+        rule.open_day_of_week,
+        time,
+        targetLabel
+      )}`;
+    }
+
+    return `${label} 예약은 ${buildDayOpenPhrase(rule.open_day_of_month, time, targetLabel)}`;
+  }
+
+  return null;
+}
+
+function buildBookingRulesSummary(court: Court): string | null {
+  const rules = (court.court_booking_rules ?? [])
+    .filter((rule) => rule.is_active)
+    .sort((a, b) => {
+      const sortOrderDiff = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+      if (sortOrderDiff !== 0) return sortOrderDiff;
+      return (a.label ?? "").localeCompare(b.label ?? "");
+    });
+
+  const sentences = rules
+    .map(buildBookingRuleReservationSentence)
+    .filter((sentence): sentence is string => Boolean(sentence))
+    .slice(0, 3);
+
+  return sentences.length > 0 ? sentences.join(" ") : null;
+}
 
 function bookingTargetLabel(court: Court, forNormal: boolean): string {
   if (forNormal) {
@@ -164,6 +236,9 @@ function buildRuleFallbackSentence(court: Court): string {
 
 /** description에 붙는 예약 요약 문장 */
 export function buildReservationSummary(court: Court): string {
+  const bookingRulesSummary = buildBookingRulesSummary(court);
+  if (bookingRulesSummary) return bookingRulesSummary;
+
   const sentences = [
     buildOwnerReservationSentence(court),
     buildNormalReservationSentence(court),
