@@ -282,7 +282,7 @@ export function CourtSearchHeader({ courts }: Props) {
               onClick={goToLoginPage}
               className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
             >
-              {isLoggedIn ? "내 계정" : "로그인"}
+              {isLoggedIn ? "마이페이지" : "로그인"}
             </button>
             {showAdminButton ? (
               <button

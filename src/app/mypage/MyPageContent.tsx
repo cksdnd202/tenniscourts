@@ -52,6 +52,8 @@ type UserProfile = {
   id: string;
   display_name: string;
   avatar_url: string | null;
+  home_region?: string | null;
+  home_city?: string | null;
 };
 
 const menuItems: Array<{ id: MyPageTab; label: string }> = [
@@ -73,6 +75,60 @@ const favoriteBadgeColorClass: Record<string, string> = {
   구민: "text-[#FD844C]",
   시민: "text-[#FD844C]",
   주민: "text-[#FD844C]",
+};
+const regionCityOptions: Record<string, string[]> = {
+  서울: [
+    "강남구", "강동구", "강북구", "강서구", "관악구", "광진구", "구로구", "금천구", "노원구", "도봉구",
+    "동대문구", "동작구", "마포구", "서대문구", "서초구", "성동구", "성북구", "송파구", "양천구", "영등포구",
+    "용산구", "은평구", "종로구", "중구", "중랑구",
+  ],
+  부산: [
+    "강서구", "금정구", "기장군", "남구", "동구", "동래구", "부산진구", "북구", "사상구", "사하구",
+    "서구", "수영구", "연제구", "영도구", "중구", "해운대구",
+  ],
+  대구: ["군위군", "남구", "달서구", "달성군", "동구", "북구", "서구", "수성구", "중구"],
+  인천: ["강화군", "계양구", "남동구", "동구", "미추홀구", "부평구", "서구", "연수구", "옹진군", "중구"],
+  광주: ["광산구", "남구", "동구", "북구", "서구"],
+  대전: ["대덕구", "동구", "서구", "유성구", "중구"],
+  울산: ["남구", "동구", "북구", "울주군", "중구"],
+  세종: ["세종시"],
+  경기: [
+    "가평군", "고양시", "과천시", "광명시", "광주시", "구리시", "군포시", "김포시", "남양주시", "동두천시",
+    "부천시", "성남시", "수원시", "시흥시", "안산시", "안성시", "안양시", "양주시", "양평군", "여주시",
+    "연천군", "오산시", "용인시", "의왕시", "의정부시", "이천시", "파주시", "평택시", "포천시", "하남시",
+    "화성시",
+  ],
+  강원: [
+    "강릉시", "고성군", "동해시", "삼척시", "속초시", "양구군", "양양군", "영월군", "원주시", "인제군",
+    "정선군", "철원군", "춘천시", "태백시", "평창군", "홍천군", "화천군", "횡성군",
+  ],
+  충북: [
+    "괴산군", "단양군", "보은군", "영동군", "옥천군", "음성군", "제천시", "증평군", "진천군", "청주시",
+    "충주시",
+  ],
+  충남: [
+    "계룡시", "공주시", "금산군", "논산시", "당진시", "보령시", "부여군", "서산시", "서천군", "아산시",
+    "예산군", "천안시", "청양군", "태안군", "홍성군",
+  ],
+  전북: [
+    "고창군", "군산시", "김제시", "남원시", "무주군", "부안군", "순창군", "완주군", "익산시", "임실군",
+    "장수군", "전주시", "정읍시", "진안군",
+  ],
+  전남: [
+    "강진군", "고흥군", "곡성군", "광양시", "구례군", "나주시", "담양군", "목포시", "무안군", "보성군",
+    "순천시", "신안군", "여수시", "영광군", "영암군", "완도군", "장성군", "장흥군", "진도군", "함평군",
+    "해남군", "화순군",
+  ],
+  경북: [
+    "경산시", "경주시", "고령군", "구미시", "김천시", "문경시", "봉화군", "상주시", "성주군", "안동시",
+    "영덕군", "영양군", "영주시", "영천시", "예천군", "울릉군", "울진군", "의성군", "청도군", "청송군",
+    "칠곡군", "포항시",
+  ],
+  경남: [
+    "거제시", "거창군", "고성군", "김해시", "남해군", "밀양시", "사천시", "산청군", "양산시", "의령군",
+    "진주시", "창녕군", "창원시", "통영시", "하동군", "함안군", "함양군", "합천군",
+  ],
+  제주: ["서귀포시", "제주시"],
 };
 
 function formatDateTime(value: string | null | undefined) {
@@ -861,10 +917,16 @@ function ProfilePanel({
 }) {
   const profileImageUrl = getProfileImageUrl(user);
   const nickname = profile?.display_name ?? getNickname(user);
+  const homeRegionLabel = [profile?.home_region, profile?.home_city].filter(Boolean).join(" ") || "설정 안 됨";
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isRegionEditOpen, setIsRegionEditOpen] = useState(false);
   const [draftName, setDraftName] = useState(nickname);
+  const [draftRegion, setDraftRegion] = useState(profile?.home_region ?? "");
+  const [draftCity, setDraftCity] = useState(profile?.home_city ?? "");
   const [isSavingName, setIsSavingName] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [isSavingRegion, setIsSavingRegion] = useState(false);
+  const [regionMessage, setRegionMessage] = useState<string | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -872,6 +934,11 @@ function ProfilePanel({
   useEffect(() => {
     setDraftName(nickname);
   }, [nickname]);
+
+  useEffect(() => {
+    setDraftRegion(profile?.home_region ?? "");
+    setDraftCity(profile?.home_city ?? "");
+  }, [profile?.home_region, profile?.home_city]);
 
   const saveDisplayName = async () => {
     const nextName = draftName.trim();
@@ -910,8 +977,65 @@ function ProfilePanel({
       return;
     }
 
-    onProfileChange(data as UserProfile);
+    onProfileChange({ ...(profile ?? {}), ...(data as UserProfile) });
     setIsEditOpen(false);
+  };
+
+  const saveHomeRegion = async () => {
+    const nextRegion = draftRegion.trim();
+    const nextCity = draftCity.trim();
+
+    if (!user) {
+      setRegionMessage("로그인 정보가 없습니다.");
+      return;
+    }
+
+    if (!nextRegion) {
+      setRegionMessage("시/도를 입력해주세요.");
+      return;
+    }
+
+    setIsSavingRegion(true);
+    setRegionMessage(null);
+
+    const profiles = supabase.from("profiles" as never) as any;
+    const { data, error } = await profiles
+      .upsert(
+        {
+          id: user.id,
+          display_name: nickname,
+          avatar_url: profileImageUrl,
+          home_region: nextRegion,
+          home_city: nextCity || null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" }
+      )
+      .select("id, display_name, avatar_url, home_region, home_city")
+      .single();
+
+    setIsSavingRegion(false);
+
+    if (error) {
+      setRegionMessage("지역을 저장하지 못했습니다. profiles 테이블에 home_region, home_city 컬럼이 있는지 확인해주세요.");
+      return;
+    }
+
+    onProfileChange(data as UserProfile);
+    setRegionMessage("내 지역이 저장됐어요.");
+    setIsRegionEditOpen(false);
+  };
+
+  const openRegionEdit = () => {
+    setDraftRegion(profile?.home_region ?? "");
+    setDraftCity(profile?.home_city ?? "");
+    setRegionMessage(null);
+    setIsRegionEditOpen(true);
+  };
+
+  const handleDraftRegionChange = (nextRegion: string) => {
+    setDraftRegion(nextRegion);
+    setDraftCity("");
   };
 
   const handleDeleteAccount = async () => {
@@ -996,7 +1120,49 @@ function ProfilePanel({
           <dt className="text-xs text-[#8A8F98]">로그인 방식</dt>
           <dd className="mt-1 text-sm text-white">{getProvider(user)}</dd>
         </div>
+        <div>
+          <dt className="text-xs text-[#8A8F98]">내 지역</dt>
+          <dd className="mt-1 flex min-w-0 items-center gap-2 text-sm text-white">
+            <span className={homeRegionLabel === "설정 안 됨" ? "text-[#8A8F98]" : "truncate"}>
+              {homeRegionLabel}
+            </span>
+            <button
+              type="button"
+              onClick={openRegionEdit}
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#8A8F98] hover:bg-[#2C2C2C] hover:text-white"
+              aria-label="내 지역 수정"
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden
+              >
+                <path
+                  d="M4 20H8.5L19 9.5C20.2 8.3 20.2 6.4 19 5.2C17.8 4 15.9 4 14.7 5.2L4 15.9V20Z"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M13.5 6.5L17.5 10.5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </dd>
+        </div>
       </dl>
+
+      {regionMessage && !isRegionEditOpen ? (
+        <p className="mt-4 text-sm text-[#8A8F98]">{regionMessage}</p>
+      ) : null}
 
       <button
         type="button"
@@ -1050,6 +1216,66 @@ function ProfilePanel({
                 className="rounded-lg bg-[#2C8B56] px-4 py-2 text-sm font-medium text-white hover:bg-[#53A978] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSavingName ? "저장 중..." : "저장"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isRegionEditOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4">
+          <div className="w-full max-w-sm rounded-xl border border-[#2C2C2C] bg-[#191B1E] p-5 shadow-2xl">
+            <h3 className="text-lg font-semibold">내 지역 수정</h3>
+            <div className="mt-5 grid gap-4">
+              <label>
+                <span className="text-xs text-[#8A8F98]">시/도</span>
+                <select
+                  value={draftRegion}
+                  onChange={(event) => handleDraftRegionChange(event.target.value)}
+                  className="mt-2 w-full rounded-lg border border-[#3C3C3C] bg-black px-3 py-3 text-sm text-white outline-none focus:border-[#2C8B56]"
+                  autoFocus
+                >
+                  <option value="">시/도 선택</option>
+                  {Object.keys(regionCityOptions).map((region) => (
+                    <option key={region} value={region}>
+                      {region}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span className="text-xs text-[#8A8F98]">시/군/구</span>
+                <select
+                  value={draftCity}
+                  onChange={(event) => setDraftCity(event.target.value)}
+                  disabled={!draftRegion}
+                  className="mt-2 w-full rounded-lg border border-[#3C3C3C] bg-black px-3 py-3 text-sm text-white outline-none focus:border-[#2C8B56] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="">시/군/구 선택</option>
+                  {(regionCityOptions[draftRegion] ?? []).map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {regionMessage ? <p className="mt-3 text-sm text-[#ff9b9b]">{regionMessage}</p> : null}
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsRegionEditOpen(false)}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-[#B0B0B0] hover:bg-[#2C2C2C]"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={saveHomeRegion}
+                disabled={isSavingRegion}
+                className="rounded-lg bg-[#2C8B56] px-4 py-2 text-sm font-medium text-white hover:bg-[#53A978] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSavingRegion ? "저장 중..." : "저장"}
               </button>
             </div>
           </div>
@@ -1140,10 +1366,18 @@ export function MyPageContent() {
     }
 
     const profiles = supabase.from("profiles" as never) as any;
-    const { data: existingProfile } = await profiles
-      .select("id, display_name, avatar_url")
+    let { data: existingProfile, error: existingProfileError } = await profiles
+      .select("id, display_name, avatar_url, home_region, home_city")
       .eq("id", nextUser.id)
       .maybeSingle();
+
+    if (existingProfileError) {
+      const fallback = await profiles
+        .select("id, display_name, avatar_url")
+        .eq("id", nextUser.id)
+        .maybeSingle();
+      existingProfile = fallback.data;
+    }
 
     if (existingProfile) {
       setProfile(existingProfile as UserProfile);
@@ -1275,8 +1509,7 @@ export function MyPageContent() {
 
       <section className="flex-1 h-full overflow-y-auto px-4 py-6 min-[1032px]:p-7.5 ml-0 min-[1032px]:ml-4">
         <div className="mb-8">
-          <p className="text-sm font-medium text-[#6FCF97]">내 계정</p>
-          <h1 className="mt-2 text-3xl font-semibold">
+          <h1 className="text-3xl font-semibold">
             {menuItems.find((item) => item.id === activeTab)?.label}
           </h1>
         </div>

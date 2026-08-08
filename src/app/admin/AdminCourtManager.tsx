@@ -63,6 +63,10 @@ const rulePreviewModeLabels: Record<RulePreviewMode, string> = {
 };
 const TEMP_BOOKING_RULE_ID_PREFIX = "temp-booking-rule-";
 
+function createTempBookingRuleId() {
+  return `${TEMP_BOOKING_RULE_ID_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function createEmptyBlogLinks(): CourtBlogLinkDraft[] {
   return Array.from({ length: 3 }, (_, index) => ({
     url: "",
@@ -94,7 +98,7 @@ function createEmptyBookingRuleDraft(courtId: string, sortOrder = 0): CourtBooki
 
 function createSeoulCandidateBookingRuleDraft(sortOrder = 10): CourtBookingRule {
   return {
-    id: `${TEMP_BOOKING_RULE_ID_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: createTempBookingRuleId(),
     court_id: "",
     label: "예약 정보 확인 필요",
     eligibility: "normal",
@@ -109,6 +113,18 @@ function createSeoulCandidateBookingRuleDraft(sortOrder = 10): CourtBookingRule 
     is_active: true,
     sort_order: sortOrder,
   };
+}
+
+function cloneBookingRulesForImport(
+  rules: CourtBookingRule[] | null | undefined,
+  courtId: string
+): CourtBookingRule[] {
+  return sortBookingRules(rules).map((rule, index) => ({
+    ...rule,
+    id: createTempBookingRuleId(),
+    court_id: courtId,
+    sort_order: numberOrNull(rule.sort_order) ?? (index + 1) * 10,
+  }));
 }
 
 async function adminFetch(input: RequestInfo | URL, init: RequestInit = {}) {
@@ -1828,6 +1844,7 @@ export function AdminCourtManager() {
 
   async function importCourtDetails(source: Court) {
     setForm((current) => {
+      const currentCourtId = stringifyValue(current.id);
       const keep = {
         id: current.id,
         basic_court_name: current.basic_court_name,
@@ -1835,10 +1852,12 @@ export function AdminCourtManager() {
         use_or_not: current.use_or_not,
         booking_site_link: current.booking_site_link,
       };
+      const importedForm = toForm(source);
 
       return {
-        ...toForm(source),
+        ...importedForm,
         ...keep,
+        court_booking_rules: cloneBookingRulesForImport(source.court_booking_rules, currentCourtId),
       };
     });
     setIsImportPickerOpen(false);
@@ -1967,7 +1986,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
           ...payload,
           id:
             editingRuleId ||
-            `${TEMP_BOOKING_RULE_ID_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            createTempBookingRuleId(),
           court_id: "",
           is_active: payload.is_active !== false,
           sort_order: numberOrNull(payload.sort_order) ?? 0,
@@ -2401,6 +2420,20 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
     }
   }
 
+  async function deletePersistedBookingRulesForCourt(courtId: string) {
+    const existingRules = sortBookingRules(
+      courts.find((court) => court.id === courtId)?.court_booking_rules
+    ).filter((rule) => !rule.id.startsWith(TEMP_BOOKING_RULE_ID_PREFIX));
+
+    for (const rule of existingRules) {
+      const response = await adminFetch(
+        `/api/admin/courts/booking-rules?id=${encodeURIComponent(rule.id)}`,
+        { method: "DELETE" }
+      );
+      await readAdminResponse(response, "기존 예약 규칙을 삭제하지 못했습니다.");
+    }
+  }
+
   async function saveCourt() {
     setMessage(null);
     setError(null);
@@ -2424,11 +2457,13 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
       const savedCourt = data.court as Court;
       await saveBlogLinksForCourt(savedCourt.id);
       const hadPendingRules =
-        !isUpdate &&
         sortBookingRules(form.court_booking_rules).some((rule) =>
           rule.id.startsWith(TEMP_BOOKING_RULE_ID_PREFIX)
         );
-      if (!isUpdate) {
+      if (hadPendingRules) {
+        if (isUpdate) {
+          await deletePersistedBookingRulesForCourt(savedCourt.id);
+        }
         await savePendingBookingRulesForCourt(savedCourt.id, form.court_booking_rules);
       }
       const savedRules = await refreshBookingRules(savedCourt.id);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Court } from "./types";
 import { FixedScheduleContent } from "./FixedScheduleContent";
@@ -13,14 +14,30 @@ import { IrregularContent } from "./IrregularContent";
 import { CheckingContent } from "./CheckingContent";
 import { FirstVisitCoachmark } from "./FirstVisitCoachmark";
 import { hasActiveBookingRules } from "./BookingRulesContent";
+import { supabase } from "@/lib/supabase";
 
 type Props = {
   courts: Court[];
 };
 
+type CourtListSort = "recent" | "name";
+type MyRegionProfile = {
+  home_region?: string | null;
+  home_city?: string | null;
+};
+
 const courtitemstyle = 
 "grid w-full min-h-[380px] content-start border rounded-xl border-transparent p-5 bg-[#191B1E] gap-2 transition duration-300 ease-in-out hover:-translate-y-1 hover:bg-[#2C2C2C] overflow-hidden min-w-0";
 const COURTS_PER_PAGE = 30;
+
+const getDateTime = (value?: string | null) => {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
+};
+
+const compareCourtName = (a: Court, b: Court) =>
+  (a.basic_court_name ?? "").localeCompare(b.basic_court_name ?? "", "ko");
 
 export function CourtFilter({ courts }: Props) {
   // 실제 필터 상태 (필터링에 사용)
@@ -38,15 +55,61 @@ export function CourtFilter({ courts }: Props) {
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [isFilterClosing, setIsFilterClosing] = useState<boolean>(false);
   const [visibleCount, setVisibleCount] = useState(COURTS_PER_PAGE);
+  const [sortMode, setSortMode] = useState<CourtListSort>("recent");
+  const [myRegionMessage, setMyRegionMessage] = useState<string>("");
+  const [myRegionProfile, setMyRegionProfile] = useState<MyRegionProfile | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+  const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
+  const [isRegionSetupPromptOpen, setIsRegionSetupPromptOpen] = useState(false);
   const asideRef = useRef<HTMLElement | null>(null);
   const resultsRef = useRef<HTMLElement | null>(null);
   const filterCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    setIsMounted(true);
+
     return () => {
       if (filterCloseTimerRef.current) {
         clearTimeout(filterCloseTimerRef.current);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMyRegion = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        if (isMounted) setMyRegionProfile(null);
+        return;
+      }
+
+      const profiles = supabase.from("profiles" as never) as any;
+      const { data } = await profiles
+        .select("home_region, home_city")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (isMounted) {
+        setMyRegionProfile((data ?? null) as MyRegionProfile | null);
+      }
+    };
+
+    loadMyRegion();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      loadMyRegion();
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
     };
   }, []);
 
@@ -171,16 +234,29 @@ export function CourtFilter({ courts }: Props) {
     selectedCourtTypes,
     selectedOwnerTypes,
   ]);
+  const sortedCourts = useMemo(() => {
+    const list = [...filteredCourts];
+    if (sortMode === "name") {
+      return list.sort(compareCourtName);
+    }
+
+    return list.sort((a, b) => {
+      const compared = getDateTime(b.created_at) - getDateTime(a.created_at);
+      if (compared !== 0) return compared;
+      return compareCourtName(a, b);
+    });
+  }, [filteredCourts, sortMode]);
+
   const visibleCourts = useMemo(
-    () => filteredCourts.slice(0, visibleCount),
-    [filteredCourts, visibleCount]
+    () => sortedCourts.slice(0, visibleCount),
+    [sortedCourts, visibleCount]
   );
-  const hasMoreCourts = visibleCount < filteredCourts.length;
+  const hasMoreCourts = visibleCount < sortedCourts.length;
 
   useEffect(() => {
     setVisibleCount(COURTS_PER_PAGE);
     resultsRef.current?.scrollTo({ top: 0 });
-  }, [selectedRegion, selectedCity, selectedCourtTypes, selectedOwnerTypes]);
+  }, [selectedRegion, selectedCity, selectedCourtTypes, selectedOwnerTypes, sortMode]);
 
   const handleResultsScroll = () => {
     const el = resultsRef.current;
@@ -188,8 +264,84 @@ export function CourtFilter({ courts }: Props) {
 
     const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     if (distanceToBottom < 600) {
-      setVisibleCount((current) => Math.min(current + COURTS_PER_PAGE, filteredCourts.length));
+      setVisibleCount((current) => Math.min(current + COURTS_PER_PAGE, sortedCourts.length));
     }
+  };
+
+  const handleSortChange = (nextSort: CourtListSort) => {
+    setSortMode(nextSort);
+  };
+
+  const handleLogin = async () => {
+    const redirectTo = window.location.href;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "kakao",
+      options: {
+        redirectTo,
+      },
+    });
+
+    if (error) {
+      alert(`카카오 로그인 연결에 실패했습니다: ${error.message}`);
+    }
+  };
+
+  const goToProfileRegion = () => {
+    setIsRegionSetupPromptOpen(false);
+    window.location.href = "/mypage?tab=profile";
+  };
+
+  const handleMyRegionClick = async (useTemp = false) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      setIsLoginPromptOpen(true);
+      return;
+    }
+
+    let region = myRegionProfile?.home_region?.trim() ?? "";
+    let city = myRegionProfile?.home_city?.trim() ?? "";
+
+    if (!region) {
+      const profiles = supabase.from("profiles" as never) as any;
+      const { data } = await profiles
+        .select("home_region, home_city")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      const nextProfile = (data ?? null) as MyRegionProfile | null;
+      setMyRegionProfile(nextProfile);
+      region = nextProfile?.home_region?.trim() ?? "";
+      city = nextProfile?.home_city?.trim() ?? "";
+    }
+
+    if (!region) {
+      setIsRegionSetupPromptOpen(true);
+      return;
+    }
+
+    if (!regions.includes(region)) {
+      setMyRegionMessage(`현재 목록에서 '${region}' 지역을 찾지 못했어요.`);
+      return;
+    }
+
+    const availableCities = citiesByRegion[region] ?? [];
+    const nextCity = city && availableCities.includes(city) ? city : "";
+
+    if (useTemp) {
+      setTempRegion(region);
+      setTempCity(nextCity);
+    } else {
+      setSelectedRegion(region);
+      setSelectedCity(nextCity);
+    }
+
+    setMyRegionMessage(
+      nextCity
+        ? `${region} ${nextCity} 필터가 적용됐어요.`
+        : `${region} 필터가 적용됐어요.`
+    );
   };
 
   // 팝업 열 때 임시 상태를 현재 상태로 초기화
@@ -303,6 +455,50 @@ export function CourtFilter({ courts }: Props) {
 
     return (
       <>
+        {/* 내 지역 필터 */}
+        <section className="mb-6">
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-1.5">
+              <span className="flex h-6 w-6 items-center justify-center text-[#53A978]">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 21C12 21 18 15.5 18 9.75C18 6.44 15.31 3.75 12 3.75C8.69 3.75 6 6.44 6 9.75C6 15.5 12 21 12 21Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M12 12.25C13.38 12.25 14.5 11.13 14.5 9.75C14.5 8.37 13.38 7.25 12 7.25C10.62 7.25 9.5 8.37 9.5 9.75C9.5 11.13 10.62 12.25 12 12.25Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              <span className="text-sm font-bold text-white">내 지역</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => handleMyRegionClick(useTemp)}
+              className="shrink-0 rounded-md border border-[#53A978]/50 px-3 py-1.5 text-xs font-bold text-[#53A978] transition-colors hover:border-[#53A978] hover:bg-[#1E2A24] hover:text-[#7BE0A0]"
+            >
+              적용
+            </button>
+          </div>
+          {myRegionMessage ? (
+            <p className="mt-2 text-sm leading-5 text-[#8A8F98]">{myRegionMessage}</p>
+          ) : null}
+        </section>
+
         {/* 지역 필터 */}
         <section className="mb-6">
           <h3 className={`mb-2 text-lg font-bold text-white`}>
@@ -466,13 +662,15 @@ export function CourtFilter({ courts }: Props) {
   };
 
   return (
+    <>
     <div className="flex relative flex-1 overflow-hidden">
       <FirstVisitCoachmark />
+      <div className="pointer-events-none absolute top-0 bottom-0 left-[calc(20px+18rem)] hidden w-px bg-[#24272D] min-[1032px]:block" />
       {/* 좌측 필터 영역 - 1032px 이상에서만 표시 */}
       <aside 
         ref={asideRef}
         data-coachmark="filter-area"
-        className="hidden min-[1032px]:block w-full max-w-2xs h-[calc(100vh-73px-40px)] overflow-y-auto rounded-[10px] p-7.5 bg-[#000000] overscroll-y-none ml-5 mt-5"
+        className="filter-scrollbar hidden min-[1032px]:block w-full max-w-2xs h-[calc(100vh-73px-40px)] overflow-y-auto p-7.5 pr-6 bg-[#000000] overscroll-y-none ml-5 mt-5"
       >
         {/*<h2 className="mb-6 text-2xl font-black text-zinc-900">
           GROUND KOREA
@@ -649,13 +847,33 @@ export function CourtFilter({ courts }: Props) {
           </a>
         </div>
 
-        <div className="mt-8">
+        <div className="mt-8 flex flex-col items-start gap-7">
+          <div className="flex items-center gap-5 overflow-x-auto text-base font-semibold">
+            <button
+              type="button"
+              onClick={() => handleSortChange("recent")}
+              className={`whitespace-nowrap transition-colors ${
+                sortMode === "recent" ? "text-white" : "text-[#6F737B] hover:text-white"
+              }`}
+            >
+              최근 등록순
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSortChange("name")}
+              className={`whitespace-nowrap transition-colors ${
+                sortMode === "name" ? "text-white" : "text-[#6F737B] hover:text-white"
+              }`}
+            >
+              이름순
+            </button>
+          </div>
           <p className="text-lg font-semibold text-white">
-            {filteredCourts.length}개의 코트
+            {sortedCourts.length}개의 코트
           </p>
         </div>
 
-        {filteredCourts.length === 0 ? (
+        {sortedCourts.length === 0 ? (
           <p className="text-[#B0B0B0]">조건에 맞는 코트가 없습니다.</p>
         ) : (
           <ul className="grid grid-cols-1 gap-4 max-[768px]:grid-cols-1 min-[769px]:max-[1275px]:grid-cols-2 min-[1276px]:sm:grid-cols-2 min-[1276px]:lg:grid-cols-3 min-[1276px]:2xl:grid-cols-4">
@@ -677,14 +895,14 @@ export function CourtFilter({ courts }: Props) {
           </div>
         ) : null}
 
-        {filteredCourts.length > 0 ? (
+        {sortedCourts.length > 0 ? (
           <nav
             aria-label="전체 테니스장 바로가기"
             className="mt-12 rounded-xl border border-[#242426] bg-[#101112] p-5"
           >
             <h2 className="text-sm font-semibold text-white">전체 테니스장 바로가기</h2>
             <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
-              {filteredCourts.map((court) => (
+              {sortedCourts.map((court) => (
                 <Link
                   key={court.id}
                   href={`/courts/${court.slug || court.id}`}
@@ -730,5 +948,66 @@ export function CourtFilter({ courts }: Props) {
         </footer>
       </section>
     </div>
+
+    {isMounted && isLoginPromptOpen
+      ? createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4">
+            <div className="w-full max-w-sm rounded-xl border border-[#2C2C2C] bg-[#191B1E] p-5 shadow-2xl">
+              <h2 className="text-lg font-semibold text-white">로그인이 필요한 기능입니다.</h2>
+              <p className="mt-3 text-sm leading-6 text-[#B0B0B0]">
+                내 지역 필터를 사용하려면 로그인이 필요합니다.
+              </p>
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsLoginPromptOpen(false)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-[#B0B0B0] hover:bg-[#2C2C2C]"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogin}
+                  className="rounded-lg bg-[#2C8B56] px-4 py-2 text-sm font-medium text-white hover:bg-[#53A978]"
+                >
+                  로그인하기
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null}
+
+    {isMounted && isRegionSetupPromptOpen
+      ? createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4">
+            <div className="w-full max-w-sm rounded-xl border border-[#2C2C2C] bg-[#191B1E] p-5 shadow-2xl">
+              <h2 className="text-lg font-semibold text-white">내 지역을 먼저 설정해주세요.</h2>
+              <p className="mt-3 text-sm leading-6 text-[#B0B0B0]">
+                마이페이지에서 시/도와 시/군/구를 설정하면 내 지역 필터를 바로 사용할 수 있어요.
+              </p>
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsRegionSetupPromptOpen(false)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-[#B0B0B0] hover:bg-[#2C2C2C]"
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={goToProfileRegion}
+                  className="rounded-lg bg-[#2C8B56] px-4 py-2 text-sm font-medium text-white hover:bg-[#53A978]"
+                >
+                  마이페이지로 이동
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null}
+    </>
   );
 }

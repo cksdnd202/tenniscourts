@@ -7,7 +7,7 @@ import { CourtSearchHeader } from "./CourtSearchHeader";
 export const revalidate = 60;
 
 const COURT_CARD_SELECT =
-  "id, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, booking_site_link, basic_map_link, booking_rule_type, booking_lottery_desc, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_offset, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal";
+  "id, created_at, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, booking_site_link, basic_map_link, booking_rule_type, booking_lottery_desc, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_offset, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal";
 
 async function attachBookingRules(courts: Court[]) {
   const courtIds = courts.map((court) => court.id).filter(Boolean);
@@ -42,7 +42,7 @@ export default async function Home() {
     .from("courtinfo")
     .select(COURT_CARD_SELECT)
     .eq("use_or_not", true)
-    .order("basic_court_name", { ascending: true });
+    .order("created_at", { ascending: false });
   
   const typedData = data as Court[] | null;
 

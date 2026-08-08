@@ -396,6 +396,30 @@ body {
   scrollbar-gutter: stable;
 }
 
+.filter-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #3F4650 transparent;
+}
+
+.filter-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.filter-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.filter-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #3F4650;
+  border-radius: 999px;
+}
+
+.filter-scrollbar::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 /* 커스텀 체크박스 스타일 */
 .custom-checkbox {
   appearance: none;
