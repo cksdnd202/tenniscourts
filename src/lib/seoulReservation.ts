@@ -67,6 +67,18 @@ export function normalizeSeoulServiceName(value: string | null | undefined) {
     .trim();
 }
 
+export function normalizeSeoulReservationIdentityName(value: string | null | undefined) {
+  return normalizeSeoulServiceName(value)
+    .replace(/\d{4}[./-]\d{1,2}[./-]\d{1,2}\s*~\s*\d{4}[./-]\d{1,2}[./-]\d{1,2}/g, "")
+    .replace(/\d{1,2}[./-]\d{1,2}\s*~\s*\d{1,2}[./-]\d{1,2}/g, "")
+    .replace(/\d{1,2}\s*일\s*~\s*(?:\d{1,2}\s*일|말일)/g, "")
+    .replace(/\b\d+\s*차\b/g, "")
+    .replace(/\d+\s*차/g, "")
+    .replace(/접수|예약|대관/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function getSeoulServiceMonth(value: string | null | undefined) {
   const match = (value ?? "").match(/(?:^|[^\d])(\d{1,2})\s*월/);
   if (!match) return null;
@@ -130,6 +142,20 @@ export function buildSeoulReservationLooseMatchKey(input: {
   const area = normalizeText(input.areaName);
   const place = normalizePlaceName(input.placeName);
   const service = normalizeSeoulServiceName(input.serviceName);
+
+  return [SEOUL_RESERVATION_PROVIDER, area, place, service]
+    .map((part) => part || "-")
+    .join("|");
+}
+
+export function buildSeoulReservationIdentityKey(input: {
+  areaName?: string | null;
+  placeName?: string | null;
+  serviceName?: string | null;
+}) {
+  const area = normalizeText(input.areaName);
+  const place = normalizePlaceName(input.placeName);
+  const service = normalizeSeoulReservationIdentityName(input.serviceName);
 
   return [SEOUL_RESERVATION_PROVIDER, area, place, service]
     .map((part) => part || "-")

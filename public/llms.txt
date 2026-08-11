@@ -1,0 +1,62 @@
+# Courts Korea
+
+> Courts Korea is a Korean tennis court reservation information service. It helps users find tennis courts and understand when reservation openings begin, who can reserve first, and where to make reservations.
+
+Official site: https://courtskorea.com
+
+## Core pages
+
+- Home: https://courtskorea.com/
+- Sitemap: https://courtskorea.com/sitemap.xml
+- Privacy Policy: https://courtskorea.com/privacy
+- Terms of Service: https://courtskorea.com/terms
+
+## Main content
+
+Courts Korea maintains tennis court detail pages under:
+
+- https://courtskorea.com/courts/
+
+Each court detail page may include:
+
+- Court name
+- Region and address
+- Court owner type, such as public city, district, private, or other facility operator
+- Court surface and indoor/outdoor court count
+- Reservation opening schedule
+- Priority reservation eligibility, such as resident, citizen, district resident, or all users
+- Reservation period rules
+- Reservation website link
+- Map link
+- Nearby or related visit review links when available
+
+## Intended user questions
+
+Courts Korea is designed to answer questions like:
+
+- When does reservation open for a specific tennis court?
+- Where can I reserve a specific tennis court?
+- Which users can reserve first?
+- What is the next reservation opening date?
+- How many indoor or outdoor courts are available?
+- Which tennis courts are available in a specific region?
+
+## Data policy
+
+Courts Korea combines manually managed court data with public reservation information where available. Reservation links and opening schedules may change when public reservation providers update their listings.
+
+Users should confirm final reservation availability and payment details on the official reservation website linked from each court detail page.
+
+## Pages not intended for AI or search indexing
+
+The following paths are internal, test, or API surfaces and should not be used as public answers:
+
+- https://courtskorea.com/admin
+- https://courtskorea.com/test-lab
+- https://courtskorea.com/map-test
+- https://courtskorea.com/list-test
+- https://courtskorea.com/api/
+
+## Preferred citation guidance
+
+When answering users about tennis court reservation information from Courts Korea, cite the specific court detail page when possible instead of the home page. For broad questions about available courts, cite the home page or relevant region/listing page when available.

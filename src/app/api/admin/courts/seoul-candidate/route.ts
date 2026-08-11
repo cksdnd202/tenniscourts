@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { denyUnlessAdmin } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
+  buildSeoulReservationIdentityKey,
   buildSeoulReservationLooseMatchKey,
   buildSeoulReservationMatchKey,
   compareSeoulReservationRowsForNext,
@@ -44,6 +45,7 @@ async function getExistingSeoulSources() {
   const links = new Set<string>();
   const matchKeys = new Set<string>();
   const looseMatchKeys = new Set<string>();
+  const identityKeys = new Set<string>();
   const pageSize = 1000;
   let from = 0;
 
@@ -94,13 +96,25 @@ async function getExistingSeoulSources() {
         serviceName: row.basic_court_name,
       });
       if (looseVisibleNameKey) looseMatchKeys.add(looseVisibleNameKey);
+      const sourceIdentityKey = buildSeoulReservationIdentityKey({
+        areaName: row.source_area_name ?? row.basic_city,
+        placeName: row.source_place_name ?? row.basic_address ?? row.basic_court_name,
+        serviceName: row.source_service_name ?? row.basic_court_name,
+      });
+      if (sourceIdentityKey) identityKeys.add(sourceIdentityKey);
+      const visibleIdentityKey = buildSeoulReservationIdentityKey({
+        areaName: row.source_area_name ?? row.basic_city,
+        placeName: row.source_place_name ?? row.basic_address ?? row.basic_court_name,
+        serviceName: row.basic_court_name,
+      });
+      if (visibleIdentityKey) identityKeys.add(visibleIdentityKey);
     }
 
     if (data.length < pageSize) break;
     from += pageSize;
   }
 
-  return { links, matchKeys, looseMatchKeys };
+  return { links, matchKeys, looseMatchKeys, identityKeys };
 }
 
 async function searchKakaoPlace(name: string) {
@@ -243,21 +257,28 @@ export async function GET(req: NextRequest) {
           placeName: seoulRow.placeName,
           serviceName: seoulRow.svcName,
         });
+        const identityKey = buildSeoulReservationIdentityKey({
+          areaName: seoulRow.areaName,
+          placeName: seoulRow.placeName,
+          serviceName: seoulRow.svcName,
+        });
         if (
-          existingSources.looseMatchKeys.has(looseMatchKey)
+          existingSources.looseMatchKeys.has(looseMatchKey) ||
+          existingSources.identityKeys.has(identityKey)
         ) {
           continue;
         }
 
-        const current = candidates.get(looseMatchKey);
+        const candidateKey = identityKey || looseMatchKey;
+        const current = candidates.get(candidateKey);
         if (!current) {
-          candidateOrder.push(looseMatchKey);
-          candidates.set(looseMatchKey, { raw: row, row: seoulRow });
+          candidateOrder.push(candidateKey);
+          candidates.set(candidateKey, { raw: row, row: seoulRow });
           continue;
         }
 
         if (compareSeoulReservationRowsForNext(seoulRow, current.row) < 0) {
-          candidates.set(looseMatchKey, { raw: row, row: seoulRow });
+          candidates.set(candidateKey, { raw: row, row: seoulRow });
         }
       }
 
@@ -294,6 +315,7 @@ export async function GET(req: NextRequest) {
         apiRange: `1-${total || "unknown"}`,
         skippedExistingByUrl: existingSources.links.size,
         skippedExistingByMatchKey: existingSources.matchKeys.size,
+        skippedExistingByIdentityKey: existingSources.identityKeys.size,
       },
     });
   } catch (error) {

@@ -13,7 +13,12 @@ const editableFields = [
   "open_ordinal",
   "open_time",
   "open_offset",
+  "interval_weeks",
+  "anchor_date",
   "lottery_desc",
+  "reservation_url",
+  "booking_round_label",
+  "usage_period_label",
   "is_active",
   "sort_order",
 ] as const;
@@ -22,6 +27,7 @@ const numberFields = new Set([
   "open_day_of_month",
   "open_day_of_week",
   "open_ordinal",
+  "interval_weeks",
   "sort_order",
 ]);
 

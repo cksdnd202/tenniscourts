@@ -4,6 +4,8 @@ Allow: /
 
 # 내부 테스트·개발용 페이지 (검색 수집 제외)
 Disallow: /test-lab
+Disallow: /map-test
+Disallow: /list-test
 
 # 운영자 전용 어드민 페이지 (검색 수집 제외)
 Disallow: /admin
@@ -12,5 +14,38 @@ Disallow: /admin/
 # API 경로 (검색 결과에 노출할 필요 없음)
 Disallow: /api/
 
-# 배포 갱신 확인용 주석
+# AI 검색 크롤러 허용
+# OAI-SearchBot은 ChatGPT 검색 결과 노출을 위한 OpenAI 검색 크롤러입니다.
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /test-lab
+Disallow: /map-test
+Disallow: /list-test
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+
+# ChatGPT-User는 사용자가 요청한 페이지 조회에 쓰일 수 있습니다.
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /test-lab
+Disallow: /map-test
+Disallow: /list-test
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+
+# Perplexity 검색/답변 크롤러 허용
+User-agent: PerplexityBot
+Allow: /
+Disallow: /test-lab
+Disallow: /map-test
+Disallow: /list-test
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+
+# AI 에이전트가 사이트 핵심 문서를 찾기 쉽게 안내
+# LLMs: https://courtskorea.com/llms.txt
+
 Sitemap: https://courtskorea.com/sitemap.xml

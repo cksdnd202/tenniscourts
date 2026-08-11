@@ -1,4 +1,4 @@
-import type { Court } from "../types";
+import type { Court, CourtBookingRule } from "../types";
 import {
   getNextBookingRuleOpen,
   getNextNormalBookingOpen,
@@ -23,7 +23,20 @@ type NextOpenPreview = {
   badge: string;
   badgeTone: BookingOpenLabelTone;
   open: NextOpenResult;
+  rule?: CourtBookingRule;
 };
+
+function hasRuleSpecificReservation(rule: CourtBookingRule | null | undefined) {
+  return Boolean(
+    rule?.reservation_url?.trim() ||
+      rule?.booking_round_label?.trim() ||
+      rule?.usage_period_label?.trim()
+  );
+}
+
+function getRuleReservationUrl(rule: CourtBookingRule | null | undefined) {
+  return rule?.reservation_url?.trim() || "";
+}
 
 function sortActiveBookingRules(court: Court) {
   return (court.court_booking_rules ?? [])
@@ -40,19 +53,22 @@ function getNextOpenPreviews(court: Court): NextOpenPreview[] {
   const activeRules = sortActiveBookingRules(court);
 
   if (activeRules.length > 0) {
-    return activeRules
-      .map((rule) => {
+    const previews = activeRules
+      .map<NextOpenPreview | null>((rule) => {
         const open = getNextBookingRuleOpen(court, rule);
         if (!open) return null;
         const badge = formatBookingRuleEligibility(rule.eligibility);
         return {
           key: rule.id,
           badge,
-          badgeTone: badge === "전체" ? "general" : "priority",
+          badgeTone: badge === "전체" ? ("general" as const) : ("priority" as const),
           open,
+          rule,
         };
       })
       .filter((item): item is NextOpenPreview => Boolean(item));
+
+    return previews;
   }
 
   const priorityLabel = getPriorityBookingLabel(court);
@@ -144,18 +160,24 @@ function buildCalendarLinks(params: {
 function NextOpenPreviewCard({
   badge,
   badgeTone,
+  title = "다음 예약 오픈 일",
   dateLabel,
   timeLabel,
   calendarLinks,
+  reservationUrl,
+  reservationUnavailableText,
   compact = false,
   courtId,
   courtName,
 }: {
   badge: string;
   badgeTone: BookingOpenLabelTone;
+  title?: string;
   dateLabel: string;
   timeLabel: string;
   calendarLinks?: { ics: string; google: string; androidEvent: CalendarAndroidEventPayload };
+  reservationUrl?: string;
+  reservationUnavailableText?: string;
   compact?: boolean;
   courtId?: string;
   courtName?: string | null;
@@ -178,7 +200,7 @@ function NextOpenPreviewCard({
             {badge}
           </span>
           <span className={compact ? "text-xs text-white" : "text-sm text-white"}>
-            다음 예약 오픈 일
+            {title}
           </span>
         </div>
         {calendarLinks ? (
@@ -210,6 +232,29 @@ function NextOpenPreviewCard({
           {timeLabel}
         </span>
       </div>
+      {reservationUrl ? (
+        <a
+          href={reservationUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          data-gtm="reserve_click"
+          data-court-id={courtId}
+          data-court-name={courtName ?? undefined}
+          className={`mt-4 flex w-full items-center justify-center rounded-lg bg-[#4ADE80] text-center font-semibold text-black transition hover:bg-[#3fcf6f] ${
+            compact ? "py-2.5 text-xs" : "py-3 text-sm"
+          }`}
+        >
+          예약하러가기
+        </a>
+      ) : reservationUnavailableText ? (
+        <span
+          className={`mt-4 flex w-full items-center justify-center rounded-lg bg-[#252525] text-center font-medium text-[#8A8F98] ${
+            compact ? "px-3 py-2.5 text-[11px]" : "px-4 py-3 text-xs"
+          }`}
+        >
+          {reservationUnavailableText}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -218,6 +263,9 @@ function NextOpenPreviewCard({
 export function CourtDetailAside({ court }: { court: Court }) {
   const previews = getNextOpenPreviews(court);
   const reservationHref = getReservationHref(court);
+  const useRuleReservationActions = previews.some((preview) =>
+    hasRuleSpecificReservation(preview.rule)
+  );
 
   return (
     <div className="sticky top-[calc(73px+0.75rem)] z-20 w-full min-w-0">
@@ -227,8 +275,17 @@ export function CourtDetailAside({ court }: { court: Court }) {
             key={preview.key}
             badge={preview.badge}
             badgeTone={preview.badgeTone}
+            title={preview.rule?.usage_period_label?.trim() || "다음 예약 오픈 일"}
             dateLabel={preview.open.dateLabel}
             timeLabel={preview.open.timeLabel}
+            reservationUrl={
+              useRuleReservationActions ? getRuleReservationUrl(preview.rule) : undefined
+            }
+            reservationUnavailableText={
+              useRuleReservationActions && !getRuleReservationUrl(preview.rule)
+                ? "아직 다음 예약 링크가 열리지 않았습니다."
+                : undefined
+            }
             calendarLinks={buildCalendarLinks({
               courtName: court.basic_court_name ?? "테니스장",
               badge: preview.badge,
@@ -240,7 +297,7 @@ export function CourtDetailAside({ court }: { court: Court }) {
           />
         ))}
 
-        {court.booking_site_link ? (
+        {!useRuleReservationActions && court.booking_site_link ? (
           <a
             href={reservationHref}
             target="_blank"
@@ -252,11 +309,11 @@ export function CourtDetailAside({ court }: { court: Court }) {
           >
             예약하러가기
           </a>
-        ) : (
+        ) : !useRuleReservationActions ? (
           <span className="flex w-full items-center justify-center rounded-xl bg-[#2C2C2C] px-5 py-3.5 text-center text-sm text-[#6B7280]">
             예약 링크 없음
           </span>
-        )}
+        ) : null}
       </aside>
     </div>
   );
@@ -267,6 +324,9 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
   const previews = getNextOpenPreviews(court);
   const reservationHref = getReservationHref(court);
   const hasMultiplePreviews = previews.length > 1;
+  const useRuleReservationActions = previews.some((preview) =>
+    hasRuleSpecificReservation(preview.rule)
+  );
 
   const previewBlocks =
     previews.length > 0 ? (
@@ -278,8 +338,17 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
                 <NextOpenPreviewCard
                   badge={preview.badge}
                   badgeTone={preview.badgeTone}
+                  title={preview.rule?.usage_period_label?.trim() || "다음 예약 오픈 일"}
                   dateLabel={preview.open.dateLabel}
                   timeLabel={preview.open.timeLabel}
+                  reservationUrl={
+                    useRuleReservationActions ? getRuleReservationUrl(preview.rule) : undefined
+                  }
+                  reservationUnavailableText={
+                    useRuleReservationActions && !getRuleReservationUrl(preview.rule)
+                      ? "아직 다음 예약 링크가 열리지 않았습니다."
+                      : undefined
+                  }
                   calendarLinks={buildCalendarLinks({
                     courtName: court.basic_court_name ?? "테니스장",
                     badge: preview.badge,
@@ -298,8 +367,17 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
           <NextOpenPreviewCard
             badge={previews[0].badge}
             badgeTone={previews[0].badgeTone}
+            title={previews[0].rule?.usage_period_label?.trim() || "다음 예약 오픈 일"}
             dateLabel={previews[0].open.dateLabel}
             timeLabel={previews[0].open.timeLabel}
+            reservationUrl={
+              useRuleReservationActions ? getRuleReservationUrl(previews[0].rule) : undefined
+            }
+            reservationUnavailableText={
+              useRuleReservationActions && !getRuleReservationUrl(previews[0].rule)
+                ? "아직 다음 예약 링크가 열리지 않았습니다."
+                : undefined
+            }
             calendarLinks={buildCalendarLinks({
               courtName: court.basic_court_name ?? "테니스장",
               badge: previews[0].badge,
@@ -322,6 +400,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
           {previewBlocks}
         </div>
       ) : null}
+      {!useRuleReservationActions ? (
       <div className="px-4 pt-3">
         {court.booking_site_link ? (
           <a
@@ -341,6 +420,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
           </span>
         )}
       </div>
+      ) : null}
       </div>
     </MobileScrollHideBar>
   );

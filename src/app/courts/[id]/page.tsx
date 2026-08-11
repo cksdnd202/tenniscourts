@@ -11,6 +11,7 @@ import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSectio
 import { CourtDetailAddress, CourtDetailTable, CourtDetailMap } from "../../detail/CourtDetailCommon";
 import { CourtDetailAside, CourtDetailMobileBookBar } from "../../detail/CourtDetailAside";
 import { RecentCourtViewTracker } from "../../detail/RecentCourtViewTracker";
+import { ShareButton } from "../../detail/ShareButton";
 import { FavoriteButton } from "../../FavoriteButton";
 
 export const revalidate = 60;
@@ -330,7 +331,8 @@ export default async function CourtDetailPage({ params }: PageProps) {
                     </span>
                   ) : null}
                 </div>
-                <div className="inline-flex flex-shrink-0">
+                <div className="inline-flex flex-shrink-0 items-center gap-2">
+                  <ShareButton title={court.basic_court_name ?? "Courts Korea"} />
                   <FavoriteButton courtId={court.id} />
                 </div>
               </div>

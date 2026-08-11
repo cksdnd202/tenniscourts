@@ -36,6 +36,7 @@ const formatWeekOfMonth = (week: number | string | null | undefined): string => 
 const formatDayOfWeek = (day: number | null | undefined): string => {
   if (day == null) return "";
   const dayMap: Record<number, string> = {
+    0: "일요일",
     1: "월요일",
     2: "화요일",
     3: "수요일",
@@ -83,6 +84,13 @@ function buildBookingRuleReservationSentence(rule: CourtBookingRule): string | n
   if (rule.rule_type === "rolling") {
     if (!time) return `${label} 예약은 매일 새 예약이 오픈됩니다.`;
     return `${label} 예약은 매일 ${time}에 새 예약이 오픈됩니다.`;
+  }
+
+  if (rule.rule_type === "interval_weekly") {
+    const interval = rule.interval_weeks && rule.interval_weeks > 1 ? `${rule.interval_weeks}주마다` : "매주";
+    const weekday = formatDayOfWeek(rule.open_day_of_week);
+    const when = [interval, weekday, time].filter(Boolean).join(" ");
+    return `${label} 예약은 ${when}에 새 예약이 오픈됩니다.`;
   }
 
   if (rule.rule_type === "fixed_schedule" || rule.rule_type === "ordinal") {

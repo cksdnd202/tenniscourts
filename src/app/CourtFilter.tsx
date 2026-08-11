@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabase";
 
 type Props = {
   courts: Court[];
+  showViewToggle?: boolean;
 };
 
 type CourtListSort = "recent" | "name";
@@ -39,7 +40,7 @@ const getDateTime = (value?: string | null) => {
 const compareCourtName = (a: Court, b: Court) =>
   (a.basic_court_name ?? "").localeCompare(b.basic_court_name ?? "", "ko");
 
-export function CourtFilter({ courts }: Props) {
+export function CourtFilter({ courts, showViewToggle = false }: Props) {
   // 실제 필터 상태 (필터링에 사용)
   const [selectedRegion, setSelectedRegion] = useState<string>("");
   const [selectedCity, setSelectedCity] = useState<string>("");
@@ -848,6 +849,14 @@ export function CourtFilter({ courts }: Props) {
         </div>
 
         <div className="mt-8 flex flex-col items-start gap-7">
+          {showViewToggle ? (
+            <div className="inline-flex rounded-full bg-[#191B1E] p-1 text-sm font-bold text-[#8A8F98]">
+              <span className="rounded-full bg-[#2F9461] px-4 py-2 text-white">목록으로 보기</span>
+              <Link href="/map-test" className="rounded-full px-4 py-2 transition hover:text-white">
+                지도로 보기
+              </Link>
+            </div>
+          ) : null}
           <div className="flex items-center gap-5 overflow-x-auto text-base font-semibold">
             <button
               type="button"

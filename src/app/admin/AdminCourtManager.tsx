@@ -29,6 +29,21 @@ type CourtBlogLinkDraft = Partial<CourtBlogLink>;
 type CourtBookingRuleDraft = Partial<CourtBookingRule>;
 type RulePreviewMode = "full" | "grouped" | "compact";
 
+type SeoulRuleCandidate = {
+  serviceId: string | null;
+  serviceName: string;
+  serviceUrl: string;
+  areaName: string;
+  placeName: string;
+  minTime: string;
+  maxTime: string;
+  receptionPeriod: string;
+  usePeriod: string;
+  bookingRoundLabel: string;
+  usagePeriodLabel: string;
+  score: number;
+};
+
 type FieldConfig = {
   key: keyof Court;
   label: string;
@@ -90,7 +105,12 @@ function createEmptyBookingRuleDraft(courtId: string, sortOrder = 0): CourtBooki
     open_ordinal: null,
     open_time: "",
     open_offset: "다음달",
+    interval_weeks: null,
+    anchor_date: null,
     lottery_desc: "",
+    reservation_url: "",
+    booking_round_label: "",
+    usage_period_label: "",
     is_active: true,
     sort_order: sortOrder,
   };
@@ -109,7 +129,12 @@ function createSeoulCandidateBookingRuleDraft(sortOrder = 10): CourtBookingRule 
     open_ordinal: null,
     open_time: null,
     open_offset: null,
+    interval_weeks: null,
+    anchor_date: null,
     lottery_desc: null,
+    reservation_url: null,
+    booking_round_label: null,
+    usage_period_label: null,
     is_active: true,
     sort_order: sortOrder,
   };
@@ -493,6 +518,8 @@ function formatRuleType(value: string | null | undefined) {
       return "고정 일정";
     case "rolling":
       return "상시/롤링";
+    case "interval_weekly":
+      return "주기 반복";
     case "lottery":
       return "추첨";
     case "phone":
@@ -579,7 +606,12 @@ function normalizeBookingRuleForSave(rule: CourtBookingRuleDraft) {
     open_ordinal: numberOrNull(rule.open_ordinal),
     open_time: stringifyValue(rule.open_time).trim() || null,
     open_offset: stringifyValue(rule.open_offset).trim() || null,
+    interval_weeks: numberOrNull(rule.interval_weeks),
+    anchor_date: stringifyValue(rule.anchor_date).trim() || null,
     lottery_desc: stringifyValue(rule.lottery_desc).trim() || null,
+    reservation_url: stringifyValue(rule.reservation_url).trim() || null,
+    booking_round_label: stringifyValue(rule.booking_round_label).trim() || null,
+    usage_period_label: stringifyValue(rule.usage_period_label).trim() || null,
     is_active: rule.is_active !== false,
     sort_order: numberOrNull(rule.sort_order) ?? 0,
   };
@@ -616,6 +648,16 @@ function isBookingRuleDraftFieldVisible(
     return field === "open_time" || field === "open_offset";
   }
 
+  if (ruleType === "interval_weekly") {
+    return (
+      field === "open_day_of_week" ||
+      field === "open_time" ||
+      field === "open_offset" ||
+      field === "interval_weeks" ||
+      field === "anchor_date"
+    );
+  }
+
   if (ruleType === "fixed_schedule") {
     if (field === "open_type" || field === "open_time" || field === "open_offset") return true;
     if (field === "open_day_of_month") return openType === "day" || openType === "week";
@@ -646,6 +688,7 @@ const bookingRuleTypeOptions = [
   { label: "선택 안 함", value: "" },
   { label: "고정 일정(fixed_schedule)", value: "fixed_schedule" },
   { label: "상시/롤링(rolling)", value: "rolling" },
+  { label: "주기 반복(interval_weekly)", value: "interval_weekly" },
   { label: "추첨(lottery)", value: "lottery" },
   { label: "전화(phone)", value: "phone" },
   { label: "현장(on_site)", value: "on_site" },
@@ -743,26 +786,198 @@ function BookingRulesEditor({
   draft,
   editingRuleId,
   isSavingRule,
+  isFindingSeoulLinks,
   onStartCreate,
   onStartEdit,
   onDelete,
   onCancel,
   onSave,
   onChange,
+  onFindSeoulLinks,
 }: {
   courtId: string | null | undefined;
   rules: CourtBookingRule[] | null | undefined;
   draft: CourtBookingRuleDraft | null;
   editingRuleId: string | null;
   isSavingRule: boolean;
+  isFindingSeoulLinks: boolean;
   onStartCreate: () => void;
   onStartEdit: (rule: CourtBookingRule) => void;
   onDelete: (rule: CourtBookingRule) => void;
   onCancel: () => void;
   onSave: () => void;
   onChange: (key: keyof CourtBookingRuleDraft, value: unknown) => void;
+  onFindSeoulLinks: () => void;
 }) {
   const sortedRules = sortBookingRules(rules);
+  const draftForm = draft ? (
+    <div className="rounded-lg border border-[#335c43] bg-black p-3">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold text-white">
+          {editingRuleId ? "예약 규칙 수정" : "예약 규칙 추가"}
+        </h4>
+        <label className="flex items-center gap-2 text-xs text-[#cfcfcf]">
+          <input
+            type="checkbox"
+            checked={draft.is_active !== false}
+            onChange={(event) => onChange("is_active", event.target.checked)}
+            className="custom-checkbox"
+          />
+          활성화
+        </label>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <RuleDraftTextInput
+          label="레이블"
+          value={draft.label}
+          onChange={(value) => onChange("label", value)}
+          placeholder="예: 구민, 전체, 추첨"
+        />
+        <RuleDraftSelect
+          label="자격"
+          value={draft.eligibility}
+          options={bookingRuleEligibilityOptions}
+          onChange={(value) => onChange("eligibility", value)}
+        />
+        <RuleDraftSelect
+          label="예약 규칙"
+          value={draft.rule_type}
+          options={bookingRuleTypeOptions}
+          onChange={(value) => onChange("rule_type", value)}
+        />
+        {isBookingRuleDraftFieldVisible(draft, "open_type") ? (
+          <RuleDraftSelect
+            label="오픈 타입"
+            value={draft.open_type}
+            options={bookingRuleOpenTypeOptions}
+            onChange={(value) => onChange("open_type", value)}
+          />
+        ) : null}
+        {isBookingRuleDraftFieldVisible(draft, "open_day_of_month") ? (
+          <RuleDraftTextInput
+            label={stringifyValue(draft.open_type) === "week" ? "월 오픈 일자" : "오픈 일자"}
+            value={draft.open_day_of_month}
+            type="number"
+            onChange={(value) => onChange("open_day_of_month", value)}
+            placeholder={stringifyValue(draft.open_type) === "week" ? "예: 1 또는 -1" : "예: 13"}
+          />
+        ) : null}
+        {isBookingRuleDraftFieldVisible(draft, "open_day_of_week") ? (
+          <RuleDraftSelect
+            label="오픈 요일"
+            value={draft.open_day_of_week}
+            options={bookingRuleWeekdayOptions}
+            onChange={(value) => onChange("open_day_of_week", value)}
+          />
+        ) : null}
+        {isBookingRuleDraftFieldVisible(draft, "open_ordinal") ? (
+          <RuleDraftSelect
+            label="예약 오픈 주차"
+            value={draft.open_ordinal}
+            options={bookingRuleOrdinalOptions}
+            onChange={(value) => onChange("open_ordinal", value)}
+          />
+        ) : null}
+        {isBookingRuleDraftFieldVisible(draft, "open_time") ? (
+          <RuleDraftTextInput
+            label="오픈 시간"
+            value={draft.open_time}
+            type="time"
+            onChange={(value) => onChange("open_time", value)}
+          />
+        ) : null}
+        {isBookingRuleDraftFieldVisible(draft, "open_offset") ? (
+          <RuleDraftTextInput
+            label="오픈되는 범위"
+            value={draft.open_offset}
+            onChange={(value) => onChange("open_offset", value)}
+            placeholder={
+              stringifyValue(draft.rule_type) === "rolling"
+                ? "예: 30"
+                : stringifyValue(draft.rule_type) === "interval_weekly"
+                  ? "예: 다음 2주"
+                  : "예: 다음달 또는 당월"
+            }
+          />
+        ) : null}
+        {isBookingRuleDraftFieldVisible(draft, "interval_weeks") ? (
+          <RuleDraftTextInput
+            label="반복 주기(주)"
+            value={draft.interval_weeks}
+            type="number"
+            onChange={(value) => onChange("interval_weeks", value)}
+            placeholder="예: 2"
+          />
+        ) : null}
+        {isBookingRuleDraftFieldVisible(draft, "anchor_date") ? (
+          <RuleDraftTextInput
+            label="기준 오픈일"
+            value={draft.anchor_date}
+            onChange={(value) => onChange("anchor_date", value)}
+            placeholder="예: 2026-08-15"
+          />
+        ) : null}
+        <RuleDraftTextInput
+          label="정렬 순서"
+          value={draft.sort_order}
+          type="number"
+          onChange={(value) => onChange("sort_order", value)}
+        />
+        <RuleDraftTextInput
+          label="차수명"
+          value={draft.booking_round_label}
+          onChange={(value) => onChange("booking_round_label", value)}
+          placeholder="예: 1차 예약"
+        />
+        <RuleDraftTextInput
+          label="예약 대상 기간"
+          value={draft.usage_period_label}
+          onChange={(value) => onChange("usage_period_label", value)}
+          placeholder="예: 1일~15일 이용분"
+        />
+        <div className="md:col-span-2">
+          <RuleDraftTextInput
+            label="규칙별 예약 링크"
+            value={draft.reservation_url}
+            onChange={(value) => onChange("reservation_url", value)}
+            placeholder="예: 서울시 1차 예약 페이지 URL"
+          />
+        </div>
+      </div>
+
+      {isBookingRuleDraftFieldVisible(draft, "lottery_desc") ? (
+        <label className="mt-3 flex flex-col gap-2">
+          <span className="text-xs text-[#a7a7a7]">추첨 방식</span>
+          <textarea
+            value={stringifyValue(draft.lottery_desc)}
+            onChange={(event) => onChange("lottery_desc", event.target.value)}
+            className="min-h-[76px] w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
+            placeholder="추첨 방식 설명"
+          />
+        </label>
+      ) : null}
+
+      <div className="mt-4 flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isSavingRule}
+          className="rounded-lg border border-[#3c3c3c] bg-[#202020] px-4 py-2 text-sm font-medium text-white hover:bg-[#2a2a2a] disabled:opacity-60"
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={isSavingRule}
+          className="rounded-lg bg-[#4ade80] px-4 py-2 text-sm font-semibold text-black hover:bg-[#3fcf6f] disabled:opacity-60"
+        >
+          {isSavingRule ? "저장 중..." : "규칙 저장"}
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-[#2f2f2f] bg-[#101010] p-3">
@@ -773,14 +988,24 @@ function BookingRulesEditor({
             court_booking_rules에 들어가는 규칙을 직접 추가, 수정, 삭제합니다.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onStartCreate}
-          disabled={Boolean(draft)}
-          className="shrink-0 rounded-lg bg-[#4ade80] px-3 py-2 text-xs font-semibold text-black hover:bg-[#3fcf6f] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          규칙 추가
-        </button>
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={onFindSeoulLinks}
+            disabled={isFindingSeoulLinks}
+            className="rounded-lg border border-[#335c43] bg-black px-3 py-2 text-xs font-semibold text-[#86efac] hover:bg-[#101b14] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isFindingSeoulLinks ? "찾는 중..." : "서울시 예약 링크 찾기"}
+          </button>
+          <button
+            type="button"
+            onClick={onStartCreate}
+            disabled={Boolean(draft)}
+            className="rounded-lg bg-[#4ade80] px-3 py-2 text-xs font-semibold text-black hover:bg-[#3fcf6f] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            규칙 추가
+          </button>
+        </div>
       </div>
 
       {!courtId ? (
@@ -792,45 +1017,54 @@ function BookingRulesEditor({
       {sortedRules.length > 0 ? (
         <div className="grid gap-2">
           {sortedRules.map((rule) => (
-            <div
-              key={rule.id}
-              className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-black p-3 ${
-                rule.is_active ? "border-[#2f2f2f]" : "border-[#4a2f2f] opacity-60"
-              }`}
-            >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-md bg-[#12351f] px-2 py-1 text-xs font-semibold text-[#86efac]">
-                    {formatRuleEligibility(rule.eligibility)}
-                  </span>
-                  <span className="text-sm font-semibold text-white">
-                    {formatRuleDisplayText(rule.label) || "예약 규칙"}
-                  </span>
+            <div key={rule.id} className="grid gap-2">
+              <div
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-black p-3 ${
+                  rule.is_active ? "border-[#2f2f2f]" : "border-[#4a2f2f] opacity-60"
+                }`}
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-md bg-[#12351f] px-2 py-1 text-xs font-semibold text-[#86efac]">
+                      {formatRuleEligibility(rule.eligibility)}
+                    </span>
+                    <span className="text-sm font-semibold text-white">
+                      {formatRuleDisplayText(rule.label) || "예약 규칙"}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-[#a7a7a7]">
+                    {formatRuleType(rule.rule_type)} · {formatRuleOpenType(rule.open_type)} ·{" "}
+                    {formatRuleDayOfMonth(rule.open_day_of_month)} ·{" "}
+                    {formatRuleWeekday(rule.open_day_of_week)} · {formatRuleTime(rule.open_time)}
+                  </p>
+                  {rule.booking_round_label || rule.usage_period_label || rule.reservation_url ? (
+                    <p className="mt-1 text-xs text-[#8c8c8c]">
+                      {[rule.booking_round_label, rule.usage_period_label, rule.reservation_url ? "규칙별 링크 있음" : ""]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  ) : null}
                 </div>
-                <p className="mt-2 text-xs text-[#a7a7a7]">
-                  {formatRuleType(rule.rule_type)} · {formatRuleOpenType(rule.open_type)} ·{" "}
-                  {formatRuleDayOfMonth(rule.open_day_of_month)} ·{" "}
-                  {formatRuleWeekday(rule.open_day_of_week)} · {formatRuleTime(rule.open_time)}
-                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onStartEdit(rule)}
+                    disabled={Boolean(draft)}
+                    className="rounded-lg border border-[#3c3c3c] bg-[#202020] px-3 py-2 text-xs font-medium text-white hover:bg-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    수정
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(rule)}
+                    disabled={isSavingRule}
+                    className="rounded-lg border border-[#6b2d2d] bg-[#261313] px-3 py-2 text-xs font-medium text-[#ffb3b3] hover:bg-[#341818] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    삭제
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => onStartEdit(rule)}
-                  disabled={Boolean(draft)}
-                  className="rounded-lg border border-[#3c3c3c] bg-[#202020] px-3 py-2 text-xs font-medium text-white hover:bg-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  수정
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDelete(rule)}
-                  disabled={isSavingRule}
-                  className="rounded-lg border border-[#6b2d2d] bg-[#261313] px-3 py-2 text-xs font-medium text-[#ffb3b3] hover:bg-[#341818] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  삭제
-                </button>
-              </div>
+              {editingRuleId === rule.id ? draftForm : null}
             </div>
           ))}
         </div>
@@ -840,133 +1074,7 @@ function BookingRulesEditor({
         </p>
       ) : null}
 
-      {draft ? (
-        <div className="rounded-lg border border-[#335c43] bg-black p-3">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h4 className="text-sm font-semibold text-white">
-              {editingRuleId ? "예약 규칙 수정" : "예약 규칙 추가"}
-            </h4>
-            <label className="flex items-center gap-2 text-xs text-[#cfcfcf]">
-              <input
-                type="checkbox"
-                checked={draft.is_active !== false}
-                onChange={(event) => onChange("is_active", event.target.checked)}
-                className="custom-checkbox"
-              />
-              활성화
-            </label>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <RuleDraftTextInput
-              label="레이블"
-              value={draft.label}
-              onChange={(value) => onChange("label", value)}
-              placeholder="예: 구민, 전체, 추첨"
-            />
-            <RuleDraftSelect
-              label="자격"
-              value={draft.eligibility}
-              options={bookingRuleEligibilityOptions}
-              onChange={(value) => onChange("eligibility", value)}
-            />
-            <RuleDraftSelect
-              label="예약 규칙"
-              value={draft.rule_type}
-              options={bookingRuleTypeOptions}
-              onChange={(value) => onChange("rule_type", value)}
-            />
-            {isBookingRuleDraftFieldVisible(draft, "open_type") ? (
-              <RuleDraftSelect
-                label="오픈 타입"
-                value={draft.open_type}
-                options={bookingRuleOpenTypeOptions}
-                onChange={(value) => onChange("open_type", value)}
-              />
-            ) : null}
-            {isBookingRuleDraftFieldVisible(draft, "open_day_of_month") ? (
-              <RuleDraftTextInput
-                label={stringifyValue(draft.open_type) === "week" ? "월 오픈 일자" : "오픈 일자"}
-                value={draft.open_day_of_month}
-                type="number"
-                onChange={(value) => onChange("open_day_of_month", value)}
-                placeholder={stringifyValue(draft.open_type) === "week" ? "예: 1 또는 -1" : "예: 13"}
-              />
-            ) : null}
-            {isBookingRuleDraftFieldVisible(draft, "open_day_of_week") ? (
-              <RuleDraftSelect
-                label="오픈 요일"
-                value={draft.open_day_of_week}
-                options={bookingRuleWeekdayOptions}
-                onChange={(value) => onChange("open_day_of_week", value)}
-              />
-            ) : null}
-            {isBookingRuleDraftFieldVisible(draft, "open_ordinal") ? (
-              <RuleDraftSelect
-                label="예약 오픈 주차"
-                value={draft.open_ordinal}
-                options={bookingRuleOrdinalOptions}
-                onChange={(value) => onChange("open_ordinal", value)}
-              />
-            ) : null}
-            {isBookingRuleDraftFieldVisible(draft, "open_time") ? (
-              <RuleDraftTextInput
-                label="오픈 시간"
-                value={draft.open_time}
-                type="time"
-                onChange={(value) => onChange("open_time", value)}
-              />
-            ) : null}
-            {isBookingRuleDraftFieldVisible(draft, "open_offset") ? (
-              <RuleDraftTextInput
-                label="오픈되는 범위"
-                value={draft.open_offset}
-                onChange={(value) => onChange("open_offset", value)}
-                placeholder={
-                  stringifyValue(draft.rule_type) === "rolling" ? "예: 30" : "예: 다음달 또는 당월"
-                }
-              />
-            ) : null}
-            <RuleDraftTextInput
-              label="정렬 순서"
-              value={draft.sort_order}
-              type="number"
-              onChange={(value) => onChange("sort_order", value)}
-            />
-          </div>
-
-          {isBookingRuleDraftFieldVisible(draft, "lottery_desc") ? (
-            <label className="mt-3 flex flex-col gap-2">
-              <span className="text-xs text-[#a7a7a7]">추첨 방식</span>
-              <textarea
-                value={stringifyValue(draft.lottery_desc)}
-                onChange={(event) => onChange("lottery_desc", event.target.value)}
-                className="min-h-[76px] w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
-                placeholder="추첨 방식 설명"
-              />
-            </label>
-          ) : null}
-
-          <div className="mt-4 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={isSavingRule}
-              className="rounded-lg border border-[#3c3c3c] bg-[#202020] px-4 py-2 text-sm font-medium text-white hover:bg-[#2a2a2a] disabled:opacity-60"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={isSavingRule}
-              className="rounded-lg bg-[#4ade80] px-4 py-2 text-sm font-semibold text-black hover:bg-[#3fcf6f] disabled:opacity-60"
-            >
-              {isSavingRule ? "저장 중..." : "규칙 저장"}
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {draft && !editingRuleId ? draftForm : null}
     </section>
   );
 }
@@ -1040,11 +1148,21 @@ function BookingRulesPreview({ rules }: { rules: CourtBookingRule[] | null | und
                 </div>
               </dl>
 
-              {rule.open_offset || rule.lottery_desc ? (
+              {rule.open_offset || rule.interval_weeks || rule.anchor_date || rule.lottery_desc ? (
                 <div className="mt-3 grid gap-2 text-xs">
                   {rule.open_offset ? (
                     <p className="text-[#a7a7a7]">
                       <span className="text-[#777]">오픈되는 범위</span> {rule.open_offset}
+                    </p>
+                  ) : null}
+                  {rule.interval_weeks ? (
+                    <p className="text-[#a7a7a7]">
+                      <span className="text-[#777]">반복 주기</span> {rule.interval_weeks}주
+                    </p>
+                  ) : null}
+                  {rule.anchor_date ? (
+                    <p className="text-[#a7a7a7]">
+                      <span className="text-[#777]">기준 오픈일</span> {rule.anchor_date}
                     </p>
                   ) : null}
                   {rule.lottery_desc ? (
@@ -1116,6 +1234,18 @@ function formatRuleCardText(rule: CourtBookingRule) {
     const offset = rule.open_offset?.trim();
     const openText = [time, offset ? `+${offset}일` : ""].filter(Boolean).join(", ");
     return openText ? `매일 ${openText} 예약 오픈` : "상시 예약";
+  }
+
+  if (rule.rule_type === "interval_weekly") {
+    const interval =
+      typeof rule.interval_weeks === "number" && rule.interval_weeks > 1
+        ? `${rule.interval_weeks}주마다`
+        : "매주";
+    const weekday = formatRuleWeekday(rule.open_day_of_week);
+    const time = formatTime(rule.open_time);
+    const offset = rule.open_offset?.trim();
+    const openText = [interval, weekday !== "-" ? weekday : "", time].filter(Boolean).join(" ");
+    return `${openText}${offset ? `, ${offset}` : ""} 예약 오픈`.trim();
   }
 
   const time = formatTime(rule.open_time);
@@ -1598,6 +1728,10 @@ export function AdminCourtManager() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncingSeoulLinks, setIsSyncingSeoulLinks] = useState(false);
   const [isFetchingSeoulCandidate, setIsFetchingSeoulCandidate] = useState(false);
+  const [isFindingSeoulRuleCandidates, setIsFindingSeoulRuleCandidates] = useState(false);
+  const [isApplyingSeoulRuleCandidate, setIsApplyingSeoulRuleCandidate] = useState(false);
+  const [seoulRuleCandidates, setSeoulRuleCandidates] = useState<SeoulRuleCandidate[]>([]);
+  const [isSeoulRuleCandidateOpen, setIsSeoulRuleCandidateOpen] = useState(false);
   const [isFetchingBlogs, setIsFetchingBlogs] = useState(false);
   const [fetchingBlogIndex, setFetchingBlogIndex] = useState<number | null>(null);
   const [isLoadingBlogLinks, setIsLoadingBlogLinks] = useState(false);
@@ -1836,6 +1970,8 @@ export function AdminCourtManager() {
     setIsFormOpen(false);
     setIsImportPickerOpen(false);
     setIsPreviewTestOpen(false);
+    setIsSeoulRuleCandidateOpen(false);
+    setSeoulRuleCandidates([]);
     setRuleDraft(null);
     setEditingRuleId(null);
     setMessage(null);
@@ -1892,6 +2028,157 @@ export function AdminCourtManager() {
     }
   }
 
+  async function findSeoulRuleCandidates() {
+    const courtName =
+      stringifyValue(form.source_service_name).trim() ||
+      stringifyValue(form.basic_court_name).trim();
+
+    if (!courtName) {
+      setError("서울시 예약 링크를 찾으려면 테니스장명이 필요합니다.");
+      return;
+    }
+
+    setIsFindingSeoulRuleCandidates(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const response = await adminFetch("/api/admin/courts/seoul-rule-candidates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          courtName,
+          city: form.source_area_name || form.basic_city || form.basic_region,
+          address: form.source_place_name || form.basic_address,
+          sourceMatchKey: form.source_match_key,
+          weekdayFrom: form.source_time_min || form.basic_time_of_use_weekday_from,
+          weekdayTo: form.source_time_max || form.basic_time_of_use_weekday_to,
+        }),
+      });
+      const data = await readAdminResponse(response, "서울시 예약 링크 후보를 찾지 못했습니다.");
+      const candidates = (data.candidates ?? []) as SeoulRuleCandidate[];
+
+      setSeoulRuleCandidates(candidates);
+      setIsSeoulRuleCandidateOpen(true);
+      if (candidates.length === 0) {
+        setMessage("조건에 맞는 서울시 예약 링크 후보가 없습니다.");
+      }
+    } catch (candidateError) {
+      setError(
+        candidateError instanceof Error
+          ? candidateError.message
+          : "서울시 예약 링크 후보를 찾지 못했습니다."
+      );
+    } finally {
+      setIsFindingSeoulRuleCandidates(false);
+    }
+  }
+
+  function buildRuleFromSeoulCandidate(
+    candidate: SeoulRuleCandidate,
+    baseRule?: CourtBookingRule
+  ): CourtBookingRuleDraft {
+    const nextSortOrder =
+      sortBookingRules(form.court_booking_rules).reduce(
+        (maxSortOrder, rule) => Math.max(maxSortOrder, rule.sort_order),
+        0
+      ) + 10;
+
+    return {
+      ...(baseRule ?? createEmptyBookingRuleDraft(stringifyValue(form.id), nextSortOrder)),
+      label:
+        baseRule?.label ||
+        candidate.bookingRoundLabel ||
+        candidate.usagePeriodLabel ||
+        candidate.serviceName ||
+        "서울시 예약",
+      rule_type: baseRule?.rule_type || "checking",
+      reservation_url: candidate.serviceUrl || baseRule?.reservation_url || "",
+      booking_round_label: candidate.bookingRoundLabel || baseRule?.booking_round_label || "",
+      usage_period_label: candidate.usagePeriodLabel || baseRule?.usage_period_label || "",
+      is_active: baseRule?.is_active ?? true,
+      sort_order: baseRule?.sort_order ?? nextSortOrder,
+    };
+  }
+
+  async function applySeoulRuleCandidate(
+    candidate: SeoulRuleCandidate,
+    targetRule?: CourtBookingRule
+  ) {
+    const courtId = stringifyValue(form.id);
+    const nextRule = buildRuleFromSeoulCandidate(candidate, targetRule);
+    const shouldUpdateOpenDraft = Boolean(targetRule && editingRuleId === targetRule.id);
+
+    setIsApplyingSeoulRuleCandidate(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      if (!courtId || targetRule?.id.startsWith(TEMP_BOOKING_RULE_ID_PREFIX)) {
+        const tempRule = {
+          ...normalizeBookingRuleForSave(nextRule),
+          id: targetRule?.id || createTempBookingRuleId(),
+          court_id: courtId,
+          is_active: nextRule.is_active !== false,
+          sort_order: numberOrNull(nextRule.sort_order) ?? 0,
+        } as CourtBookingRule;
+
+        setForm((current) => {
+          const currentRules = sortBookingRules(current.court_booking_rules);
+          const nextRules = targetRule
+            ? currentRules.map((rule) => (rule.id === targetRule.id ? tempRule : rule))
+            : [...currentRules, tempRule];
+
+          return { ...current, court_booking_rules: sortBookingRules(nextRules) };
+        });
+        if (shouldUpdateOpenDraft) {
+          setRuleDraft({
+            ...tempRule,
+            open_time: toTimeInputValue(tempRule.open_time),
+          });
+        }
+        setMessage("서울시 예약 링크를 임시 예약 규칙에 반영했습니다.");
+        return;
+      }
+
+      const payload = {
+        ...normalizeBookingRuleForSave(nextRule),
+        court_id: courtId,
+      };
+      const response = await adminFetch("/api/admin/courts/booking-rules", {
+        method: targetRule ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(targetRule ? { ...payload, id: targetRule.id } : payload),
+      });
+
+      await readAdminResponse(response, "서울시 예약 링크를 예약 규칙에 반영하지 못했습니다.");
+      await refreshBookingRules(courtId);
+      markCourtUpdatedAt(courtId);
+      if (shouldUpdateOpenDraft && targetRule) {
+        setRuleDraft({
+          ...targetRule,
+          ...nextRule,
+          id: targetRule.id,
+          court_id: courtId,
+          open_time: toTimeInputValue(nextRule.open_time),
+        });
+      }
+      setMessage(
+        targetRule
+          ? "서울시 예약 링크를 기존 예약 규칙에 연결했습니다."
+          : "서울시 예약 링크를 새 예약 규칙으로 추가했습니다."
+      );
+    } catch (candidateError) {
+      setError(
+        candidateError instanceof Error
+          ? candidateError.message
+          : "서울시 예약 링크를 예약 규칙에 반영하지 못했습니다."
+      );
+    } finally {
+      setIsApplyingSeoulRuleCandidate(false);
+    }
+  }
+
   function startCreateBookingRule() {
     const nextSortOrder =
       sortBookingRules(form.court_booking_rules).reduce(
@@ -1921,21 +2208,27 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
 
       if (key === "rule_type") {
         const ruleType = stringifyValue(value);
-        const keepsSchedule = ruleType === "fixed_schedule" || ruleType === "ordinal";
+        const keepsSchedule =
+          ruleType === "fixed_schedule" || ruleType === "ordinal" || ruleType === "interval_weekly";
         const keepsTime = keepsSchedule || ruleType === "rolling";
 
         return {
           ...current,
           rule_type: ruleType,
-          open_type: keepsSchedule ? current.open_type || "day" : null,
+          open_type: ruleType === "interval_weekly" ? "week" : keepsSchedule ? current.open_type || "day" : null,
           open_day_of_month: ruleType === "fixed_schedule" ? current.open_day_of_month : null,
           open_day_of_week: keepsSchedule ? current.open_day_of_week : null,
           open_ordinal: ruleType === "ordinal" ? current.open_ordinal : null,
           open_time: keepsTime ? current.open_time : null,
           open_offset:
-            ruleType === "fixed_schedule" || ruleType === "rolling" || ruleType === "ordinal"
+            ruleType === "fixed_schedule" ||
+            ruleType === "rolling" ||
+            ruleType === "ordinal" ||
+            ruleType === "interval_weekly"
               ? current.open_offset
               : null,
+          interval_weeks: ruleType === "interval_weekly" ? current.interval_weeks || 2 : null,
+          anchor_date: ruleType === "interval_weekly" ? current.anchor_date || null : null,
           lottery_desc: ruleType === "lottery" ? current.lottery_desc : null,
         };
       }
@@ -2645,8 +2938,8 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
           </section>
 
           {isFormOpen ? (
-            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/75 px-4 py-6">
-              <section className="relative flex max-h-[calc(100vh-48px)] w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-[#2f2f2f] bg-[#151515] shadow-2xl">
+            <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/75 px-4 py-6 lg:items-center lg:overflow-hidden">
+              <section className="relative flex w-full max-w-6xl flex-col rounded-lg border border-[#2f2f2f] bg-[#151515] shadow-2xl max-lg:min-h-[calc(100vh-48px)] max-lg:overflow-visible lg:max-h-[calc(100vh-48px)] lg:overflow-hidden">
             <div className="flex flex-col gap-3 border-b border-[#2f2f2f] p-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-lg font-semibold">
@@ -2716,7 +3009,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
               </div>
             ) : null}
 
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4">
+            <div className="flex flex-col gap-4 p-4 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
               <section className="rounded-lg border border-[#2f2f2f] bg-black p-3">
                 <label className="flex min-h-[42px] items-center justify-between gap-3">
                   <span className="text-sm font-medium text-[#cfcfcf]">노출 여부</span>
@@ -2729,8 +3022,8 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                 </label>
               </section>
 
-              <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
-                <aside className="min-h-0 overflow-y-auto rounded-lg border border-[#2f2f2f] bg-[#111] p-4">
+              <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
+                <aside className="rounded-lg border border-[#2f2f2f] bg-[#111] p-4 lg:min-h-0 lg:overflow-y-auto">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <h3 className="text-sm font-semibold text-[#4ade80]">메인 카드 미리보기</h3>
                     <div className="flex items-center gap-2">
@@ -2749,7 +3042,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                   <AdminCourtPreviewCard form={form} />
                 </aside>
 
-              <div className="min-h-0 overflow-y-auto pr-1">
+              <div className="pr-1 lg:min-h-0 lg:overflow-y-auto">
                   <div className="flex flex-col gap-6">
               {fieldGroups.map((group) => (
                 <section key={group.title} className="flex flex-col gap-3">
@@ -2805,12 +3098,14 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                           draft={ruleDraft}
                           editingRuleId={editingRuleId}
                           isSavingRule={isSavingRule}
+                          isFindingSeoulLinks={isFindingSeoulRuleCandidates}
                           onStartCreate={startCreateBookingRule}
                           onStartEdit={startEditBookingRule}
                           onDelete={deleteBookingRule}
                           onCancel={cancelBookingRuleEdit}
                           onSave={saveBookingRule}
                           onChange={updateBookingRuleDraft}
+                          onFindSeoulLinks={findSeoulRuleCandidates}
                         />
                       ) : null}
                       {group.fields.map((field) => {
@@ -3184,6 +3479,115 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                       “같은 날짜/시간끼리 묶음”이 더 좋아 보입니다. 예를 들면 1차 오픈 행에
                       구민/시민 태그를 붙이고, 2차 오픈 행에 전체 태그를 붙이는 방식입니다.
                     </div>
+                  </div>
+                </section>
+              </div>
+            ) : null}
+            {isSeoulRuleCandidateOpen ? (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 px-4">
+                <section className="flex max-h-[82vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-[#2f2f2f] bg-[#151515] shadow-2xl">
+                  <div className="flex items-center justify-between gap-3 border-b border-[#2f2f2f] p-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">서울시 예약 링크 찾기</h3>
+                      <p className="mt-1 text-xs text-[#8c8c8c]">
+                        같은 테니스장으로 보이는 서울시 예약 페이지를 기존 규칙에 연결하거나 새 규칙으로 추가합니다.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsSeoulRuleCandidateOpen(false)}
+                      className="rounded-lg border border-[#3c3c3c] bg-[#202020] px-3 py-2 text-sm font-medium text-white hover:bg-[#2a2a2a]"
+                    >
+                      닫기
+                    </button>
+                  </div>
+                  <div className="overflow-y-auto p-4">
+                    {seoulRuleCandidates.length === 0 ? (
+                      <p className="rounded-lg border border-[#2f2f2f] bg-black px-4 py-6 text-sm text-[#a7a7a7]">
+                        찾은 서울시 예약 링크 후보가 없습니다.
+                      </p>
+                    ) : (
+                      <div className="grid gap-3">
+                        {seoulRuleCandidates.map((candidate) => (
+                          <article
+                            key={`${candidate.serviceId ?? candidate.serviceUrl}-${candidate.serviceName}`}
+                            className="rounded-lg border border-[#2f2f2f] bg-black p-4"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <h4 className="break-keep text-sm font-semibold text-white">
+                                  {candidate.serviceName}
+                                </h4>
+                                <p className="mt-2 text-xs leading-relaxed text-[#a7a7a7]">
+                                  {[candidate.areaName, candidate.placeName]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </p>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-2">
+                                <span className="rounded-md bg-[#1c1c1c] px-2 py-1 text-xs text-[#a7a7a7]">
+                                  점수 {candidate.score}
+                                </span>
+                                {candidate.serviceUrl ? (
+                                  <a
+                                    href={candidate.serviceUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="rounded-lg border border-[#3c3c3c] bg-[#202020] px-3 py-2 text-xs font-medium text-white hover:bg-[#2a2a2a]"
+                                  >
+                                    열기
+                                  </a>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            <dl className="mt-3 grid gap-2 text-xs text-[#cfcfcf] md:grid-cols-2">
+                              <div>
+                                <dt className="text-[#777]">접수기간</dt>
+                                <dd className="mt-1">{candidate.receptionPeriod || "-"}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-[#777]">이용기간</dt>
+                                <dd className="mt-1">{candidate.usePeriod || "-"}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-[#777]">추천 차수명</dt>
+                                <dd className="mt-1">{candidate.bookingRoundLabel || "-"}</dd>
+                              </div>
+                              <div>
+                                <dt className="text-[#777]">추천 예약 대상 기간</dt>
+                                <dd className="mt-1">{candidate.usagePeriodLabel || "-"}</dd>
+                              </div>
+                            </dl>
+
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              {sortBookingRules(form.court_booking_rules).map((rule) => (
+                                <button
+                                  key={rule.id}
+                                  type="button"
+                                  onClick={() => applySeoulRuleCandidate(candidate, rule)}
+                                  disabled={isApplyingSeoulRuleCandidate}
+                                  className="rounded-lg border border-[#335c43] bg-[#07140c] px-3 py-2 text-xs font-semibold text-[#86efac] hover:bg-[#0b1f12] disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {formatRuleDisplayText(rule.booking_round_label) ||
+                                    formatRuleDisplayText(rule.label) ||
+                                    formatRuleEligibility(rule.eligibility)}
+                                  에 연결
+                                </button>
+                              ))}
+                              <button
+                                type="button"
+                                onClick={() => applySeoulRuleCandidate(candidate)}
+                                disabled={isApplyingSeoulRuleCandidate}
+                                className="rounded-lg bg-[#4ade80] px-3 py-2 text-xs font-semibold text-black hover:bg-[#3fcf6f] disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                새 규칙으로 추가
+                              </button>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </section>
               </div>

@@ -220,6 +220,56 @@ function nextWeekRuleOpen(
   return null;
 }
 
+function parseYmd(value: string | null | undefined): { y: number; m: number; d: number } | null {
+  if (!value?.trim()) return null;
+  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+  if (m < 1 || m > 12 || d < 1 || d > daysInMonth(y, m)) return null;
+  return { y, m, d };
+}
+
+function nextIntervalWeeklyOpen(
+  anchorDateRaw: string | null | undefined,
+  intervalWeeksRaw: unknown,
+  weekdayRaw: unknown,
+  timeStr: string | null | undefined,
+  from: Date
+): Date | null {
+  const anchorDate = parseYmd(anchorDateRaw);
+  const intervalWeeks = toFiniteInt(intervalWeeksRaw);
+  const weekday = toFiniteInt(weekdayRaw);
+  const t = parseTimeParts(timeStr);
+  if (!anchorDate || !intervalWeeks || intervalWeeks < 1 || intervalWeeks > 52 || weekday == null || !t) {
+    return null;
+  }
+
+  const wantedWeekday = courtWeekdayToJs(weekday);
+  const anchorWeekday = getSeoulWeekday(anchorDate.y, anchorDate.m, anchorDate.d);
+  const weekdayDelta = (wantedWeekday - anchorWeekday + 7) % 7;
+  const adjustedAnchor = weekdayDelta
+    ? addCalendarDaysSeoul(anchorDate.y, anchorDate.m, anchorDate.d, weekdayDelta)
+    : anchorDate;
+
+  const anchorInstant = seoulWallToUtc(
+    adjustedAnchor.y,
+    adjustedAnchor.m,
+    adjustedAnchor.d,
+    t.h,
+    t.m,
+    0
+  );
+  if (anchorInstant.getTime() > from.getTime()) return anchorInstant;
+
+  const intervalMs = intervalWeeks * 7 * 24 * 60 * 60 * 1000;
+  const elapsedMs = Math.max(0, from.getTime() - anchorInstant.getTime());
+  const nextStep = Math.floor(elapsedMs / intervalMs) + 1;
+  return new Date(anchorInstant.getTime() + nextStep * intervalMs);
+}
+
 function toLabels(inst: Date): { dateLabel: string; timeLabel: string } {
   const dtf = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
@@ -300,6 +350,12 @@ export function getNextBookingRuleOpen(
   rule: CourtBookingRule,
   from: Date = new Date()
 ): NextOpenResult | null {
+  if (rule.rule_type === "interval_weekly") {
+    return wrap(
+      nextIntervalWeeklyOpen(rule.anchor_date, rule.interval_weeks, rule.open_day_of_week, rule.open_time, from)
+    );
+  }
+
   const ruleCourt = buildCourtFromBookingRule(court, rule);
   return isNormalBookingRule(rule)
     ? getNextNormalBookingOpen(ruleCourt, from)
