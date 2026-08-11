@@ -3,7 +3,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Court } from "./types";
+import type { Court, CourtBookingRule } from "./types";
 import { FixedScheduleContent } from "./FixedScheduleContent";
 import { OrdinalContent } from "./ordinal";
 import { RollingContent } from "./RollingContent";
@@ -15,13 +15,19 @@ import { CheckingContent } from "./CheckingContent";
 import { FirstVisitCoachmark } from "./FirstVisitCoachmark";
 import { hasActiveBookingRules } from "./BookingRulesContent";
 import { supabase } from "@/lib/supabase";
+import {
+  getNextBookingRuleOpen,
+  getNextNormalBookingOpen,
+  getNextOwnerBookingOpen,
+  getPriorityBookingLabel,
+} from "@/lib/nextBookingOpen";
 
 type Props = {
   courts: Court[];
   showViewToggle?: boolean;
 };
 
-type CourtListSort = "recent" | "name";
+type CourtListSort = "recent" | "upcoming" | "name";
 type MyRegionProfile = {
   home_region?: string | null;
   home_city?: string | null;
@@ -39,6 +45,39 @@ const getDateTime = (value?: string | null) => {
 
 const compareCourtName = (a: Court, b: Court) =>
   (a.basic_court_name ?? "").localeCompare(b.basic_court_name ?? "", "ko");
+
+function sortActiveBookingRules(rules: CourtBookingRule[] | null | undefined) {
+  return (rules ?? [])
+    .filter((rule) => rule.is_active)
+    .slice()
+    .sort((a, b) => {
+      const orderDiff = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+      if (orderDiff !== 0) return orderDiff;
+      return (a.label ?? "").localeCompare(b.label ?? "", "ko");
+    });
+}
+
+function getNearestBookingOpenTime(court: Court, from: Date) {
+  const activeRules = sortActiveBookingRules(court.court_booking_rules);
+  const fixedActiveRules = activeRules.filter((rule) => rule.rule_type !== "rolling");
+
+  if (activeRules.length === 0 && court.booking_rule_type === "rolling") {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const candidates = activeRules.length > 0
+    ? fixedActiveRules.map((rule) => getNextBookingRuleOpen(court, rule, from))
+    : [
+        getPriorityBookingLabel(court) ? getNextOwnerBookingOpen(court, from) : null,
+        getNextNormalBookingOpen(court, from),
+      ];
+
+  const times = candidates
+    .map((result) => result?.instant.getTime())
+    .filter((time): time is number => typeof time === "number" && Number.isFinite(time));
+
+  return times.length > 0 ? Math.min(...times) : Number.POSITIVE_INFINITY;
+}
 
 export function CourtFilter({ courts, showViewToggle = false }: Props) {
   // 실제 필터 상태 (필터링에 사용)
@@ -239,6 +278,15 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
     const list = [...filteredCourts];
     if (sortMode === "name") {
       return list.sort(compareCourtName);
+    }
+
+    if (sortMode === "upcoming") {
+      const now = new Date();
+      return list.sort((a, b) => {
+        const compared = getNearestBookingOpenTime(a, now) - getNearestBookingOpenTime(b, now);
+        if (compared !== 0) return compared;
+        return compareCourtName(a, b);
+      });
     }
 
     return list.sort((a, b) => {
@@ -869,6 +917,15 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
             </button>
             <button
               type="button"
+              onClick={() => handleSortChange("upcoming")}
+              className={`whitespace-nowrap transition-colors ${
+                sortMode === "upcoming" ? "text-white" : "text-[#6F737B] hover:text-white"
+              }`}
+            >
+              예약임박순
+            </button>
+            <button
+              type="button"
               onClick={() => handleSortChange("name")}
               className={`whitespace-nowrap transition-colors ${
                 sortMode === "name" ? "text-white" : "text-[#6F737B] hover:text-white"
@@ -902,26 +959,6 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
           <div className="flex justify-center py-4">
             <span className="text-sm text-[#8A8F98]">아래로 스크롤하면 더 보여드릴게요</span>
           </div>
-        ) : null}
-
-        {sortedCourts.length > 0 ? (
-          <nav
-            aria-label="전체 테니스장 바로가기"
-            className="mt-12 rounded-xl border border-[#242426] bg-[#101112] p-5"
-          >
-            <h2 className="text-sm font-semibold text-white">전체 테니스장 바로가기</h2>
-            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2">
-              {sortedCourts.map((court) => (
-                <Link
-                  key={court.id}
-                  href={`/courts/${court.slug || court.id}`}
-                  className="text-xs leading-5 text-[#8A8F98] underline-offset-2 transition hover:text-white hover:underline"
-                >
-                  {court.basic_court_name || "이름 없는 테니스장"}
-                </Link>
-              ))}
-            </div>
-          </nav>
         ) : null}
 
         <footer className="mt-40 min-h-[220px] border-t border-[#2C2C2C] px-1 py-12 text-[#8A8F98]">
