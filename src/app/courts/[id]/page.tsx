@@ -260,7 +260,10 @@ export default async function CourtDetailPage({ params }: PageProps) {
   }
 
   if (court?.slug && court.slug !== routeKey) {
-    permanentRedirect(getCanonicalCourtPath(court));
+    const canonicalPath = getCanonicalCourtPath(court);
+    if (canonicalPath !== `/courts/${routeKey}`) {
+      permanentRedirect(canonicalPath);
+    }
   }
 
   if (detailError) {
