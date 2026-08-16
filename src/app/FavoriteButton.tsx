@@ -7,7 +7,13 @@ import { supabase } from "@/lib/supabase";
 const FAVORITE_COLOR = "#6FCF97";
 const EMPTY_COLOR = "#D8D8D8";
 
-export function FavoriteButton({ courtId }: { courtId: string }) {
+export function FavoriteButton({
+  courtId,
+  variant = "dark",
+}: {
+  courtId: string;
+  variant?: "dark" | "light";
+}) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
@@ -102,6 +108,21 @@ export function FavoriteButton({ courtId }: { courtId: string }) {
     }
   };
 
+  const isLightVariant = variant === "light";
+  const buttonClassName = isLightVariant
+    ? `inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2C8B56] disabled:cursor-not-allowed disabled:opacity-60 ${
+        isFavorite ? "bg-[#2C8B56] text-white" : "bg-[#f3f4f6] text-[#4b5563] hover:bg-[#e5e7eb]"
+      }`
+    : "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#2C2C2C] transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6FCF97] disabled:cursor-not-allowed disabled:opacity-60";
+  const iconFill = isFavorite ? (isLightVariant ? "currentColor" : FAVORITE_COLOR) : "none";
+  const iconStroke = isFavorite
+    ? isLightVariant
+      ? "currentColor"
+      : FAVORITE_COLOR
+    : isLightVariant
+      ? "currentColor"
+      : EMPTY_COLOR;
+
   return (
     <>
       <button
@@ -109,15 +130,15 @@ export function FavoriteButton({ courtId }: { courtId: string }) {
         aria-label={isFavorite ? "찜 해제" : "찜하기"}
         aria-pressed={isFavorite}
         disabled={isPending}
-      onClick={handleClick}
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#2C2C2C] transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6FCF97] disabled:cursor-not-allowed disabled:opacity-60"
+        onClick={handleClick}
+        className={buttonClassName}
       >
         <svg
           aria-hidden="true"
           viewBox="0 0 24 24"
           className="h-5 w-5"
-          fill={isFavorite ? FAVORITE_COLOR : "none"}
-          stroke={isFavorite ? FAVORITE_COLOR : EMPTY_COLOR}
+          fill={iconFill}
+          stroke={iconStroke}
           strokeWidth={isFavorite ? "2.6" : "1.5"}
           strokeLinecap="round"
           strokeLinejoin="round"

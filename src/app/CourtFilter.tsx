@@ -863,8 +863,20 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
           </svg>
         </a>
 
-        {/* PC용 코트 정보 알려주기 버튼 - 1032px 이상에서만 표시 */}
-        <div className="hidden min-[1032px]:flex items-center justify-end w-full mb-2">
+        {/* PC용 보기 전환 + 코트 정보 알려주기 버튼 - 1032px 이상에서만 표시 */}
+        <div
+          className={`hidden min-[1032px]:flex items-center w-full mb-2 ${
+            showViewToggle ? "justify-between gap-4" : "justify-end"
+          }`}
+        >
+          {showViewToggle ? (
+            <div className="inline-flex rounded-full bg-[#191B1E] p-1 text-sm font-bold text-[#8A8F98]">
+              <span className="rounded-full bg-[#2F9461] px-4 py-2 text-white">목록으로 보기</span>
+              <Link href="/map" className="rounded-full px-4 py-2 transition hover:text-white">
+                지도로 보기
+              </Link>
+            </div>
+          ) : null}
           <a
             href="https://forms.gle/FfvfcDATe5CfH1iR6"
             target="_blank"
@@ -897,14 +909,6 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
         </div>
 
         <div className="mt-8 flex flex-col items-start gap-7">
-          {showViewToggle ? (
-            <div className="inline-flex rounded-full bg-[#191B1E] p-1 text-sm font-bold text-[#8A8F98]">
-              <span className="rounded-full bg-[#2F9461] px-4 py-2 text-white">목록으로 보기</span>
-              <Link href="/map-test" className="rounded-full px-4 py-2 transition hover:text-white">
-                지도로 보기
-              </Link>
-            </div>
-          ) : null}
           <div className="flex items-center gap-5 overflow-x-auto text-base font-semibold">
             <button
               type="button"

@@ -77,6 +77,7 @@ export type Court = {
 
   /*새 예약 규칙 테이블 - 전환 테스트용*/
   court_booking_rules?: CourtBookingRule[];
+  court_blog_links?: CourtBlogLink[];
 };
 
 export type CourtBookingRule = {

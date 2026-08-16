@@ -251,7 +251,11 @@ export function CourtSearchHeader({ courts }: Props) {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-30 bg-[#000000] border-b border-[#2C2C2C]">
+    <header
+      className={`fixed top-0 left-0 right-0 bg-[#000000] border-b border-[#2C2C2C] ${
+        isMobileMenuOpen || isMobileSearchOpen ? "z-[240]" : "z-30"
+      }`}
+    >
       <div className="px-5 py-4 min-[1032px]:px-10 min-[1032px]:py-5.5">
         {/* 데스크탑: 검색창을 헤더 정중앙에 고정 */}
         <div className="hidden min-[1032px]:flex items-center relative">
@@ -445,36 +449,54 @@ export function CourtSearchHeader({ courts }: Props) {
         <>
           <button
             type="button"
-            className={`fixed inset-0 z-40 bg-black/60 min-[1032px]:hidden ${
+            className={`fixed inset-0 z-[220] bg-black/60 min-[1032px]:hidden ${
               isMobileMenuClosing ? "mobile-fade-out" : "mobile-fade-in"
             }`}
             aria-label="메뉴 닫기"
             onClick={closeMobileMenu}
           />
           <aside
-            className={`fixed right-0 top-0 z-50 h-full w-[78vw] max-w-sm bg-[#202229] px-7 py-8 shadow-[-16px_0_40px_rgba(0,0,0,0.35)] min-[1032px]:hidden ${
+            className={`fixed right-0 top-0 z-[230] h-full w-[78vw] max-w-sm bg-[#202229] px-7 py-8 shadow-[-16px_0_40px_rgba(0,0,0,0.35)] min-[1032px]:hidden ${
               isMobileMenuClosing ? "mobile-slide-out-right" : "mobile-slide-in-right"
             }`}
           >
-            <button
-              type="button"
-              onClick={closeMobileMenu}
-              className="absolute right-5 top-4 inline-flex h-9 w-9 items-center justify-center text-white"
-              aria-label="메뉴 닫기"
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M18 6L6 18M6 6L18 18"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
+            <div className="flex items-center justify-between gap-3">
+              <div className="inline-flex items-center gap-1 rounded-xl bg-white/[0.06] p-1 text-[12px] font-semibold text-[#9A9EA6]">
+                <button
+                  type="button"
+                  onClick={() => goToMobileMenuPath("/")}
+                  className="rounded-lg bg-white/10 px-3 py-2 text-white"
+                >
+                  목록으로 보기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToMobileMenuPath("/map")}
+                  className="rounded-lg px-3 py-2 transition-colors hover:bg-white/[0.08] hover:text-white"
+                >
+                  지도로 보기
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={closeMobileMenu}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center text-white"
+                aria-label="메뉴 닫기"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M18 6L6 18M6 6L18 18"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
 
             {isLoggedIn ? (
-              <div className="mt-14 flex items-center gap-3 border-b border-white/10 pb-6">
+              <div className="mt-10 flex items-center gap-3 border-b border-white/10 pb-6">
                 {profileImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img

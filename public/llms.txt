@@ -7,6 +7,7 @@ Official site: https://courtskorea.com
 ## Core pages
 
 - Home: https://courtskorea.com/
+- Map: https://courtskorea.com/map
 - Sitemap: https://courtskorea.com/sitemap.xml
 - Privacy Policy: https://courtskorea.com/privacy
 - Terms of Service: https://courtskorea.com/terms

@@ -63,7 +63,7 @@ export default async function Home() {
       <CourtSearchHeader courts={list} />
       <main className="w-auto mx-auto h-screen flex flex-col overflow-hidden pt-[73px] bg-[#000000]">
         {/* 코트 필터 및 리스트 */}
-        <CourtFilter courts={list} />
+        <CourtFilter courts={list} showViewToggle />
       </main>
     </>
   );

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { AdminAuthGate } from "../admin/AdminAuthGate";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import type { Court, CourtBookingRule } from "../types";
+import type { Court, CourtBlogLink, CourtBookingRule } from "../types";
 import { MapTestClient } from "./MapTestClient";
 
 export const revalidate = 60;
@@ -41,6 +40,30 @@ async function attachBookingRules(courts: Court[]) {
   }));
 }
 
+async function attachBlogLinks(courts: Court[]) {
+  const courtIds = courts.map((court) => court.id).filter(Boolean);
+  if (courtIds.length === 0) return courts.map((court) => ({ ...court, court_blog_links: [] }));
+
+  const { data: blogLinks } = await getSupabaseAdmin()
+    .from("court_blog_links")
+    .select("*")
+    .in("court_id", courtIds)
+    .order("sort_order", { ascending: true });
+
+  const linksByCourtId = new Map<string, CourtBlogLink[]>();
+  for (const link of (blogLinks ?? []) as CourtBlogLink[]) {
+    if (!link.court_id) continue;
+    const current = linksByCourtId.get(link.court_id) ?? [];
+    current.push(link);
+    linksByCourtId.set(link.court_id, current);
+  }
+
+  return courts.map((court) => ({
+    ...court,
+    court_blog_links: linksByCourtId.get(court.id) ?? [],
+  }));
+}
+
 export default async function MapTestPage() {
   const { data, error } = await getSupabaseAdmin()
     .from("courtinfo")
@@ -58,11 +81,8 @@ export default async function MapTestPage() {
     );
   }
 
-  const courts = await attachBookingRules((data ?? []) as Court[]);
+  const courtsWithRules = await attachBookingRules((data ?? []) as Court[]);
+  const courts = await attachBlogLinks(courtsWithRules);
 
-  return (
-    <AdminAuthGate>
-      <MapTestClient courts={courts} />
-    </AdminAuthGate>
-  );
+  return <MapTestClient courts={courts} />;
 }
