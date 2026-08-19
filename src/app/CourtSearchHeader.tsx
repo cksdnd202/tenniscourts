@@ -11,7 +11,7 @@ import type { Court } from "./types";
 /** 헤더 검색에 실제로 쓰이는 필드만 있으면 됨 */
 export type CourtSearchListItem = Pick<
   Court,
-  "id" | "slug" | "basic_court_name" | "basic_region" | "basic_city"
+  "id" | "slug" | "basic_court_name" | "basic_region" | "basic_city" | "basic_address"
 >;
 
 type Props = {
@@ -95,14 +95,41 @@ export function CourtSearchHeader({ courts }: Props) {
     };
   }, []);
 
-  // 검색 결과 필터링 (코트 이름 기준)
+  const normalizeSearchText = (value: string | null | undefined) =>
+    (value ?? "").toLowerCase().replace(/\s+/g, "");
+
+  const getSearchPriority = (court: CourtSearchListItem, keyword: string) => {
+    if (normalizeSearchText(court.basic_court_name).includes(keyword)) return 0;
+    if (normalizeSearchText(court.basic_region).includes(keyword)) return 1;
+    if (normalizeSearchText(court.basic_city).includes(keyword)) return 2;
+    if (normalizeSearchText(court.basic_address).includes(keyword)) return 3;
+    return 4;
+  };
+
+  // 검색 결과 필터링 (코트 이름, 지역, 주소 기준)
   const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = normalizeSearchText(query);
     if (!q) return [];
     return courts
       .filter((court) => {
-        const name = (court.basic_court_name ?? "").toLowerCase();
-        return name.includes(q);
+        const searchText = [
+          court.basic_court_name,
+          court.basic_region,
+          court.basic_city,
+          court.basic_address,
+          [court.basic_region, court.basic_city].filter(Boolean).join(" "),
+          [court.basic_region, court.basic_city, court.basic_court_name].filter(Boolean).join(" "),
+        ]
+          .map(normalizeSearchText)
+          .join(" ");
+
+        return searchText.includes(q);
+      })
+      .sort((a, b) => {
+        const priorityComparison = getSearchPriority(a, q) - getSearchPriority(b, q);
+        if (priorityComparison !== 0) return priorityComparison;
+
+        return (a.basic_court_name ?? "").localeCompare(b.basic_court_name ?? "", "ko");
       })
       .slice(0, 10); // 최대 10개까지만 노출
   }, [courts, query]);

@@ -62,6 +62,8 @@ export function normalizeSeoulServiceName(value: string | null | undefined) {
   return normalizeText(value)
     .replace(/\d{4}\s*년\s*0?\d{1,2}\s*월/g, "")
     .replace(/0?\d{1,2}\s*월/g, "")
+    .replace(/\s*(?:이용|대여|대관)?\s*[-–—]?\s*(?:예약|접수)\s*.*$/g, "")
+    .replace(/\s+(?:이용|대여|대관)$/g, "")
     .replace(/^테니스장\s*\d+\s*/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -140,10 +142,9 @@ export function buildSeoulReservationLooseMatchKey(input: {
   serviceName?: string | null;
 }) {
   const area = normalizeText(input.areaName);
-  const place = normalizePlaceName(input.placeName);
   const service = normalizeSeoulServiceName(input.serviceName);
 
-  return [SEOUL_RESERVATION_PROVIDER, area, place, service]
+  return [SEOUL_RESERVATION_PROVIDER, area, service]
     .map((part) => part || "-")
     .join("|");
 }
@@ -456,7 +457,7 @@ export function buildFallbackSeoulLooseMatchKeyFromCourt(court: Partial<Court>) 
   return buildSeoulReservationLooseMatchKey({
     areaName: court.source_area_name || court.basic_city,
     placeName: court.source_place_name || court.basic_address || court.basic_court_name,
-    serviceName: court.source_service_name || court.basic_court_name,
+    serviceName: court.basic_court_name || court.source_service_name,
   });
 }
 

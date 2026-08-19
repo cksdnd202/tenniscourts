@@ -23,6 +23,101 @@ function normalizeKeywordPart(value: string | null | undefined) {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
 
+function stripHtml(value: string | null | undefined) {
+  return (value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function normalizeForSearch(value: string | null | undefined) {
+  return stripHtml(value).toLowerCase().replace(/\s+/g, "");
+}
+
+function buildBlogSearchQueries({
+  courtName,
+  region,
+  city,
+}: {
+  courtName: string;
+  region: string;
+  city: string;
+}) {
+  const compactCourtName = courtName.replace(/\s+/g, "");
+  const baseSuffix = courtName.includes("테니스장") ? "후기" : "테니스장 후기";
+  const queries = [
+    [courtName, baseSuffix].filter(Boolean).join(" "),
+    [compactCourtName, baseSuffix].filter(Boolean).join(" "),
+    [region, city, courtName, baseSuffix].filter(Boolean).join(" "),
+    [courtName, "예약 후기"].filter(Boolean).join(" "),
+    [courtName, "주차 후기"].filter(Boolean).join(" "),
+  ];
+
+  return Array.from(new Set(queries.map(normalizeKeywordPart).filter(Boolean)));
+}
+
+function getBlogItemScore(item: NaverBlogItem, courtName: string) {
+  const title = stripHtml(item.title);
+  const description = stripHtml(item.description);
+  const text = normalizeForSearch(`${title} ${description} ${item.bloggername ?? ""}`);
+  const titleText = normalizeForSearch(title);
+  const compactCourtName = normalizeForSearch(courtName);
+  const tokens = courtName
+    .split(/\s+/)
+    .map((token) => normalizeForSearch(token))
+    .filter((token) => token && token !== "테니스장");
+
+  let score = 0;
+
+  if (titleText.includes(compactCourtName)) score += 120;
+  else if (text.includes(compactCourtName)) score += 90;
+
+  const matchedTokens = tokens.filter((token) => text.includes(token)).length;
+  score += matchedTokens * 25;
+
+  if (titleText.includes("후기")) score += 20;
+  if (titleText.includes("예약")) score += 12;
+  if (titleText.includes("주차")) score += 8;
+  if (titleText.includes("코트")) score += 8;
+  if (normalizeForSearch(description).includes("후기")) score += 8;
+
+  if (/주소록|위치\s*정보|충전소|지역화폐|netizen|photo\s*news/i.test(`${title} ${description}`)) {
+    score -= 120;
+  }
+
+  return score;
+}
+
+async function fetchNaverBlogItems({
+  clientId,
+  clientSecret,
+  query,
+}: {
+  clientId: string;
+  clientSecret: string;
+  query: string;
+}) {
+  const params = new URLSearchParams({
+    query,
+    display: "30",
+    start: "1",
+    sort: "sim",
+  });
+
+  const response = await fetch(`https://openapi.naver.com/v1/search/blog.json?${params}`, {
+    headers: {
+      "X-Naver-Client-Id": clientId,
+      "X-Naver-Client-Secret": clientSecret,
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`네이버 블로그 검색 실패: ${response.status} ${text}`);
+  }
+
+  const data = (await response.json()) as { items?: NaverBlogItem[] };
+  return data.items ?? [];
+}
+
 export async function POST(req: NextRequest) {
   const denied = await denyUnlessAdmin(req);
   if (denied) return denied;
@@ -57,42 +152,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "테니스장명이 필요합니다." }, { status: 400 });
     }
 
-    const query = [region, city, courtName, "테니스장 후기"].filter(Boolean).join(" ");
-    const params = new URLSearchParams({
-      query,
-      display: "100",
-      start: "1",
-      sort: "sim",
-    });
+    const queries = buildBlogSearchQueries({ courtName, region, city });
+    const uniqueItems = new Map<string, { item: NaverBlogItem; score: number; order: number }>();
 
-    const response = await fetch(`https://openapi.naver.com/v1/search/blog.json?${params}`, {
-      headers: {
-        "X-Naver-Client-Id": clientId,
-        "X-Naver-Client-Secret": clientSecret,
-      },
-      cache: "no-store",
-    });
+    for (const query of queries) {
+      const items = await fetchNaverBlogItems({ clientId, clientSecret, query });
+      for (const item of items) {
+        if (!item.link) continue;
+        if (excludeUrls.has(item.link)) continue;
 
-    if (!response.ok) {
-      const text = await response.text();
-      return NextResponse.json(
-        { error: `네이버 블로그 검색 실패: ${response.status} ${text}` },
-        { status: 500 }
-      );
+        const score = getBlogItemScore(item, courtName);
+        const existing = uniqueItems.get(item.link);
+        if (!existing || score > existing.score) {
+          uniqueItems.set(item.link, { item, score, order: uniqueItems.size });
+        }
+      }
     }
 
-    const data = (await response.json()) as { items?: NaverBlogItem[] };
-    const uniqueItems = new Map<string, NaverBlogItem>();
+    const selectedItems = Array.from(uniqueItems.values())
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score || a.order - b.order)
+      .slice(0, count)
+      .map(({ item }) => item);
 
-    for (const item of data.items ?? []) {
-      if (!item.link) continue;
-      if (excludeUrls.has(item.link)) continue;
-      uniqueItems.set(item.link, item);
-      if (uniqueItems.size >= count) break;
+    if (selectedItems.length < count) {
+      for (const { item } of Array.from(uniqueItems.values()).sort((a, b) => a.order - b.order)) {
+        if (selectedItems.some((selected) => selected.link === item.link)) continue;
+        if (!item.link) continue;
+        selectedItems.push(item);
+        if (selectedItems.length >= count) break;
+      }
     }
 
     const links = await Promise.all(
-      Array.from(uniqueItems.values()).map((item, index) =>
+      selectedItems.map((item, index) =>
         fetchBlogPreview({
           url: item.link ?? "",
           title: item.title ?? null,
@@ -106,7 +199,7 @@ export async function POST(req: NextRequest) {
       )
     );
 
-    return NextResponse.json({ query, links });
+    return NextResponse.json({ query: queries[0], queries, links });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "블로그 정보를 불러오지 못했습니다." },
