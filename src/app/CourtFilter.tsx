@@ -15,6 +15,7 @@ import { CheckingContent } from "./CheckingContent";
 import { FirstVisitCoachmark } from "./FirstVisitCoachmark";
 import { hasActiveBookingRules } from "./BookingRulesContent";
 import { supabase } from "@/lib/supabase";
+import { getCourtDetailPath } from "@/lib/courtPath";
 import {
   getNextBookingRuleOpen,
   getNextNormalBookingOpen,
@@ -28,13 +29,14 @@ type Props = {
 };
 
 type CourtListSort = "recent" | "upcoming" | "name";
+type CourtListViewMode = "card" | "list";
 type MyRegionProfile = {
   home_region?: string | null;
   home_city?: string | null;
 };
 
 const courtitemstyle = 
-"grid w-full min-h-[380px] content-start border rounded-xl border-transparent p-5 bg-[#191B1E] gap-2 transition duration-300 ease-in-out hover:-translate-y-1 hover:bg-[#2C2C2C] overflow-hidden min-w-0";
+"grid w-full min-h-[380px] content-start rounded-xl border border-[#191B1E] p-5 bg-[#191B1E] gap-2 transition-[background-color,transform] duration-300 ease-in-out hover:-translate-y-1 hover:border-[#2C2C2C] hover:bg-[#2C2C2C] overflow-hidden min-w-0";
 const COURTS_PER_PAGE = 30;
 
 const getDateTime = (value?: string | null) => {
@@ -96,6 +98,7 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
   const [isFilterClosing, setIsFilterClosing] = useState<boolean>(false);
   const [visibleCount, setVisibleCount] = useState(COURTS_PER_PAGE);
   const [sortMode, setSortMode] = useState<CourtListSort>("recent");
+  const [viewMode, setViewMode] = useState<CourtListViewMode>("card");
   const [myRegionMessage, setMyRegionMessage] = useState<string>("");
   const [myRegionProfile, setMyRegionProfile] = useState<MyRegionProfile | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -386,11 +389,7 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
       setSelectedCity(nextCity);
     }
 
-    setMyRegionMessage(
-      nextCity
-        ? `${region} ${nextCity} 필터가 적용됐어요.`
-        : `${region} 필터가 적용됐어요.`
-    );
+    setMyRegionMessage("");
   };
 
   // 팝업 열 때 임시 상태를 현재 상태로 초기화
@@ -476,6 +475,46 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
     }
   };
 
+  const renderListCourtItem = (court: Court, index: number) => {
+    const region = [court.basic_region, court.basic_city].filter(Boolean).join(" ");
+
+    return (
+      <li key={court.id} data-coachmark={index === 0 ? "first-court-card" : undefined}>
+        <Link
+          href={getCourtDetailPath(court)}
+          className="group flex min-h-[76px] items-center justify-between gap-4 rounded-xl border border-[#2A2D33] bg-[#191B1E] px-4 py-4 transition-colors hover:border-[#3A3D44] hover:bg-[#202226]"
+        >
+          <span className="min-w-0">
+            <span className="block truncate text-base font-bold text-white">
+              {court.basic_court_name ?? "이름 없는 테니스장"}
+            </span>
+            <span className="mt-1 block truncate text-sm font-medium text-[#8A8F98]">
+              {region || "지역 미입력"}
+            </span>
+          </span>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#24272D] text-[#A8ADB6] transition-colors group-hover:bg-[#2C8B56] group-hover:text-white">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path
+                d="M9 18L15 12L9 6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </Link>
+      </li>
+    );
+  };
+
   // 필터 콘텐츠 컴포넌트 (재사용을 위해 분리)
   const FilterContent = ({ isMobile = false, useTemp = false }: { isMobile?: boolean; useTemp?: boolean }) => {
     const currentRegion = useTemp ? tempRegion : selectedRegion;
@@ -504,55 +543,18 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
 
     return (
       <>
-        {/* 내 지역 필터 */}
+        {/* 지역 필터 */}
         <section className="mb-6">
-          <div className="flex items-center justify-between gap-3">
-            <span className="flex items-center gap-1.5">
-              <span className="flex h-6 w-6 items-center justify-center text-[#53A978]">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M12 21C12 21 18 15.5 18 9.75C18 6.44 15.31 3.75 12 3.75C8.69 3.75 6 6.44 6 9.75C6 15.5 12 21 12 21Z"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M12 12.25C13.38 12.25 14.5 11.13 14.5 9.75C14.5 8.37 13.38 7.25 12 7.25C10.62 7.25 9.5 8.37 9.5 9.75C9.5 11.13 10.62 12.25 12 12.25Z"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-              <span className="text-sm font-bold text-white">내 지역</span>
-            </span>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <h3 className="text-lg font-bold text-white">지역</h3>
             <button
               type="button"
               onClick={() => handleMyRegionClick(useTemp)}
-              className="shrink-0 rounded-md border border-[#53A978]/50 px-3 py-1.5 text-xs font-bold text-[#53A978] transition-colors hover:border-[#53A978] hover:bg-[#1E2A24] hover:text-[#7BE0A0]"
+              className="shrink-0 rounded-md border border-[#53A978]/45 px-2.5 py-1 text-xs font-semibold text-[#6FCF97] transition-colors hover:border-[#6FCF97] hover:bg-[#1E2A24] hover:text-[#8EF0B4]"
             >
-              적용
+              내 지역 적용
             </button>
           </div>
-          {myRegionMessage ? (
-            <p className="mt-2 text-sm leading-5 text-[#8A8F98]">{myRegionMessage}</p>
-          ) : null}
-        </section>
-
-        {/* 지역 필터 */}
-        <section className="mb-6">
-          <h3 className={`mb-2 text-lg font-bold text-white`}>
-            지역
-          </h3>
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <select
@@ -597,6 +599,9 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
               </select>
             </div>
           </div>
+          {myRegionMessage ? (
+            <p className="mt-2 text-sm leading-5 text-[#8A8F98]">{myRegionMessage}</p>
+          ) : null}
         </section>
 
         {/* 코트 종류 필터 */}
@@ -909,33 +914,81 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
         </div>
 
         <div className="mt-8 flex flex-col items-start gap-7">
-          <div className="flex items-center gap-5 overflow-x-auto text-base font-semibold">
+          <div className="flex w-full items-center justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-5 overflow-x-auto text-base font-semibold">
+              <button
+                type="button"
+                onClick={() => handleSortChange("recent")}
+                className={`whitespace-nowrap transition-colors ${
+                  sortMode === "recent" ? "text-white" : "text-[#6F737B] hover:text-white"
+                }`}
+              >
+                최근 등록순
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSortChange("upcoming")}
+                className={`whitespace-nowrap transition-colors ${
+                  sortMode === "upcoming" ? "text-white" : "text-[#6F737B] hover:text-white"
+                }`}
+              >
+                예약임박순
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSortChange("name")}
+                className={`whitespace-nowrap transition-colors ${
+                  sortMode === "name" ? "text-white" : "text-[#6F737B] hover:text-white"
+                }`}
+              >
+                이름순
+              </button>
+            </div>
             <button
               type="button"
-              onClick={() => handleSortChange("recent")}
-              className={`whitespace-nowrap transition-colors ${
-                sortMode === "recent" ? "text-white" : "text-[#6F737B] hover:text-white"
-              }`}
+              onClick={() => setViewMode((current) => (current === "card" ? "list" : "card"))}
+              aria-label={viewMode === "card" ? "리스트형으로 보기" : "카드형으로 보기"}
+              className="flex h-9 w-10 shrink-0 items-center justify-center rounded-lg border border-[#2A2D33] bg-[#191B1E] text-[#B0B0B0] transition-colors hover:border-[#3A3D44] hover:bg-[#24272D] hover:text-white"
             >
-              최근 등록순
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSortChange("upcoming")}
-              className={`whitespace-nowrap transition-colors ${
-                sortMode === "upcoming" ? "text-white" : "text-[#6F737B] hover:text-white"
-              }`}
-            >
-              예약임박순
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSortChange("name")}
-              className={`whitespace-nowrap transition-colors ${
-                sortMode === "name" ? "text-white" : "text-[#6F737B] hover:text-white"
-              }`}
-            >
-              이름순
+              {viewMode === "card" ? (
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M6.5 5.5H17.5C18.33 5.5 19 6.17 19 7V8.5C19 9.33 18.33 10 17.5 10H6.5C5.67 10 5 9.33 5 8.5V7C5 6.17 5.67 5.5 6.5 5.5Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M6.5 14H17.5C18.33 14 19 14.67 19 15.5V17C19 17.83 18.33 18.5 17.5 18.5H6.5C5.67 18.5 5 17.83 5 17V15.5C5 14.67 5.67 14 6.5 14Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M5 5H10V10H5V5ZM14 5H19V10H14V5ZM5 14H10V19H5V14ZM14 14H19V19H14V14Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
             </button>
           </div>
           <p className="text-lg font-semibold text-white">
@@ -945,6 +998,10 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
 
         {sortedCourts.length === 0 ? (
           <p className="text-[#B0B0B0]">조건에 맞는 코트가 없습니다.</p>
+        ) : viewMode === "list" ? (
+          <ul className="grid grid-cols-1 gap-3">
+            {visibleCourts.map((court, index) => renderListCourtItem(court, index))}
+          </ul>
         ) : (
           <ul className="grid grid-cols-1 gap-4 max-[768px]:grid-cols-1 min-[769px]:max-[1275px]:grid-cols-2 min-[1276px]:sm:grid-cols-2 min-[1276px]:lg:grid-cols-3 min-[1276px]:2xl:grid-cols-4">
             {visibleCourts.map((c, index) => (

@@ -3,6 +3,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type { Court } from "../types";
 import { getReservationHref } from "@/lib/reservationLink";
+import { getPhoneReservationHref, isPhoneReservationCourt } from "@/lib/phoneReservation";
 
 const KAKAO_JAVASCRIPT_KEY = (process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY ?? "").trim();
 
@@ -26,6 +27,23 @@ import {
   tdIcon,
   fmt,
 } from "../styles";
+
+function PhoneCallIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.32 1.78.59 2.63a2 2 0 0 1-.45 2.11L8 9.71a16 16 0 0 0 6.29 6.29l1.25-1.25a2 2 0 0 1 2.11-.45c.85.27 1.73.47 2.63.59A2 2 0 0 1 22 16.92Z" />
+    </svg>
+  );
+}
 
 /** 상세 페이지: 주소 + 지도에서 보기 링크 */
 export function CourtDetailAddress({ court }: { court: Court }) {
@@ -216,13 +234,30 @@ export function CourtDetailTable({ court }: { court: Court }) {
 /** 상세 페이지 공통: 주소, 코트 수 테이블, 예약하러가기 버튼 (상세보기 버튼 없음) */
 export function CourtDetailCommon({ court }: { court: Court }) {
   const reservationHref = getReservationHref(court);
+  const isPhoneReservation = isPhoneReservationCourt(court);
+  const phoneHref = getPhoneReservationHref(court);
 
   return (
     <>
       <CourtDetailAddress court={court} />
       <CourtDetailTable court={court} />
       <div className="mt-3 flex gap-2 text-sm">
-        {court.booking_site_link ? (
+        {isPhoneReservation && phoneHref ? (
+          <a
+            href={phoneHref}
+            data-gtm="reserve_click"
+            data-court-id={court.id}
+            data-court-name={court.basic_court_name}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded bg-[#2C8B56] text-white font-normal hover:bg-[#53A978] transition"
+          >
+            <PhoneCallIcon className="h-4 w-4" />
+            전화하기
+          </a>
+        ) : isPhoneReservation ? (
+          <span className="flex-1 flex items-center justify-center px-3 py-2.5 rounded bg-[#333333] text-gray-500 text-sm">
+            전화번호 없음
+          </span>
+        ) : court.booking_site_link ? (
           <a
             href={reservationHref}
             target="_blank"

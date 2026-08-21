@@ -431,27 +431,27 @@ export function CourtSearchHeader({ courts }: Props) {
             type="button"
             onClick={openMobileSearch}
             data-coachmark="search-area-mobile"
-            className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] text-[#E7E7E7]"
+            className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-[#E7E7E7] transition-colors hover:text-white"
             aria-label="코트 검색 열기"
           >
             <svg
-              width="18"
-              height="18"
-              viewBox="0 0 18 18"
+              width="22"
+              height="22"
+              viewBox="0 0 22 22"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
-                d="M8.25 13.5C11.1495 13.5 13.5 11.1495 13.5 8.25C13.5 5.35051 11.1495 3 8.25 3C5.35051 3 3 5.35051 3 8.25C3 11.1495 5.35051 13.5 8.25 13.5Z"
+                d="M10 16C13.3137 16 16 13.3137 16 10C16 6.68629 13.3137 4 10 4C6.68629 4 4 6.68629 4 10C4 13.3137 6.68629 16 10 16Z"
                 stroke="currentColor"
-                strokeWidth="1.5"
+                strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
               <path
-                d="M12 12L15 15"
+                d="M14.5 14.5L18 18"
                 stroke="currentColor"
-                strokeWidth="1.5"
+                strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />

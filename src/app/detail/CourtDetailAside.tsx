@@ -14,6 +14,11 @@ import type { CalendarAndroidEventPayload } from "./calendarAndroidPayload";
 import { CalendarRegisterButton } from "./CalendarRegisterButton";
 import { MobileScrollHideBar } from "./MobileScrollHideBar";
 import { getReservationHref } from "@/lib/reservationLink";
+import {
+  getActivePhoneBookingRule,
+  getPhoneReservationHref,
+  isPhoneReservationCourt,
+} from "@/lib/phoneReservation";
 import { formatBookingRuleEligibility } from "../BookingRulesContent";
 
 const DEFAULT_CAL_DURATION_MIN = 10;
@@ -25,6 +30,23 @@ type NextOpenPreview = {
   open: NextOpenResult;
   rule?: CourtBookingRule;
 };
+
+function PhoneCallIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.32 1.78.59 2.63a2 2 0 0 1-.45 2.11L8 9.71a16 16 0 0 0 6.29 6.29l1.25-1.25a2 2 0 0 1 2.11-.45c.85.27 1.73.47 2.63.59A2 2 0 0 1 22 16.92Z" />
+    </svg>
+  );
+}
 
 function hasRuleSpecificReservation(rule: CourtBookingRule | null | undefined) {
   return Boolean(
@@ -263,6 +285,9 @@ function NextOpenPreviewCard({
 export function CourtDetailAside({ court }: { court: Court }) {
   const previews = getNextOpenPreviews(court);
   const reservationHref = getReservationHref(court);
+  const phoneRule = getActivePhoneBookingRule(court);
+  const isPhoneReservation = isPhoneReservationCourt(court);
+  const phoneHref = getPhoneReservationHref(court, phoneRule);
   const useRuleReservationActions = previews.some((preview) =>
     hasRuleSpecificReservation(preview.rule)
   );
@@ -297,7 +322,22 @@ export function CourtDetailAside({ court }: { court: Court }) {
           />
         ))}
 
-        {!useRuleReservationActions && court.booking_site_link ? (
+        {!useRuleReservationActions && isPhoneReservation && phoneHref ? (
+          <a
+            href={phoneHref}
+            data-gtm="reserve_click"
+            data-court-id={court.id}
+            data-court-name={court.basic_court_name}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#4ADE80] px-5 py-3.5 text-center text-sm font-semibold text-black hover:bg-[#3fcf6f] transition"
+          >
+            <PhoneCallIcon className="h-4 w-4" />
+            전화하기
+          </a>
+        ) : !useRuleReservationActions && isPhoneReservation ? (
+          <span className="flex w-full items-center justify-center rounded-xl bg-[#2C2C2C] px-5 py-3.5 text-center text-sm text-[#6B7280]">
+            전화번호 없음
+          </span>
+        ) : !useRuleReservationActions && court.booking_site_link ? (
           <a
             href={reservationHref}
             target="_blank"
@@ -323,6 +363,9 @@ export function CourtDetailAside({ court }: { court: Court }) {
 export function CourtDetailMobileBookBar({ court }: { court: Court }) {
   const previews = getNextOpenPreviews(court);
   const reservationHref = getReservationHref(court);
+  const phoneRule = getActivePhoneBookingRule(court);
+  const isPhoneReservation = isPhoneReservationCourt(court);
+  const phoneHref = getPhoneReservationHref(court, phoneRule);
   const hasMultiplePreviews = previews.length > 1;
   const useRuleReservationActions = previews.some((preview) =>
     hasRuleSpecificReservation(preview.rule)
@@ -402,7 +445,22 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
       ) : null}
       {!useRuleReservationActions ? (
       <div className="px-4 pt-3">
-        {court.booking_site_link ? (
+        {isPhoneReservation && phoneHref ? (
+          <a
+            href={phoneHref}
+            data-gtm="reserve_click"
+            data-court-id={court.id}
+            data-court-name={court.basic_court_name}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#2C8B56] py-3.5 text-sm font-medium text-white hover:bg-[#53A978] transition"
+          >
+            <PhoneCallIcon className="h-4 w-4" />
+            전화하기
+          </a>
+        ) : isPhoneReservation ? (
+          <span className="flex w-full items-center justify-center rounded-xl bg-[#2C2C2C] py-3.5 text-sm text-[#6B7280]">
+            전화번호 없음
+          </span>
+        ) : court.booking_site_link ? (
           <a
             href={reservationHref}
             target="_blank"

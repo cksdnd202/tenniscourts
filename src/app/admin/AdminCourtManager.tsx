@@ -13,6 +13,7 @@ import { PhoneContent } from "../PhoneContent";
 import { RollingContent } from "../RollingContent";
 import { supabase } from "@/lib/supabase";
 import { hasPriorityEligibility } from "@/lib/bookingEligibility";
+import { getPhoneReservationHref, isPhoneReservationCourt } from "@/lib/phoneReservation";
 import {
   getNextNormalBookingOpen,
   getNextOwnerBookingOpen,
@@ -734,7 +735,7 @@ function RuleDraftTextInput({
   label: string;
   value: unknown;
   onChange: (value: string) => void;
-  type?: "text" | "number" | "time";
+  type?: "text" | "number" | "time" | "tel";
   placeholder?: string;
 }) {
   return (
@@ -938,10 +939,15 @@ function BookingRulesEditor({
         />
         <div className="md:col-span-2">
           <RuleDraftTextInput
-            label="규칙별 예약 링크"
+            label={stringifyValue(draft.rule_type) === "phone" ? "예약 번호" : "규칙별 예약 링크"}
             value={draft.reservation_url}
+            type={stringifyValue(draft.rule_type) === "phone" ? "tel" : "text"}
             onChange={(value) => onChange("reservation_url", value)}
-            placeholder="예: 서울시 1차 예약 페이지 URL"
+            placeholder={
+              stringifyValue(draft.rule_type) === "phone"
+                ? "예: 02-1234-5678"
+                : "예: 서울시 1차 예약 페이지 URL"
+            }
           />
         </div>
       </div>
@@ -1039,7 +1045,15 @@ function BookingRulesEditor({
                   </p>
                   {rule.booking_round_label || rule.usage_period_label || rule.reservation_url ? (
                     <p className="mt-1 text-xs text-[#8c8c8c]">
-                      {[rule.booking_round_label, rule.usage_period_label, rule.reservation_url ? "규칙별 링크 있음" : ""]
+                      {[
+                        rule.booking_round_label,
+                        rule.usage_period_label,
+                        rule.reservation_url
+                          ? rule.rule_type === "phone"
+                            ? "예약 번호 있음"
+                            : "규칙별 링크 있음"
+                          : "",
+                      ]
                         .filter(Boolean)
                         .join(" · ")}
                     </p>
@@ -1295,6 +1309,16 @@ function BookingRulesCardBlock({
     return <p className="font-semibold text-[#a7a7a7]">등록된 새 예약 규칙이 없습니다.</p>;
   }
 
+  const isPhoneOnly = rules.every((rule) => rule.rule_type === "phone");
+
+  if (isPhoneOnly) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <span className="text-base font-semibold text-[#A7A7A7]">전화 예약</span>
+      </div>
+    );
+  }
+
   if (mode === "grouped") {
     return (
       <div className="grid gap-2">
@@ -1378,6 +1402,9 @@ function RuleBasedAdminPreviewContent({
   previewMode?: RulePreviewMode;
 }) {
   const rules = sortBookingRules(court.court_booking_rules).filter((rule) => rule.is_active);
+  const isPhoneReservation = isPhoneReservationCourt(court);
+  const phoneRule = rules.find((rule) => rule.rule_type === "phone");
+  const phoneHref = getPhoneReservationHref(court, phoneRule);
   const detailHref =
     court.slug || court.id !== "admin-preview" ? getCourtDetailPath(court) : undefined;
 
@@ -1462,7 +1489,11 @@ function RuleBasedAdminPreviewContent({
         <div className="flex flex-1 items-center justify-center rounded bg-[#222222] px-3 py-2.5 font-normal text-white">
           상세보기
         </div>
-        {court.booking_site_link ? (
+        {isPhoneReservation && phoneHref ? (
+          <div className="flex flex-1 items-center justify-center rounded bg-[#2C8B56] px-3 py-2.5 font-normal text-white">
+            전화하기
+          </div>
+        ) : court.booking_site_link ? (
           <div className="flex flex-1 items-center justify-center rounded bg-[#2C8B56] px-3 py-2.5 font-normal text-white">
             예약하러가기
           </div>

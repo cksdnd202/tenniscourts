@@ -3,6 +3,11 @@ import { Court } from "./types";
 import { getCourtDetailPath } from "@/lib/courtPath";
 import { getReservationHref } from "@/lib/reservationLink";
 import { getPriorityEligibilityLabel } from "@/lib/bookingEligibility";
+import {
+  getActivePhoneBookingRule,
+  getPhoneReservationHref,
+  isPhoneReservationCourt,
+} from "@/lib/phoneReservation";
 import { FavoriteButton } from "./FavoriteButton";
 import { BookingRulesCompactContent, hasActiveBookingRules } from "./BookingRulesContent";
 import {
@@ -56,6 +61,9 @@ export function FixedScheduleContent({ court }: { court: Court }) {
   const priorityLabel = getPriorityEligibilityLabel(court.booking_eligibility_first);
   const reservationHref = getReservationHref(court);
   const useNewBookingRules = hasActiveBookingRules(court);
+  const phoneRule = getActivePhoneBookingRule(court);
+  const isPhoneReservation = isPhoneReservationCourt(court);
+  const phoneHref = getPhoneReservationHref(court, phoneRule);
 
   return (
     <>
@@ -67,7 +75,11 @@ export function FixedScheduleContent({ court }: { court: Court }) {
 
       {/* fixed_schedule 타입용 구조 - 필요에 따라 수정하세요 */}
       <div className="text-sm px-3 py-3.5 bg-[#2C2C2C] rounded-md my-2 h-[112px] flex flex-col justify-center">
-        {useNewBookingRules ? (
+        {isPhoneReservation ? (
+          <div className="flex h-full items-center justify-center">
+            <span className="text-base font-semibold text-white">전화 예약</span>
+          </div>
+        ) : useNewBookingRules ? (
           <BookingRulesCompactContent court={court} />
         ) : court.booking_open_type === "day" ? (
           <>
@@ -287,8 +299,18 @@ export function FixedScheduleContent({ court }: { court: Court }) {
           상세보기
         </a>
 
-        {/* 예약하러가기 버튼 - 예약 사이트로 이동 */}
-        {court.booking_site_link && (
+        {/* 예약/전화 연결 버튼 */}
+        {isPhoneReservation && phoneHref ? (
+          <a
+            href={phoneHref}
+            data-gtm="reserve_click"
+            data-court-id={court.id}
+            data-court-name={court.basic_court_name}
+            className="flex-1 flex items-center justify-center px-3 py-2.5 rounded bg-[#2C8B56] text-white font-normal hover:bg-[#53A978] transition"
+          >
+            전화하기
+          </a>
+        ) : court.booking_site_link ? (
           <a
             href={reservationHref}
             target="_blank"
@@ -300,7 +322,7 @@ export function FixedScheduleContent({ court }: { court: Court }) {
           >
             예약하러가기
           </a>
-        )}
+        ) : null}
       </div>
     </>
   );
