@@ -31,6 +31,69 @@ function normalizeForSearch(value: string | null | undefined) {
   return stripHtml(value).toLowerCase().replace(/\s+/g, "");
 }
 
+function compactKoreanPlaceName(value: string) {
+  return value
+    .replace(/\s+(한강공원|공원|테니스장)/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildBlogSearchNames(courtName: string) {
+  const names: string[] = [];
+  const seenNames = new Set<string>();
+  const addName = (name: string | null | undefined) => {
+    const normalizedName = normalizeKeywordPart(name);
+    if (!normalizedName || seenNames.has(normalizedName)) return;
+    seenNames.add(normalizedName);
+    names.push(normalizedName);
+  };
+  const normalized = normalizeCourtName(courtName);
+  if (!normalized) return [];
+
+  const tennisCourtIndex = normalized.indexOf("테니스장");
+  if (tennisCourtIndex >= 0) {
+    addName(normalized.slice(0, tennisCourtIndex + "테니스장".length).trim());
+  }
+
+  const beforeDash = normalized.split(/\s*[-–—]\s*/)[0]?.trim();
+  addName(beforeDash);
+
+  const withoutCourtUnit = normalized
+    .replace(/\b[ABCDEF]\s*면\b/gi, " ")
+    .replace(/\d+\s*번\s*코트/g, " ")
+    .replace(/\d+\s*번코트/g, " ")
+    .replace(/\d+\s*면/g, " ")
+    .replace(/평일|주말|공휴일|주간|야간|저녁|새벽|낮|접수/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (withoutCourtUnit) {
+    const unitCleanedTennisCourtIndex = withoutCourtUnit.indexOf("테니스장");
+    if (unitCleanedTennisCourtIndex >= 0) {
+      addName(withoutCourtUnit.slice(0, unitCleanedTennisCourtIndex + "테니스장".length).trim());
+    }
+    addName(withoutCourtUnit);
+  }
+  addName(normalized);
+
+  const expandedNames = names
+    .map(normalizeKeywordPart)
+    .filter(Boolean)
+    .flatMap((name) => {
+      const variants = [name, compactKoreanPlaceName(name)];
+      if (name.includes("한강공원 테니스장")) {
+        variants.push(name.replace(/\s*한강공원\s*/, " ").replace(/\s+/g, " ").trim());
+      }
+      if (name.includes("한강공원테니스장")) {
+        variants.push(name.replace("한강공원테니스장", "테니스장"));
+      }
+      return variants;
+    })
+    .map(normalizeKeywordPart)
+    .filter((name) => name && name !== "테니스장");
+
+  return Array.from(new Set(expandedNames));
+}
+
 function buildBlogSearchQueries({
   courtName,
   region,
@@ -40,20 +103,26 @@ function buildBlogSearchQueries({
   region: string;
   city: string;
 }) {
-  const compactCourtName = courtName.replace(/\s+/g, "");
-  const baseSuffix = courtName.includes("테니스장") ? "후기" : "테니스장 후기";
+  const searchNames = buildBlogSearchNames(courtName);
+  const primaryName = searchNames[0] ?? courtName;
+  const compactPrimaryName = primaryName.replace(/\s+/g, "");
+  const baseSuffix = primaryName.includes("테니스장") ? "후기" : "테니스장 후기";
   const queries = [
-    [courtName, baseSuffix].filter(Boolean).join(" "),
-    [compactCourtName, baseSuffix].filter(Boolean).join(" "),
-    [region, city, courtName, baseSuffix].filter(Boolean).join(" "),
-    [courtName, "예약 후기"].filter(Boolean).join(" "),
-    [courtName, "주차 후기"].filter(Boolean).join(" "),
+    [primaryName, baseSuffix].filter(Boolean).join(" "),
+    [compactPrimaryName, baseSuffix].filter(Boolean).join(" "),
+    [region, city, primaryName, baseSuffix].filter(Boolean).join(" "),
+    [primaryName, "예약 후기"].filter(Boolean).join(" "),
+    [primaryName, "주차 후기"].filter(Boolean).join(" "),
+    ...searchNames.slice(1, 5).flatMap((name) => [
+      [name, name.includes("테니스장") ? "후기" : "테니스장 후기"].filter(Boolean).join(" "),
+      [name, "예약"].filter(Boolean).join(" "),
+    ]),
   ];
 
   return Array.from(new Set(queries.map(normalizeKeywordPart).filter(Boolean)));
 }
 
-function getBlogItemScore(item: NaverBlogItem, courtName: string) {
+function getBlogItemScoreForName(item: NaverBlogItem, courtName: string) {
   const title = stripHtml(item.title);
   const description = stripHtml(item.description);
   const text = normalizeForSearch(`${title} ${description} ${item.bloggername ?? ""}`);
@@ -83,6 +152,12 @@ function getBlogItemScore(item: NaverBlogItem, courtName: string) {
   }
 
   return score;
+}
+
+function getBlogItemScore(item: NaverBlogItem, courtName: string) {
+  const searchNames = buildBlogSearchNames(courtName);
+  const candidateNames = Array.from(new Set([courtName, ...searchNames]));
+  return Math.max(...candidateNames.map((name) => getBlogItemScoreForName(item, name)));
 }
 
 async function fetchNaverBlogItems({

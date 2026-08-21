@@ -280,6 +280,8 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
   const [favoriteMessage, setFavoriteMessage] = useState("찜한 테니스장을 확인하는 중입니다.");
   const [isFavoriteLoading, setIsFavoriteLoading] = useState(false);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const [locationMessage, setLocationMessage] = useState<string | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -425,6 +427,9 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
       return haystack.includes(normalized);
     });
   }, [courts, query, selectedCities, selectedOwners, selectedRegions]);
+
+  const hasActiveFilters =
+    selectedRegions.length > 0 || selectedCities.length > 0 || selectedOwners.length > 0;
 
   const favoriteCourts = useMemo(() => {
     const courtMap = new Map(courts.map((court) => [court.id, court]));
@@ -599,6 +604,22 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
   }, [isMobileViewport]);
 
   useEffect(() => {
+    const courtId = new URLSearchParams(window.location.search).get("courtId");
+    if (!courtId) return;
+    const targetCourt = courts.find((court) => court.id === courtId);
+    if (!targetCourt) return;
+
+    setSelectedCourtId(targetCourt.id);
+    setActiveLocationKey(null);
+    hasClearedMobileInitialSelectionRef.current = true;
+
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setMobileDetailReturnMode("map");
+      setMobileMode("detail");
+    }
+  }, [courts]);
+
+  useEffect(() => {
     if (!mapRef.current) return;
 
     let cancelled = false;
@@ -767,10 +788,61 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
     return () => window.clearTimeout(timer);
   }, [shareMessage]);
 
+  useEffect(() => {
+    if (!locationMessage) return;
+    const timer = window.setTimeout(() => setLocationMessage(null), 2200);
+    return () => window.clearTimeout(timer);
+  }, [locationMessage]);
+
   const selectedOpens = selectedCourt ? getCourtUpcomingOpens(selectedCourt).slice(0, 4) : [];
   const nextSelectedOpen = selectedOpens[0] ?? null;
   const selectedBlogLinks = selectedCourt?.court_blog_links?.slice(0, 3) ?? [];
   const reservationHref = selectedCourt ? getReservationHref(selectedCourt) : "";
+
+  const moveToCurrentLocation = () => {
+    if (isLocating) return;
+
+    const map = mapInstanceRef.current;
+    const kakao = (window as any).kakao;
+
+    if (!map || !kakao?.maps) {
+      setLocationMessage("지도를 불러온 뒤 다시 시도해주세요.");
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setLocationMessage("현재 브라우저에서는 위치 기능을 사용할 수 없습니다.");
+      return;
+    }
+
+    setIsLocating(true);
+    setLocationMessage(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const center = new kakao.maps.LatLng(position.coords.latitude, position.coords.longitude);
+        map.setCenter?.(center);
+        map.setLevel?.(5);
+        setSelectedCourtId(null);
+        setActiveLocationKey(null);
+        setIsLocating(false);
+      },
+      (error) => {
+        setIsLocating(false);
+        if (error.code === error.PERMISSION_DENIED) {
+          setLocationMessage("위치 권한을 허용해주세요.");
+          return;
+        }
+        setLocationMessage("현재 위치를 가져오지 못했습니다.");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 60000,
+      }
+    );
+  };
+
   const handleShareSelectedCourt = async () => {
     if (!selectedCourt) return;
 
@@ -813,6 +885,27 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
       left: direction === "left" ? -170 : 170,
       behavior: "smooth",
     });
+  };
+
+  const resetFilters = () => {
+    setSelectedRegions([]);
+    setSelectedCities([]);
+    setSelectedOwners([]);
+    setOpenFilter(null);
+  };
+
+  const renderFilterResetButton = () => {
+    if (!hasActiveFilters) return null;
+
+    return (
+      <button
+        type="button"
+        onClick={resetFilters}
+        className="h-9 shrink-0 rounded-full border border-[#cfd8e3] bg-white px-3 text-[12px] font-medium text-[#334155] transition hover:border-[#9aa8b7] hover:bg-[#f8fafc]"
+      >
+        초기화
+      </button>
+    );
   };
 
   const openMobileSearchMode = () => {
@@ -1234,7 +1327,11 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
               </div>
 
               {mobileUserProfile ? (
-                <div className="mt-10 flex items-center gap-3 border-b border-white/10 pb-6">
+                <button
+                  type="button"
+                  onClick={() => goToMobileMenuPath("/mypage?tab=profile")}
+                  className="mt-10 flex w-full items-center gap-3 border-b border-white/10 pb-6 text-left transition hover:text-[#6FCF97]"
+                >
                   {mobileUserProfile.avatarUrl ? (
                     <img
                       src={mobileUserProfile.avatarUrl}
@@ -1252,7 +1349,7 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
                       <p className="mt-0.5 truncate text-sm text-[#9A9EA6]">{mobileUserProfile.email}</p>
                     ) : null}
                   </div>
-                </div>
+                </button>
               ) : null}
 
               <nav className={mobileUserProfile ? "mt-8 flex flex-col gap-7" : "mt-24 flex flex-col gap-7"}>
@@ -1312,9 +1409,14 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
           <section className="absolute inset-x-3 bottom-3 top-[calc(max(12px,env(safe-area-inset-top))+62px)] z-[60] flex flex-col overflow-hidden rounded-[22px] border border-[#dbe2ea] bg-white/97 shadow-[0_18px_55px_rgba(15,23,42,0.22)] backdrop-blur md:hidden">
             <div className="relative z-[70] border-b border-[#e1e6eb] bg-[#eef2f5] px-4 py-2">
               <div ref={filterAreaRef} className="relative">
-                <div ref={filterScrollRef} className="scrollbar-hide flex gap-2 overflow-x-auto px-1 py-1.5">
-                  {renderDropdownFilter({ id: "location", label: "지역" })}
-                  {renderDropdownFilter({ id: "owner", label: "운영" })}
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div ref={filterScrollRef} className="scrollbar-hide flex gap-2 overflow-x-auto px-1 py-1.5">
+                      {renderDropdownFilter({ id: "location", label: "지역" })}
+                      {renderDropdownFilter({ id: "owner", label: "운영" })}
+                    </div>
+                  </div>
+                  {renderFilterResetButton()}
                 </div>
                 {renderOpenFilterPanel()}
               </div>
@@ -1472,40 +1574,43 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
                     ref={filterAreaRef}
                     className="relative z-[70] border-b border-[#e1e6eb] bg-[#eef2f5] px-4 py-2"
                   >
-                    <div className="group relative overflow-visible">
-                      {isFilterOverflowing ? (
-                        <button
-                          type="button"
-                          aria-label="필터 왼쪽으로 이동"
-                          onClick={() => scrollFilterRow("left")}
-                          className="pointer-events-none absolute left-0 top-1/2 z-[90] hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[#e5e8ec] bg-white text-[#6b7280] opacity-0 shadow-[0_8px_20px_rgba(15,23,42,0.12)] transition group-hover:pointer-events-auto group-hover:flex group-hover:opacity-100"
+                    <div className="flex items-center gap-2">
+                      <div className="group relative min-w-0 flex-1 overflow-visible">
+                        {isFilterOverflowing ? (
+                          <button
+                            type="button"
+                            aria-label="필터 왼쪽으로 이동"
+                            onClick={() => scrollFilterRow("left")}
+                            className="pointer-events-none absolute left-0 top-1/2 z-[90] hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[#e5e8ec] bg-white text-[#6b7280] opacity-0 shadow-[0_8px_20px_rgba(15,23,42,0.12)] transition group-hover:pointer-events-auto group-hover:flex group-hover:opacity-100"
+                          >
+                            ‹
+                          </button>
+                        ) : null}
+                        <div
+                          ref={filterScrollRef}
+                          className="scrollbar-hide flex gap-2 overflow-x-auto px-1 py-1.5 md:px-2 md:py-2"
                         >
-                          ‹
-                        </button>
-                      ) : null}
-                      <div
-                        ref={filterScrollRef}
-                        className="scrollbar-hide flex gap-2 overflow-x-auto px-1 py-1.5 md:px-2 md:py-2"
-                      >
-                        {renderDropdownFilter({
-                          id: "location",
-                          label: "지역",
-                        })}
-                        {renderDropdownFilter({
-                          id: "owner",
-                          label: "운영",
-                        })}
+                          {renderDropdownFilter({
+                            id: "location",
+                            label: "지역",
+                          })}
+                          {renderDropdownFilter({
+                            id: "owner",
+                            label: "운영",
+                          })}
+                        </div>
+                        {isFilterOverflowing ? (
+                          <button
+                            type="button"
+                            aria-label="필터 오른쪽으로 이동"
+                            onClick={() => scrollFilterRow("right")}
+                            className="pointer-events-none absolute right-0 top-1/2 z-[90] hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[#e5e8ec] bg-white text-[#6b7280] opacity-0 shadow-[0_8px_20px_rgba(15,23,42,0.12)] transition group-hover:pointer-events-auto group-hover:flex group-hover:opacity-100"
+                          >
+                            ›
+                          </button>
+                        ) : null}
                       </div>
-                      {isFilterOverflowing ? (
-                        <button
-                          type="button"
-                          aria-label="필터 오른쪽으로 이동"
-                          onClick={() => scrollFilterRow("right")}
-                          className="pointer-events-none absolute right-0 top-1/2 z-[90] hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[#e5e8ec] bg-white text-[#6b7280] opacity-0 shadow-[0_8px_20px_rgba(15,23,42,0.12)] transition group-hover:pointer-events-auto group-hover:flex group-hover:opacity-100"
-                        >
-                          ›
-                        </button>
-                      ) : null}
+                      {renderFilterResetButton()}
                     </div>
                     {renderOpenFilterPanel()}
                   </div>
@@ -1584,6 +1689,40 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
                   테스트 페이지는 현재 프로젝트의 카카오 지도 키를 사용합니다.
                 </p>
               </div>
+            </div>
+          ) : null}
+
+          {isMapReady && !mapError && (!isMobileViewport || mobileMode === "map") ? (
+            <div className="absolute bottom-[calc(max(18px,env(safe-area-inset-bottom))+104px)] right-4 z-[56] flex flex-col items-end gap-2 md:bottom-5 md:right-5">
+              {locationMessage ? (
+                <p className="rounded-full bg-[#111827]/90 px-3 py-2 text-xs font-medium text-white shadow-[0_8px_22px_rgba(15,23,42,0.18)]">
+                  {locationMessage}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={moveToCurrentLocation}
+                className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#cfd8e3] bg-white text-[#4b5563] shadow-[0_8px_20px_rgba(15,23,42,0.16)] transition hover:border-[#9aa8b7] hover:bg-[#f8fafc] active:scale-95 md:h-12 md:w-12"
+                aria-label="내 위치로 이동"
+              >
+                <svg
+                  className={isLocating ? "animate-spin" : ""}
+                  width="25"
+                  height="25"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="7.25" stroke="currentColor" strokeWidth="1.8" />
+                  <path
+                    d="M12 2.8v3.1M12 18.1v3.1M2.8 12h3.1M18.1 12h3.1"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+                </svg>
+              </button>
             </div>
           ) : null}
 

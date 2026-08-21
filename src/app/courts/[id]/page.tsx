@@ -121,7 +121,7 @@ function RelatedReservationInfo({ courts }: { courts: RelatedCourt[] }) {
   if (courts.length === 0) return null;
 
   return (
-    <section className="space-y-3">
+    <section className="mt-8 space-y-3">
       <h2 className="text-white font-semibold">이 테니스장의 다른 예약 정보</h2>
       <div className="grid gap-2 sm:grid-cols-2">
         {courts.map((relatedCourt) => {
@@ -344,11 +344,12 @@ export default async function CourtDetailPage({ params }: PageProps) {
                 <CourtDetailBookingSection court={court} />
               </section>
 
-              <section className="space-y-3">
+              <section aria-label="위치 정보" className="space-y-3 border-y border-[#242426] py-5">
                 <CourtDetailAddress court={court} />
                 <CourtDetailMap court={court} />
-                <RelatedReservationInfo courts={relatedCourts} />
               </section>
+
+              <RelatedReservationInfo courts={relatedCourts} />
 
               <section>
                 <h2 className="text-white font-semibold mb-3">코트</h2>

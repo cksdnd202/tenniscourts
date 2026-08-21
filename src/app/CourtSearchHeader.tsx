@@ -523,7 +523,11 @@ export function CourtSearchHeader({ courts }: Props) {
             </div>
 
             {isLoggedIn ? (
-              <div className="mt-10 flex items-center gap-3 border-b border-white/10 pb-6">
+              <button
+                type="button"
+                onClick={() => goToMobileMenuPath("/mypage?tab=profile")}
+                className="mt-10 flex w-full items-center gap-3 border-b border-white/10 pb-6 text-left transition-colors hover:text-[#6FCF97]"
+              >
                 {profileImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -542,7 +546,7 @@ export function CourtSearchHeader({ courts }: Props) {
                     <p className="mt-0.5 truncate text-sm text-[#9A9EA6]">{profileEmail}</p>
                   ) : null}
                 </div>
-              </div>
+              </button>
             ) : null}
 
             <nav className={isLoggedIn ? "mt-8 flex flex-col gap-7" : "mt-24 flex flex-col gap-7"}>

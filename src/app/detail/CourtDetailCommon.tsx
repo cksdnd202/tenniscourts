@@ -27,7 +27,7 @@ import {
   fmt,
 } from "../styles";
 
-/** 상세 페이지: 주소 + 위치보기 링크만 */
+/** 상세 페이지: 주소 + 지도에서 보기 링크 */
 export function CourtDetailAddress({ court }: { court: Court }) {
   if (!court.basic_address) return null;
   return (
@@ -41,12 +41,10 @@ export function CourtDetailAddress({ court }: { court: Court }) {
       />
       <span className={`${courtitem_courtaddress} truncate`}>{court.basic_address}</span>
       <a
-        href={court.basic_map_link ?? undefined}
-        target="_blank"
-        rel="noopener noreferrer"
+        href={`/map?courtId=${encodeURIComponent(court.id)}`}
         className={`${courtitem_courtmaplink} flex-shrink-0`}
       >
-        위치보기
+        지도에서 보기
       </a>
     </div>
   );
@@ -150,16 +148,19 @@ export function CourtDetailMap({ court }: { court: Court }) {
   if (!court.basic_address) return null;
   if (error) {
     return (
-      <div className="w-full min-h-[300px] rounded-lg bg-[#2C2C2C] flex items-center justify-center">
+      <div className="w-full min-h-[260px] rounded-2xl border border-[#2C2C2C] bg-[#1A1A1B] flex items-center justify-center">
         <span className="text-[#6B7280] text-sm">{error}</span>
       </div>
     );
   }
   return (
-    <div className="w-full">
-      <div ref={mapRef} className="w-full min-h-[300px] rounded-lg bg-[#2C2C2C] overflow-hidden" style={{ minHeight: "300px" }} />
+    <div className="w-full overflow-hidden rounded-2xl border border-[#2C2C2C] bg-[#1A1A1B] p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.18)]">
+      <div
+        ref={mapRef}
+        className="w-full min-h-[260px] overflow-hidden rounded-xl bg-[#2C2C2C] sm:min-h-[300px]"
+      />
       {geocodeFailed && (
-        <p className="mt-1.5 text-[#6B7280] text-xs">
+        <p className="px-2 pb-1.5 pt-2 text-[#6B7280] text-xs">
           주소로 위치를 찾지 못해 기본 위치를 표시합니다. .env.local과 Vercel 환경변수에
           KAKAO_REST_API_KEY(지오코딩), NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY(지도)를 설정해 주세요.
         </p>
