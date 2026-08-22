@@ -3,6 +3,7 @@ import type { Court, CourtBookingRule } from "./types";
 import { getCourtDetailPath } from "@/lib/courtPath";
 import { formatTime } from "./styles";
 import { BookingOpenCardRow } from "./detail/BookingOpenCardRow";
+import { HorizontalScrollArea } from "./detail/HorizontalScrollArea";
 import { detailCard } from "./detail/detailLayoutStyles";
 
 function sortActiveBookingRules(rules: CourtBookingRule[] | null | undefined) {
@@ -39,6 +40,12 @@ function getBookingRuleLabelTone(value: string | null | undefined) {
 function isNormalEligibility(value: string | null | undefined) {
   return value === "normal";
 }
+
+const detailBookingRulesLayoutClass =
+  "flex snap-x gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[1032px]:grid min-[1032px]:grid-cols-2 min-[1032px]:gap-4 min-[1032px]:overflow-visible min-[1032px]:pb-0";
+
+const detailBookingRuleCardClass =
+  "w-[44%] min-w-[44%] snap-start min-[1032px]:w-auto min-[1032px]:min-w-0";
 
 function formatRuleDayOfMonth(value: number | null | undefined) {
   if (value == null) return "";
@@ -187,7 +194,7 @@ export function BookingRulesDetailBlock({ court }: { court: Court }) {
     }
 
     return (
-      <div className="grid grid-cols-1 gap-3 min-[1032px]:grid-cols-2 min-[1032px]:gap-4">
+      <HorizontalScrollArea className={detailBookingRulesLayoutClass}>
         {Array.from(phaseGroups.entries()).map(([phase, groupRules]) => (
           <BookingRulesGroupCard
             key={phase}
@@ -195,7 +202,7 @@ export function BookingRulesDetailBlock({ court }: { court: Court }) {
             rules={groupRules}
           />
         ))}
-      </div>
+      </HorizontalScrollArea>
     );
   }
 
@@ -204,30 +211,32 @@ export function BookingRulesDetailBlock({ court }: { court: Court }) {
     const normalRules = rules.filter((rule) => isNormalEligibility(rule.eligibility));
 
     return (
-      <div className="grid grid-cols-1 gap-3 min-[1032px]:grid-cols-2 min-[1032px]:gap-4">
+      <HorizontalScrollArea className={detailBookingRulesLayoutClass}>
         {priorityRules.length > 0 ? (
           <BookingRulesGroupCard title="우선 예약" rules={priorityRules} />
         ) : null}
         {normalRules.length > 0 ? (
           <BookingRulesGroupCard title="전체 예약" rules={normalRules} />
         ) : null}
-      </div>
+      </HorizontalScrollArea>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 min-[1032px]:grid-cols-2 min-[1032px]:gap-4">
+    <HorizontalScrollArea className={detailBookingRulesLayoutClass}>
       {rules.map((rule) => (
-        <div key={rule.id} className={detailCard}>
-          <BookingOpenCardRow
-            label={formatBookingRuleEligibility(rule.eligibility)}
-            labelTone={getBookingRuleLabelTone(rule.eligibility)}
-          >
-            <span className="font-bold">{formatBookingRuleCardText(rule)}</span>
-          </BookingOpenCardRow>
+        <div key={rule.id} className={detailBookingRuleCardClass}>
+          <div className={detailCard}>
+            <BookingOpenCardRow
+              label={formatBookingRuleEligibility(rule.eligibility)}
+              labelTone={getBookingRuleLabelTone(rule.eligibility)}
+            >
+              <span className="font-bold">{formatBookingRuleCardText(rule)}</span>
+            </BookingOpenCardRow>
+          </div>
         </div>
       ))}
-    </div>
+    </HorizontalScrollArea>
   );
 }
 
@@ -239,22 +248,54 @@ function BookingRulesGroupCard({
   rules: CourtBookingRule[];
 }) {
   return (
-    <div className="rounded-xl border border-[#35383D] bg-[#111214] px-4 py-4 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
-      <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/[0.14] pb-3">
-        <h3 className="text-sm font-semibold text-white">{title}</h3>
-        <span className="shrink-0 text-xs font-medium text-[#8A8F98]">{rules.length}개</span>
+    <div className={`${detailBookingRuleCardClass} min-h-[124px] rounded-xl border border-[#35383D] bg-[#111214] px-4 py-4 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] min-[1032px]:min-h-0`}>
+      <div className="flex min-h-[92px] flex-col min-[1032px]:hidden">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <h3 className="text-sm font-medium text-white">{title}</h3>
+          {rules.length === 1 && rules[0] ? (
+            <span
+              className={`shrink-0 rounded-md bg-[#0D0D0F] px-2.5 py-1 text-xs font-medium leading-none ring-1 ring-white/5 ${getBookingRuleLabelTone(rules[0].eligibility) === "general" ? "text-[#2F9BFF]" : "text-[#FF8A4C]"}`}
+            >
+              {formatBookingRuleEligibility(rules[0].eligibility)}
+            </span>
+          ) : null}
+        </div>
+        <div className="mt-auto grid gap-2">
+          {rules.map((rule) => (
+            <div
+              key={rule.id}
+              className={rules.length > 1 ? "grid gap-2 border-t border-white/[0.1] pt-3 first:border-t-0 first:pt-0" : ""}
+            >
+              {rules.length > 1 ? (
+                <span
+                  className={`w-fit rounded-md bg-[#0D0D0F] px-2.5 py-1 text-xs font-medium leading-none ring-1 ring-white/5 ${getBookingRuleLabelTone(rule.eligibility) === "general" ? "text-[#2F9BFF]" : "text-[#FF8A4C]"}`}
+                >
+                  {formatBookingRuleEligibility(rule.eligibility)}
+                </span>
+              ) : null}
+              <p className="text-sm font-bold leading-snug text-white break-keep">
+                {formatBookingRuleCardText(rule)}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
-      <div className="grid gap-1">
-        {rules.map((rule) => (
-          <BookingOpenCardRow
-            key={rule.id}
-            label={formatBookingRuleEligibility(rule.eligibility)}
-            labelTone={getBookingRuleLabelTone(rule.eligibility)}
-            compact
-          >
-            <span className="font-bold">{formatBookingRuleCardText(rule)}</span>
-          </BookingOpenCardRow>
-        ))}
+      <div className="hidden min-[1032px]:block">
+        <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/[0.14] pb-3">
+          <h3 className="text-sm font-semibold text-white">{title}</h3>
+        </div>
+        <div className="grid gap-1">
+          {rules.map((rule) => (
+            <BookingOpenCardRow
+              key={rule.id}
+              label={formatBookingRuleEligibility(rule.eligibility)}
+              labelTone={getBookingRuleLabelTone(rule.eligibility)}
+              compact
+            >
+              <span className="font-bold">{formatBookingRuleCardText(rule)}</span>
+            </BookingOpenCardRow>
+          ))}
+        </div>
       </div>
     </div>
   );
