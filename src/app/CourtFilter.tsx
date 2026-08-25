@@ -16,6 +16,7 @@ import { FirstVisitCoachmark } from "./FirstVisitCoachmark";
 import { hasActiveBookingRules } from "./BookingRulesContent";
 import { supabase } from "@/lib/supabase";
 import { getCourtDetailPath } from "@/lib/courtPath";
+import { capturePostHogEvent } from "@/lib/posthogClient";
 import {
   getNextBookingRuleOpen,
   getNextNormalBookingOpen,
@@ -322,6 +323,10 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
 
   const handleSortChange = (nextSort: CourtListSort) => {
     setSortMode(nextSort);
+    capturePostHogEvent("main_sort_clicked", {
+      sortMode: nextSort,
+      resultCount: filteredCourts.length,
+    });
   };
 
   const handleLogin = async () => {
@@ -390,6 +395,12 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
     }
 
     setMyRegionMessage("");
+    capturePostHogEvent("main_filter_clicked", {
+      filterType: "my_region",
+      region,
+      city: nextCity,
+      source: useTemp ? "mobile_filter" : "desktop_filter",
+    });
   };
 
   // 팝업 열 때 임시 상태를 현재 상태로 초기화
@@ -411,6 +422,13 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
     setSelectedCity(tempCity);
     setSelectedCourtTypes([...tempCourtTypes]);
     setSelectedOwnerTypes([...tempOwnerTypes]);
+    capturePostHogEvent("main_filter_clicked", {
+      filterType: "mobile_filter_apply",
+      region: tempRegion,
+      city: tempCity,
+      courtTypes: tempCourtTypes,
+      ownerTypes: tempOwnerTypes,
+    });
     handleCloseFilter();
   };
 
@@ -436,6 +454,10 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
       setTempCourtTypes([]);
       setTempOwnerTypes([]);
     }
+    capturePostHogEvent("main_filter_clicked", {
+      filterType: "reset",
+      source: isFilterOpen ? "mobile_filter" : "desktop_filter",
+    });
   };
 
   // 임시 상태에서 사용할 cities 목록
@@ -531,6 +553,11 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
         setSelectedRegion(value);
         setSelectedCity("");
       }
+      capturePostHogEvent("main_filter_clicked", {
+        filterType: "region",
+        value,
+        source: useTemp ? "mobile_filter" : "desktop_filter",
+      });
     };
 
     const handleCityChange = (value: string) => {
@@ -539,6 +566,12 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
       } else {
         setSelectedCity(value);
       }
+      capturePostHogEvent("main_filter_clicked", {
+        filterType: "city",
+        value,
+        region: currentRegion,
+        source: useTemp ? "mobile_filter" : "desktop_filter",
+      });
     };
 
     return (
@@ -616,6 +649,12 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
                 className="custom-checkbox"
                 checked={currentCourtTypes.includes("hard")}
                 onChange={() => {
+                  capturePostHogEvent("main_filter_clicked", {
+                    filterType: "court_type",
+                    value: "hard",
+                    action: currentCourtTypes.includes("hard") ? "remove" : "add",
+                    source: useTemp ? "mobile_filter" : "desktop_filter",
+                  });
                   if (useTemp) {
                     setTempCourtTypes((prev) => toggleInArray(prev, "hard"));
                   } else {
@@ -631,6 +670,12 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
                 className="custom-checkbox"
                 checked={currentCourtTypes.includes("grass")}
                 onChange={() => {
+                  capturePostHogEvent("main_filter_clicked", {
+                    filterType: "court_type",
+                    value: "grass",
+                    action: currentCourtTypes.includes("grass") ? "remove" : "add",
+                    source: useTemp ? "mobile_filter" : "desktop_filter",
+                  });
                   if (useTemp) {
                     setTempCourtTypes((prev) => toggleInArray(prev, "grass"));
                   } else {
@@ -646,6 +691,12 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
                 className="custom-checkbox"
                 checked={currentCourtTypes.includes("clay")}
                 onChange={() => {
+                  capturePostHogEvent("main_filter_clicked", {
+                    filterType: "court_type",
+                    value: "clay",
+                    action: currentCourtTypes.includes("clay") ? "remove" : "add",
+                    source: useTemp ? "mobile_filter" : "desktop_filter",
+                  });
                   if (useTemp) {
                     setTempCourtTypes((prev) => toggleInArray(prev, "clay"));
                   } else {
@@ -670,6 +721,12 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
                 className="custom-checkbox"
                 checked={currentOwnerTypes.includes("시립")}
                 onChange={() => {
+                  capturePostHogEvent("main_filter_clicked", {
+                    filterType: "owner_type",
+                    value: "시립",
+                    action: currentOwnerTypes.includes("시립") ? "remove" : "add",
+                    source: useTemp ? "mobile_filter" : "desktop_filter",
+                  });
                   if (useTemp) {
                     setTempOwnerTypes((prev) => toggleInArray(prev, "시립"));
                   } else {
@@ -685,6 +742,12 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
                 className="custom-checkbox"
                 checked={currentOwnerTypes.includes("구립")}
                 onChange={() => {
+                  capturePostHogEvent("main_filter_clicked", {
+                    filterType: "owner_type",
+                    value: "구립",
+                    action: currentOwnerTypes.includes("구립") ? "remove" : "add",
+                    source: useTemp ? "mobile_filter" : "desktop_filter",
+                  });
                   if (useTemp) {
                     setTempOwnerTypes((prev) => toggleInArray(prev, "구립"));
                   } else {
@@ -700,6 +763,12 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
                 className="custom-checkbox"
                 checked={currentOwnerTypes.includes("사설")}
                 onChange={() => {
+                  capturePostHogEvent("main_filter_clicked", {
+                    filterType: "owner_type",
+                    value: "사설",
+                    action: currentOwnerTypes.includes("사설") ? "remove" : "add",
+                    source: useTemp ? "mobile_filter" : "desktop_filter",
+                  });
                   if (useTemp) {
                     setTempOwnerTypes((prev) => toggleInArray(prev, "사설"));
                   } else {

@@ -6,6 +6,7 @@ import { FavoriteButton } from "@/app/FavoriteButton";
 import { formatBookingRuleCardText, formatBookingRuleEligibility } from "@/app/BookingRulesContent";
 import type { Court } from "@/app/types";
 import { getCourtDetailPath } from "@/lib/courtPath";
+import { capturePostHogEvent } from "@/lib/posthogClient";
 import {
   getNextBookingRuleOpen,
   getNextNormalBookingOpen,
@@ -265,6 +266,8 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
   const filterScrollRef = useRef<HTMLDivElement | null>(null);
   const filterAreaRef = useRef<HTMLDivElement | null>(null);
   const hasClearedMobileInitialSelectionRef = useRef(false);
+  const lastCapturedMapSearchRef = useRef("");
+  const lastCapturedMapDetailScrollRef = useRef<string | null>(null);
   const [query, setQuery] = useState("");
   const [selectedCourtId, setSelectedCourtId] = useState<string | null>(
     courts.find(hasCoordinate)?.id ?? courts[0]?.id ?? null
@@ -427,6 +430,35 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
       return haystack.includes(normalized);
     });
   }, [courts, query, selectedCities, selectedOwners, selectedRegions]);
+
+  useEffect(() => {
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length < 2) return;
+
+    const timer = window.setTimeout(() => {
+      const captureKey = [
+        trimmedQuery,
+        selectedRegions.join(","),
+        selectedCities.join(","),
+        selectedOwners.join(","),
+      ].join("|");
+
+      if (lastCapturedMapSearchRef.current === captureKey) return;
+
+      lastCapturedMapSearchRef.current = captureKey;
+      capturePostHogEvent("map_search_performed", {
+        query: trimmedQuery,
+        resultCount: filteredCourts.length,
+        regions: selectedRegions,
+        cities: selectedCities,
+        owners: selectedOwners,
+      });
+    }, 700);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [filteredCourts.length, query, selectedCities, selectedOwners, selectedRegions]);
 
   const hasActiveFilters =
     selectedRegions.length > 0 || selectedCities.length > 0 || selectedOwners.length > 0;
@@ -1261,6 +1293,10 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
             <button
               type="button"
               onClick={() => {
+                capturePostHogEvent("map_schedule_menu_opened", {
+                  source: "mobile_quick_button",
+                  itemCount: upcomingOpens.length,
+                });
                 setMobileMode("schedule");
                 setSelectedCourtId(null);
                 setActiveLocationKey(null);
@@ -1534,7 +1570,15 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setActiveMenu(item.id)}
+                    onClick={() => {
+                      setActiveMenu(item.id);
+                      if (item.id === "schedule") {
+                        capturePostHogEvent("map_schedule_menu_opened", {
+                          source: "desktop_sidebar",
+                          itemCount: upcomingOpens.length,
+                        });
+                      }
+                    }}
                     className={`flex h-[62px] flex-col items-center justify-center gap-1 text-[9px] font-normal transition md:h-[74px] md:text-[10px] ${
                       activeMenu === item.id
                         ? "bg-[#111827] text-white"
@@ -1727,7 +1771,19 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
           ) : null}
 
           {shouldShowInfoLayer && selectedCourt ? (
-            <article className="map-test-scrollbar fixed inset-x-2 bottom-2 z-50 max-h-[66dvh] overflow-y-auto rounded-[22px] border border-[#dbe2ea] bg-white/95 p-4 text-[#111] shadow-[0_18px_60px_rgba(15,23,42,0.22)] backdrop-blur md:absolute md:inset-auto md:left-5 md:top-5 md:max-h-[calc(100vh-40px)] md:w-[380px] md:p-5 md:shadow-[0_18px_60px_rgba(15,23,42,0.14)]">
+            <article
+              className="map-test-scrollbar fixed inset-x-2 bottom-2 z-50 max-h-[66dvh] overflow-y-auto rounded-[22px] border border-[#dbe2ea] bg-white/95 p-4 text-[#111] shadow-[0_18px_60px_rgba(15,23,42,0.22)] backdrop-blur md:absolute md:inset-auto md:left-5 md:top-5 md:max-h-[calc(100vh-40px)] md:w-[380px] md:p-5 md:shadow-[0_18px_60px_rgba(15,23,42,0.14)]"
+              onScroll={() => {
+                if (lastCapturedMapDetailScrollRef.current === selectedCourt.id) return;
+
+                lastCapturedMapDetailScrollRef.current = selectedCourt.id;
+                capturePostHogEvent("map_detail_scrolled", {
+                  courtId: selectedCourt.id,
+                  courtName: selectedCourt.basic_court_name,
+                  source: isMobileViewport ? "mobile_info_layer" : "desktop_info_layer",
+                });
+              }}
+            >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <h2 className="break-keep text-xl font-bold">{selectedCourt.basic_court_name}</h2>
@@ -1759,7 +1815,7 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
               </p>
 
               <div className="mt-4 flex items-center gap-2 [&>button]:h-11 [&>button]:w-11 [&>button]:rounded-xl [&>button>svg]:h-6 [&>button>svg]:w-6 md:[&>button]:h-8 md:[&>button]:w-8 md:[&>button]:rounded-md md:[&>button>svg]:h-5 md:[&>button>svg]:w-5">
-                <FavoriteButton courtId={selectedCourt.id} variant="light" />
+                <FavoriteButton courtId={selectedCourt.id} variant="light" source="map_info_layer" />
                 <button
                   type="button"
                   onClick={handleShareSelectedCourt}
@@ -1855,6 +1911,11 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
                       </span>
                       <a
                         href={buildMapCalendarHref(selectedCourt, nextSelectedOpen)}
+                        data-gtm="calendar_register_map_click"
+                        data-court-id={selectedCourt.id}
+                        data-court-name={selectedCourt.basic_court_name ?? undefined}
+                        data-booking-badge={nextSelectedOpen.badge}
+                        data-booking-label={nextSelectedOpen.label}
                         className="text-xs font-semibold text-[#6b7280] underline underline-offset-2"
                       >
                         캘린더 등록하기
@@ -1878,6 +1939,10 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
                     href={reservationHref}
                     target="_blank"
                     rel="noreferrer"
+                    data-gtm="reserve_click"
+                    data-court-id={selectedCourt.id}
+                    data-court-name={selectedCourt.basic_court_name ?? undefined}
+                    data-booking-source="map_info_layer"
                     className="block rounded-xl bg-[#25764d] px-4 py-3 text-center text-sm font-semibold text-white"
                   >
                     예약하러가기

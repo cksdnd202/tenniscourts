@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { capturePostHogEvent } from "@/lib/posthogClient";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { getCourtDetailPath } from "@/lib/courtPath";
@@ -733,6 +734,15 @@ function FavoriteCourtsPanel() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    capturePostHogEvent("mypage_favorites_viewed", {
+      viewMode,
+      favoriteCount: courts.length,
+    });
+  }, [courts.length, isLoading, viewMode]);
 
   return (
     <section>

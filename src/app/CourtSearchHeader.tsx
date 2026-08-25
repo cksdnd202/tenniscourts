@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCourtDetailPath } from "@/lib/courtPath";
+import { capturePostHogEvent } from "@/lib/posthogClient";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import type { Court } from "./types";
@@ -34,6 +35,7 @@ export function CourtSearchHeader({ courts }: Props) {
   );
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const lastCapturedSearchRef = useRef("");
   const mobileSearchCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mobileMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -133,6 +135,26 @@ export function CourtSearchHeader({ courts }: Props) {
       })
       .slice(0, 10); // 최대 10개까지만 노출
   }, [courts, query]);
+
+  useEffect(() => {
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length < 2) return;
+
+    const timer = setTimeout(() => {
+      if (lastCapturedSearchRef.current === trimmedQuery) return;
+
+      lastCapturedSearchRef.current = trimmedQuery;
+      capturePostHogEvent("search_performed", {
+        query: trimmedQuery,
+        resultCount: results.length,
+        source: isMobileSearchOpen ? "mobile_header" : "desktop_header",
+      });
+    }, 700);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [isMobileSearchOpen, query, results.length]);
 
   // 바깥 클릭 시 레이어 닫기
   useEffect(() => {

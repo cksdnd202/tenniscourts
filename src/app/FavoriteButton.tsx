@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { capturePostHogEvent } from "@/lib/posthogClient";
 import { supabase } from "@/lib/supabase";
 
 const FAVORITE_COLOR = "#6FCF97";
@@ -10,9 +11,11 @@ const EMPTY_COLOR = "#D8D8D8";
 export function FavoriteButton({
   courtId,
   variant = "dark",
+  source = "unknown",
 }: {
   courtId: string;
   variant?: "dark" | "light";
+  source?: string;
 }) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -92,6 +95,11 @@ export function FavoriteButton({
     }
 
     setIsFavorite(nextIsFavorite);
+    capturePostHogEvent("favorite_clicked", {
+      courtId,
+      source,
+      action: nextIsFavorite ? "add" : "remove",
+    });
   };
 
   const handleLogin = async () => {

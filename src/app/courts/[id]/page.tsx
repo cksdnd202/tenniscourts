@@ -10,6 +10,7 @@ import { CourtSearchHeader } from "../../CourtSearchHeader";
 import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSection";
 import { CourtDetailAddress, CourtDetailTable, CourtDetailMap } from "../../detail/CourtDetailCommon";
 import { CourtDetailAside, CourtDetailMobileBookBar } from "../../detail/CourtDetailAside";
+import { CourtDetailViewTracker } from "../../detail/CourtDetailViewTracker";
 import { RecentCourtViewTracker } from "../../detail/RecentCourtViewTracker";
 import { ShareButton } from "../../detail/ShareButton";
 import { FavoriteButton } from "../../FavoriteButton";
@@ -149,7 +150,15 @@ function RelatedReservationInfo({ courts }: { courts: RelatedCourt[] }) {
   );
 }
 
-function CourtBlogLinks({ links }: { links: CourtBlogLink[] }) {
+function CourtBlogLinks({
+  links,
+  courtId,
+  courtName,
+}: {
+  links: CourtBlogLink[];
+  courtId: string;
+  courtName?: string | null;
+}) {
   if (links.length === 0) return null;
 
   return (
@@ -162,6 +171,12 @@ function CourtBlogLinks({ links }: { links: CourtBlogLink[] }) {
             href={link.url}
             target="_blank"
             rel="noopener noreferrer"
+            data-ph-event="detail_blog_clicked"
+            data-court-id={courtId}
+            data-court-name={courtName ?? undefined}
+            data-blog-url={link.url}
+            data-blog-title={link.title ?? "블로그 후기 보기"}
+            data-blog-source={link.source ?? "unknown"}
             className="group overflow-hidden rounded-xl border border-[#2C2C2C] bg-[#1A1A1B] transition hover:bg-[#252528]"
           >
             <div className="aspect-[16/9] bg-[#242426]">
@@ -315,6 +330,13 @@ export default async function CourtDetailPage({ params }: PageProps) {
   return (
     <>
       <RecentCourtViewTracker courtId={court.id} />
+      <CourtDetailViewTracker
+        courtId={court.id}
+        courtName={court.basic_court_name}
+        ownerType={court.basic_owner_type}
+        region={court.basic_region}
+        city={court.basic_city}
+      />
       <CourtSearchHeader courts={courtsForSearch} />
 
       {/* 헤더 검색창과 동일하게 1032px 이상에서만 2열 + 우측 사이드 표시 (lg=1024만 쓰면 사이드바가 비는 구간 발생) */}
@@ -336,7 +358,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
                 </div>
                 <div className="inline-flex flex-shrink-0 items-center gap-2">
                   <ShareButton title={court.basic_court_name ?? "Courts Korea"} />
-                  <FavoriteButton courtId={court.id} />
+                  <FavoriteButton courtId={court.id} source="detail_page" />
                 </div>
               </div>
 
@@ -365,7 +387,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
                 </div>
               </section>
 
-              <CourtBlogLinks links={blogLinks} />
+              <CourtBlogLinks links={blogLinks} courtId={court.id} courtName={court.basic_court_name} />
             </div>
 
             {/* 우측 사이드바 (~25–30%), 1032px 이상만 */}
