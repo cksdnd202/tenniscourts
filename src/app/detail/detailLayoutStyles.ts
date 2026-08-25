@@ -12,10 +12,37 @@ export const detailNoPriorityClass =
 export const detailNoNormalClass =
   "block w-full text-center text-[#888888] text-sm font-normal leading-relaxed";
 
-/** 예약 오픈 카드 좌측 라벨(구민·시민 / 일반) · 사이드바 뱃지 글자색 공통 */
-export type BookingOpenLabelTone = "priority" | "general";
+/** 예약 오픈 카드 좌측 라벨 · 사이드바 뱃지 글자색 공통 */
+export type BookingOpenLabelTone =
+  | "priority"
+  | "general"
+  | "normal"
+  | "citizen"
+  | "resident"
+  | "inhabitant"
+  | "none";
 
 export const bookingOpenLabelTextClass: Record<BookingOpenLabelTone, string> = {
   priority: "text-[#FD844C]",
   general: "text-[#3896FB]",
+  normal: "text-[#3896FB]",
+  citizen: "text-[#FD844C]",
+  resident: "text-[#6FCF97]",
+  inhabitant: "text-[#B58CFF]",
+  none: "text-[#9CA3AF]",
 };
+
+export function getBookingOpenLabelTextClass(
+  tone: BookingOpenLabelTone,
+  label?: string | null
+) {
+  if (tone === "priority") {
+    if (label === "시민") return bookingOpenLabelTextClass.citizen;
+    if (label === "구민") return bookingOpenLabelTextClass.resident;
+    if (label === "주민") return bookingOpenLabelTextClass.inhabitant;
+  }
+
+  if (tone === "general") return bookingOpenLabelTextClass.normal;
+
+  return bookingOpenLabelTextClass[tone];
+}

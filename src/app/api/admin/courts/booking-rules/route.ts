@@ -13,6 +13,7 @@ const editableFields = [
   "open_ordinal",
   "open_time",
   "open_offset",
+  "open_date_adjustment",
   "interval_weeks",
   "anchor_date",
   "lottery_desc",

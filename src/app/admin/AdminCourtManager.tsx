@@ -106,6 +106,7 @@ function createEmptyBookingRuleDraft(courtId: string, sortOrder = 0): CourtBooki
     open_ordinal: null,
     open_time: "",
     open_offset: "다음달",
+    open_date_adjustment: "none",
     interval_weeks: null,
     anchor_date: null,
     lottery_desc: "",
@@ -130,6 +131,7 @@ function createSeoulCandidateBookingRuleDraft(sortOrder = 10): CourtBookingRule 
     open_ordinal: null,
     open_time: null,
     open_offset: null,
+    open_date_adjustment: "none",
     interval_weeks: null,
     anchor_date: null,
     lottery_desc: null,
@@ -549,6 +551,17 @@ function formatRuleOpenType(value: string | null | undefined) {
   }
 }
 
+function formatRuleOpenDateAdjustment(value: string | null | undefined) {
+  switch (value) {
+    case "next_weekday":
+      return "주말이면 다음 평일";
+    case "none":
+      return "보정 없음";
+    default:
+      return value || "보정 없음";
+  }
+}
+
 function formatRuleWeekday(value: number | null | undefined) {
   const labels = ["일", "월", "화", "수", "목", "금", "토"];
   return typeof value === "number" && labels[value] ? `${labels[value]}요일` : "-";
@@ -607,6 +620,7 @@ function normalizeBookingRuleForSave(rule: CourtBookingRuleDraft) {
     open_ordinal: numberOrNull(rule.open_ordinal),
     open_time: stringifyValue(rule.open_time).trim() || null,
     open_offset: stringifyValue(rule.open_offset).trim() || null,
+    open_date_adjustment: stringifyValue(rule.open_date_adjustment).trim() || "none",
     interval_weeks: numberOrNull(rule.interval_weeks),
     anchor_date: stringifyValue(rule.anchor_date).trim() || null,
     lottery_desc: stringifyValue(rule.lottery_desc).trim() || null,
@@ -661,6 +675,7 @@ function isBookingRuleDraftFieldVisible(
 
   if (ruleType === "fixed_schedule") {
     if (field === "open_type" || field === "open_time" || field === "open_offset") return true;
+    if (field === "open_date_adjustment") return openType === "day" || openType === "week";
     if (field === "open_day_of_month") return openType === "day" || openType === "week";
     if (field === "open_day_of_week") return openType === "week";
     return false;
@@ -668,6 +683,7 @@ function isBookingRuleDraftFieldVisible(
 
   if (ruleType === "ordinal") {
     if (field === "open_type" || field === "open_ordinal" || field === "open_time") return true;
+    if (field === "open_date_adjustment") return true;
     if (field === "open_day_of_week") return openType === "week" && openOrdinal !== -2;
     if (field === "open_offset") return true;
     return false;
@@ -702,6 +718,11 @@ const bookingRuleOpenTypeOptions = [
   { label: "선택 안 함", value: "" },
   { label: "일자(day)", value: "day" },
   { label: "요일(week)", value: "week" },
+];
+
+const bookingRuleOpenDateAdjustmentOptions = [
+  { label: "보정 없음", value: "none" },
+  { label: "주말이면 다음 평일", value: "next_weekday" },
 ];
 
 const bookingRuleWeekdayOptions = [
@@ -902,6 +923,14 @@ function BookingRulesEditor({
             }
           />
         ) : null}
+        {isBookingRuleDraftFieldVisible(draft, "open_date_adjustment") ? (
+          <RuleDraftSelect
+            label="오픈일 보정"
+            value={draft.open_date_adjustment}
+            options={bookingRuleOpenDateAdjustmentOptions}
+            onChange={(value) => onChange("open_date_adjustment", value)}
+          />
+        ) : null}
         {isBookingRuleDraftFieldVisible(draft, "interval_weeks") ? (
           <RuleDraftTextInput
             label="반복 주기(주)"
@@ -1039,9 +1068,18 @@ function BookingRulesEditor({
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-[#a7a7a7]">
-                    {formatRuleType(rule.rule_type)} · {formatRuleOpenType(rule.open_type)} ·{" "}
-                    {formatRuleDayOfMonth(rule.open_day_of_month)} ·{" "}
-                    {formatRuleWeekday(rule.open_day_of_week)} · {formatRuleTime(rule.open_time)}
+                    {[
+                      formatRuleType(rule.rule_type),
+                      formatRuleOpenType(rule.open_type),
+                      formatRuleDayOfMonth(rule.open_day_of_month),
+                      formatRuleWeekday(rule.open_day_of_week),
+                      formatRuleTime(rule.open_time),
+                      rule.open_date_adjustment === "next_weekday"
+                        ? formatRuleOpenDateAdjustment(rule.open_date_adjustment)
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
                   {rule.booking_round_label || rule.usage_period_label || rule.reservation_url ? (
                     <p className="mt-1 text-xs text-[#8c8c8c]">
@@ -1160,6 +1198,12 @@ function BookingRulesPreview({ rules }: { rules: CourtBookingRule[] | null | und
                   <dt className="text-[#777]">오픈 시간</dt>
                   <dd className="mt-1 text-[#cfcfcf]">{formatRuleTime(rule.open_time)}</dd>
                 </div>
+                <div>
+                  <dt className="text-[#777]">오픈일 보정</dt>
+                  <dd className="mt-1 text-[#cfcfcf]">
+                    {formatRuleOpenDateAdjustment(rule.open_date_adjustment)}
+                  </dd>
+                </div>
               </dl>
 
               {rule.open_offset || rule.interval_weeks || rule.anchor_date || rule.lottery_desc ? (
@@ -1262,6 +1306,7 @@ function formatRuleCardText(rule: CourtBookingRule) {
     return `${openText}${offset ? `, ${offset}` : ""} 예약 오픈`.trim();
   }
 
+  const adjustmentText = rule.open_date_adjustment === "next_weekday" ? " (주말이면 다음 평일)" : "";
   const time = formatTime(rule.open_time);
   const offset = rule.open_offset?.trim();
 
@@ -1272,12 +1317,12 @@ function formatRuleCardText(rule: CourtBookingRule) {
     const parts = [ordinal !== "-" ? ordinal : week !== "-" ? week : "", weekday !== "-" ? weekday : ""]
       .filter(Boolean)
       .join(" ");
-    return [parts, time].filter(Boolean).join(" ") + `${offset ? `, ${offset}` : ""} 예약 오픈`;
+    return [parts, time].filter(Boolean).join(" ") + `${offset ? `, ${offset}` : ""} 예약 오픈${adjustmentText}`;
   }
 
   const day = formatRuleDayOfMonth(rule.open_day_of_month);
   const openText = [day, time].filter(Boolean).join(" ");
-  return `${openText}${offset ? `, ${offset}` : ""} 예약 오픈`.trim();
+  return `${openText}${offset ? `, ${offset}` : ""} 예약 오픈${adjustmentText}`.trim();
 }
 
 function groupRulesByOpenText(rules: CourtBookingRule[]) {
@@ -2258,6 +2303,8 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
             ruleType === "interval_weekly"
               ? current.open_offset
               : null,
+          open_date_adjustment:
+            ruleType === "fixed_schedule" || ruleType === "ordinal" ? current.open_date_adjustment || "none" : "none",
           interval_weeks: ruleType === "interval_weekly" ? current.interval_weeks || 2 : null,
           anchor_date: ruleType === "interval_weekly" ? current.anchor_date || null : null,
           lottery_desc: ruleType === "lottery" ? current.lottery_desc : null,
@@ -2275,6 +2322,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
               ? current.open_day_of_month
               : null,
           open_day_of_week: openType === "week" ? current.open_day_of_week : null,
+          open_date_adjustment: openType === "day" || openType === "week" ? current.open_date_adjustment || "none" : "none",
         };
       }
 

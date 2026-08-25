@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import {
-  bookingOpenLabelTextClass,
+  getBookingOpenLabelTextClass,
   type BookingOpenLabelTone,
 } from "./detailLayoutStyles";
 
@@ -15,7 +15,7 @@ type Props = {
 
 /** 라벨은 좌측 고정(톤별 배지), 예약 오픈 문구는 박스 가로 중앙 */
 export function BookingOpenCardRow({ label, labelTone, children, compact = false }: Props) {
-  const labelColorClass = bookingOpenLabelTextClass[labelTone];
+  const labelColorClass = getBookingOpenLabelTextClass(labelTone, label);
   const rowHeightClass = compact ? "min-h-[38px]" : "min-h-[48px]";
 
   return (

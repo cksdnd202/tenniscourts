@@ -92,6 +92,7 @@ export type CourtBookingRule = {
   open_ordinal: number | null;
   open_time: string | null;
   open_offset: string | null;
+  open_date_adjustment?: string | null;
   interval_weeks?: number | null;
   anchor_date?: string | null;
   lottery_desc: string | null;

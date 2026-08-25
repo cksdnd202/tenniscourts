@@ -7,7 +7,7 @@ import {
   type NextOpenResult,
 } from "@/lib/nextBookingOpen";
 import {
-  bookingOpenLabelTextClass,
+  getBookingOpenLabelTextClass,
   type BookingOpenLabelTone,
 } from "./detailLayoutStyles";
 import type { CalendarAndroidEventPayload } from "./calendarAndroidPayload";
@@ -83,7 +83,7 @@ function getNextOpenPreviews(court: Court): NextOpenPreview[] {
         return {
           key: rule.id,
           badge,
-          badgeTone: badge === "전체" ? ("general" as const) : ("priority" as const),
+          badgeTone: getBookingRuleBadgeTone(rule.eligibility),
           open,
           rule,
         };
@@ -105,6 +105,14 @@ function getNextOpenPreviews(court: Court): NextOpenPreview[] {
   ];
 
   return fallbackPreviews.filter((item): item is NextOpenPreview => Boolean(item));
+}
+
+function getBookingRuleBadgeTone(value: string | null | undefined): BookingOpenLabelTone {
+  const key = value?.trim();
+  if (key === "citizen" || key === "resident" || key === "inhabitant" || key === "none") {
+    return key;
+  }
+  return key === "normal" || !key ? "normal" : "priority";
 }
 
 function buildDeviceCalendarUrl(params: {
@@ -204,7 +212,7 @@ function NextOpenPreviewCard({
   courtId?: string;
   courtName?: string | null;
 }) {
-  const badgeTextClass = bookingOpenLabelTextClass[badgeTone];
+  const badgeTextClass = getBookingOpenLabelTextClass(badgeTone, badge);
 
   return (
     <div
@@ -293,7 +301,7 @@ export function CourtDetailAside({ court }: { court: Court }) {
   );
 
   return (
-    <div className="sticky top-[calc(73px+0.75rem)] z-20 w-full min-w-0">
+    <div className="sticky top-[calc(73px+0.75rem)] z-20 w-full min-w-0 max-h-[calc(100vh-96px)] overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <aside className="flex flex-col gap-4 w-full">
         {previews.map((preview) => (
           <NextOpenPreviewCard

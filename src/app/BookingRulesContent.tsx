@@ -4,7 +4,11 @@ import { getCourtDetailPath } from "@/lib/courtPath";
 import { formatTime } from "./styles";
 import { BookingOpenCardRow } from "./detail/BookingOpenCardRow";
 import { HorizontalScrollArea } from "./detail/HorizontalScrollArea";
-import { detailCard } from "./detail/detailLayoutStyles";
+import {
+  bookingOpenLabelTextClass,
+  detailCard,
+  type BookingOpenLabelTone,
+} from "./detail/detailLayoutStyles";
 
 function sortActiveBookingRules(rules: CourtBookingRule[] | null | undefined) {
   return (rules ?? [])
@@ -33,8 +37,12 @@ export function formatBookingRuleEligibility(value: string | null | undefined) {
   return key ? map[key] ?? key : "전체";
 }
 
-function getBookingRuleLabelTone(value: string | null | undefined) {
-  return value === "normal" ? "general" : "priority";
+function getBookingRuleLabelTone(value: string | null | undefined): BookingOpenLabelTone {
+  const key = value?.trim();
+  if (key === "citizen" || key === "resident" || key === "inhabitant" || key === "none") {
+    return key;
+  }
+  return key === "normal" || !key ? "normal" : "priority";
 }
 
 function isNormalEligibility(value: string | null | undefined) {
@@ -94,6 +102,10 @@ function formatRuleWeekday(value: number | null | undefined) {
   return map[value] ?? "";
 }
 
+function appendOpenDateAdjustment(text: string, rule: CourtBookingRule) {
+  return rule.open_date_adjustment === "next_weekday" ? `${text} (주말이면 다음 평일)` : text;
+}
+
 export function formatBookingRuleCardText(rule: CourtBookingRule) {
   if (rule.rule_type === "phone") return "전화 예약";
   if (rule.rule_type === "on_site") return "현장 예약";
@@ -126,11 +138,17 @@ export function formatBookingRuleCardText(rule: CourtBookingRule) {
     const ordinal = formatRuleOrdinal(rule.open_ordinal);
     const weekday = formatRuleWeekday(rule.open_day_of_week);
     const prefix = [ordinal || week, weekday].filter(Boolean).join(" ");
-    return `${[prefix, time].filter(Boolean).join(" ")}${offset ? `, ${offset}` : ""} 예약 오픈`.trim();
+    return appendOpenDateAdjustment(
+      `${[prefix, time].filter(Boolean).join(" ")}${offset ? `, ${offset}` : ""} 예약 오픈`.trim(),
+      rule
+    );
   }
 
   const day = formatRuleDaySchedule(rule.open_day_of_month);
-  return `${[day, time].filter(Boolean).join(" ")}${offset ? `, ${offset}` : ""} 예약 오픈`.trim();
+  return appendOpenDateAdjustment(
+    `${[day, time].filter(Boolean).join(" ")}${offset ? `, ${offset}` : ""} 예약 오픈`.trim(),
+    rule
+  );
 }
 
 export function BookingRulesCompactContent({ court }: { court: Court }) {
@@ -254,7 +272,7 @@ function BookingRulesGroupCard({
           <h3 className="text-sm font-medium text-white">{title}</h3>
           {rules.length === 1 && rules[0] ? (
             <span
-              className={`shrink-0 rounded-md bg-[#0D0D0F] px-2.5 py-1 text-xs font-medium leading-none ring-1 ring-white/5 ${getBookingRuleLabelTone(rules[0].eligibility) === "general" ? "text-[#2F9BFF]" : "text-[#FF8A4C]"}`}
+              className={`shrink-0 rounded-md bg-[#0D0D0F] px-2.5 py-1 text-xs font-medium leading-none ring-1 ring-white/5 ${bookingOpenLabelTextClass[getBookingRuleLabelTone(rules[0].eligibility)]}`}
             >
               {formatBookingRuleEligibility(rules[0].eligibility)}
             </span>
@@ -268,7 +286,7 @@ function BookingRulesGroupCard({
             >
               {rules.length > 1 ? (
                 <span
-                  className={`w-fit rounded-md bg-[#0D0D0F] px-2.5 py-1 text-xs font-medium leading-none ring-1 ring-white/5 ${getBookingRuleLabelTone(rule.eligibility) === "general" ? "text-[#2F9BFF]" : "text-[#FF8A4C]"}`}
+                  className={`w-fit rounded-md bg-[#0D0D0F] px-2.5 py-1 text-xs font-medium leading-none ring-1 ring-white/5 ${bookingOpenLabelTextClass[getBookingRuleLabelTone(rule.eligibility)]}`}
                 >
                   {formatBookingRuleEligibility(rule.eligibility)}
                 </span>
