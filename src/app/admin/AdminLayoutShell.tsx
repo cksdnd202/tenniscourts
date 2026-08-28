@@ -7,6 +7,7 @@ import { AdminAuthGate } from "./AdminAuthGate";
 
 const adminMenus = [
   { href: "/admin/courtslist", label: "테니스장 목록" },
+  { href: "/admin/esharetest", label: "공유누리 API 테스트" },
   { href: "/admin/instagramgenerator", label: "인스타 생성기" },
 ];
 

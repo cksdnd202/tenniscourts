@@ -33,6 +33,20 @@ const formatWeekOfMonth = (week: number | string | null | undefined): string => 
   return weekMap[Number(week)] ?? "";
 };
 
+const formatOrdinalWeekday = (ordinal: number | string | null | undefined): string => {
+  if (ordinal == null) return "";
+  if (Number(ordinal) === -1) return "마지막";
+  if (Number(ordinal) === -2) return "첫 번째 영업일";
+  const ordinalMap: Record<number, string> = {
+    1: "첫 번째",
+    2: "두 번째",
+    3: "세 번째",
+    4: "네 번째",
+    5: "다섯 번째",
+  };
+  return ordinalMap[Number(ordinal)] ?? "";
+};
+
 const formatDayOfWeek = (day: number | null | undefined): string => {
   if (day == null) return "";
   const dayMap: Record<number, string> = {
@@ -93,11 +107,23 @@ function buildBookingRuleReservationSentence(rule: CourtBookingRule): string | n
     return `${label} 예약은 ${when}에 새 예약이 오픈됩니다.`;
   }
 
-  if (rule.rule_type === "fixed_schedule" || rule.rule_type === "ordinal") {
+  if (rule.rule_type === "fixed_schedule") {
     if (rule.open_type === "week") {
-      const ordinal = rule.rule_type === "ordinal" ? rule.open_ordinal : rule.open_day_of_month;
       return `${label} 예약은 ${buildWeekOpenPhrase(
-        ordinal,
+        rule.open_day_of_month,
+        rule.open_day_of_week,
+        time,
+        targetLabel
+      )}`;
+    }
+
+    return `${label} 예약은 ${buildDayOpenPhrase(rule.open_day_of_month, time, targetLabel)}`;
+  }
+
+  if (rule.rule_type === "ordinal") {
+    if (rule.open_type === "week") {
+      return `${label} 예약은 ${buildOrdinalOpenPhrase(
+        rule.open_ordinal,
         rule.open_day_of_week,
         time,
         targetLabel
@@ -162,6 +188,19 @@ function buildWeekOpenPhrase(
   return `${schedule}에 ${targetLabel} 예약이 오픈됩니다.`;
 }
 
+function buildOrdinalOpenPhrase(
+  ordinalRaw: number | string | null | undefined,
+  weekday: number | null | undefined,
+  time: string,
+  targetLabel: string
+): string {
+  const ordinal = formatOrdinalWeekday(ordinalRaw);
+  const week = Number(ordinalRaw) === -2 ? "" : formatDayOfWeek(weekday);
+  const schedule = [ordinal, week, time].filter(Boolean).join(" ");
+  if (!schedule) return `${targetLabel} 예약이 오픈됩니다.`;
+  return `${schedule}에 ${targetLabel} 예약이 오픈됩니다.`;
+}
+
 function buildOwnerReservationSentence(court: Court): string | null {
   const label = getPriorityEligibilityLabel(court.booking_eligibility_first);
   if (!label || !court.booking_open_time_owner?.trim()) return null;
@@ -174,15 +213,25 @@ function buildOwnerReservationSentence(court: Court): string | null {
     return `${label} 예약은 매일 ${time}에 새 예약이 오픈됩니다.`;
   }
 
-  if (rt === "fixed_schedule" || rt === "ordinal") {
+  if (rt === "fixed_schedule") {
     if (court.booking_open_type === "day") {
       return `${label} 예약은 ${buildDayOpenPhrase(court.booking_open_day_owner, time, targetLabel)}`;
     }
     if (court.booking_open_type === "week") {
-      const ordinal =
-        rt === "ordinal" ? court.booking_open_ordinal : court.booking_open_day_of_month;
       return `${label} 예약은 ${buildWeekOpenPhrase(
-        ordinal,
+        court.booking_open_day_of_month,
+        court.booking_open_day_of_week,
+        time,
+        targetLabel
+      )}`;
+    }
+    return `${label} 예약은 ${buildDayOpenPhrase(court.booking_open_day_owner, time, targetLabel)}`;
+  }
+
+  if (rt === "ordinal") {
+    if (court.booking_open_type === "week") {
+      return `${label} 예약은 ${buildOrdinalOpenPhrase(
+        court.booking_open_ordinal,
         court.booking_open_day_of_week,
         time,
         targetLabel
@@ -205,15 +254,25 @@ function buildNormalReservationSentence(court: Court): string | null {
     return `전체 예약은 매일 ${time}에 새 예약이 오픈됩니다.`;
   }
 
-  if (rt === "fixed_schedule" || rt === "ordinal") {
+  if (rt === "fixed_schedule") {
     if (court.booking_open_type === "day") {
       return `전체 예약은 ${buildDayOpenPhrase(court.booking_open_day_normal, time, targetLabel)}`;
     }
     if (court.booking_open_type === "week") {
-      const ordinal =
-        rt === "ordinal" ? court.booking_open_ordinal : court.booking_open_day_of_month;
-    return `전체 예약은 ${buildWeekOpenPhrase(
-        ordinal,
+      return `전체 예약은 ${buildWeekOpenPhrase(
+        court.booking_open_day_of_month,
+        court.booking_open_day_of_week,
+        time,
+        targetLabel
+      )}`;
+    }
+    return `전체 예약은 ${buildDayOpenPhrase(court.booking_open_day_normal, time, targetLabel)}`;
+  }
+
+  if (rt === "ordinal") {
+    if (court.booking_open_type === "week") {
+      return `전체 예약은 ${buildOrdinalOpenPhrase(
+        court.booking_open_ordinal,
         court.booking_open_day_of_week,
         time,
         targetLabel

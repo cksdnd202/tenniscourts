@@ -570,19 +570,40 @@ function formatRuleWeekday(value: number | null | undefined) {
 function formatRuleOrdinal(value: number | null | undefined) {
   switch (value) {
     case 1:
-      return "첫 번째 주";
+      return "첫 번째";
     case 2:
-      return "두 번째 주";
+      return "두 번째";
     case 3:
-      return "세 번째 주";
+      return "세 번째";
     case 4:
-      return "네 번째 주";
+      return "네 번째";
+    case 5:
+      return "다섯 번째";
     case -1:
-      return "마지막 주";
+      return "마지막";
     case -2:
       return "첫 번째 영업일";
     default:
-      return typeof value === "number" ? String(value) : "-";
+      return typeof value === "number" ? `${value}번째` : "-";
+  }
+}
+
+function formatRuleWeekOfMonth(value: number | null | undefined) {
+  switch (value) {
+    case 1:
+      return "첫째주";
+    case 2:
+      return "둘째주";
+    case 3:
+      return "셋째주";
+    case 4:
+      return "넷째주";
+    case 5:
+      return "다섯째주";
+    case -1:
+      return "마지막주";
+    default:
+      return typeof value === "number" ? `${value}주차` : "-";
   }
 }
 
@@ -878,11 +899,11 @@ function BookingRulesEditor({
         ) : null}
         {isBookingRuleDraftFieldVisible(draft, "open_day_of_month") ? (
           <RuleDraftTextInput
-            label={stringifyValue(draft.open_type) === "week" ? "월 오픈 일자" : "오픈 일자"}
             value={draft.open_day_of_month}
             type="number"
             onChange={(value) => onChange("open_day_of_month", value)}
-            placeholder={stringifyValue(draft.open_type) === "week" ? "예: 1 또는 -1" : "예: 13"}
+            label={stringifyValue(draft.open_type) === "week" ? "월 오픈 주차" : "오픈 일자"}
+            placeholder={stringifyValue(draft.open_type) === "week" ? "예: 3 또는 -1" : "예: 13"}
           />
         ) : null}
         {isBookingRuleDraftFieldVisible(draft, "open_day_of_week") ? (
@@ -1310,11 +1331,17 @@ function formatRuleCardText(rule: CourtBookingRule) {
   const time = formatTime(rule.open_time);
   const offset = rule.open_offset?.trim();
 
-  if (rule.open_type === "week") {
-    const week = formatRuleDayOfMonth(rule.open_day_of_month);
-    const weekday = formatRuleWeekday(rule.open_day_of_week);
+  if (rule.rule_type === "ordinal") {
     const ordinal = formatRuleOrdinal(rule.open_ordinal);
-    const parts = [ordinal !== "-" ? ordinal : week !== "-" ? week : "", weekday !== "-" ? weekday : ""]
+    const weekday = formatRuleWeekday(rule.open_day_of_week);
+    const parts = [ordinal !== "-" ? ordinal : "", weekday !== "-" ? weekday : ""].filter(Boolean).join(" ");
+    return [parts, time].filter(Boolean).join(" ") + `${offset ? `, ${offset}` : ""} 예약 오픈${adjustmentText}`;
+  }
+
+  if (rule.open_type === "week") {
+    const week = formatRuleWeekOfMonth(rule.open_day_of_month);
+    const weekday = formatRuleWeekday(rule.open_day_of_week);
+    const parts = [week !== "-" ? week : "", weekday !== "-" ? weekday : ""]
       .filter(Boolean)
       .join(" ");
     return [parts, time].filter(Boolean).join(" ") + `${offset ? `, ${offset}` : ""} 예약 오픈${adjustmentText}`;

@@ -130,6 +130,30 @@ function dayOfMonthForNthWeekday(
   return null;
 }
 
+/** 해당 월의 n번째 달력 주차(일요일 시작)에 있는 court 요일의 일자 */
+function dayOfMonthForCalendarWeek(
+  y: number,
+  m: number,
+  courtWeekdayRaw: unknown,
+  weekOrdinalRaw: unknown
+): number | null {
+  const weekOrdinal = toFiniteInt(weekOrdinalRaw);
+  const wd = toFiniteInt(courtWeekdayRaw);
+  if (weekOrdinal == null || wd == null) return null;
+  const dim = daysInMonth(y, m);
+  const want = courtWeekdayToJs(wd);
+
+  if (weekOrdinal === -1) {
+    return dayOfMonthForNthWeekday(y, m, wd, -1);
+  }
+
+  if (weekOrdinal < 1 || weekOrdinal > 6) return null;
+  const firstWeekday = getSeoulWeekday(y, m, 1);
+  const offsetInWeek = (want - firstWeekday + 7) % 7;
+  const dom = 1 + (weekOrdinal - 1) * 7 + offsetInWeek;
+  return dom <= dim ? dom : null;
+}
+
 function nextRollingOpen(timeStr: string | null | undefined, from: Date): Date | null {
   const t = parseTimeParts(timeStr);
   if (!t) return null;
@@ -235,6 +259,36 @@ function nextWeekRuleOpen(
   let nm = getSeoulYMDFromInstant(from).m;
   for (let step = 0; step < 36; step++) {
     const dom = dayOfMonthForNthWeekday(ny, nm, weekday, weekOrdinal);
+    if (dom != null) {
+      const adjusted = adjustOpenDateYmd(ny, nm, dom, openDateAdjustment);
+      const cand = seoulWallToUtc(adjusted.y, adjusted.m, adjusted.d, t.h, t.m, 0);
+      if (cand.getTime() > from.getTime()) return cand;
+    }
+    nm += 1;
+    if (nm > 12) {
+      nm = 1;
+      ny += 1;
+    }
+  }
+  return null;
+}
+
+function nextCalendarWeekRuleOpen(
+  weekOrdinalRaw: unknown,
+  weekdayRaw: unknown,
+  timeStr: string | null | undefined,
+  from: Date,
+  openDateAdjustment?: string | null
+): Date | null {
+  const weekOrdinal = toFiniteInt(weekOrdinalRaw);
+  const weekday = toFiniteInt(weekdayRaw);
+  if (weekOrdinal == null || weekday == null) return null;
+  const t = parseTimeParts(timeStr);
+  if (!t) return null;
+
+  let { y: ny, m: nm } = getSeoulYMDFromInstant(from);
+  for (let step = 0; step < 36; step++) {
+    const dom = dayOfMonthForCalendarWeek(ny, nm, weekday, weekOrdinal);
     if (dom != null) {
       const adjusted = adjustOpenDateYmd(ny, nm, dom, openDateAdjustment);
       const cand = seoulWallToUtc(adjusted.y, adjusted.m, adjusted.d, t.h, t.m, 0);
@@ -406,7 +460,7 @@ function ownerOpenInstant(court: Court, from: Date, openDateAdjustment?: string 
       );
     }
     if (court.booking_open_type === "week") {
-      return nextWeekRuleOpen(
+      return nextCalendarWeekRuleOpen(
         court.booking_open_day_of_month,
         court.booking_open_day_of_week,
         court.booking_open_time_owner,
@@ -454,7 +508,7 @@ function normalOpenInstant(court: Court, from: Date, openDateAdjustment?: string
       return nextNormalDayOfMonthOpen(court, from, openDateAdjustment);
     }
     if (court.booking_open_type === "week") {
-      return nextWeekRuleOpen(
+      return nextCalendarWeekRuleOpen(
         court.booking_open_day_of_month,
         court.booking_open_day_of_week,
         court.booking_open_time_normal,

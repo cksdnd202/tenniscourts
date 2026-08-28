@@ -55,7 +55,7 @@ const detailBookingRulesLayoutClass =
 const detailBookingRuleCardClass =
   "w-[44%] min-w-[44%] snap-start min-[1032px]:w-auto min-[1032px]:min-w-0";
 
-function formatRuleDayOfMonth(value: number | null | undefined) {
+function formatRuleWeekOfMonth(value: number | null | undefined) {
   if (value == null) return "";
   if (value === -1) return "마지막주";
   const map: Record<number, string> = {
@@ -65,7 +65,7 @@ function formatRuleDayOfMonth(value: number | null | undefined) {
     4: "넷째주",
     5: "다섯째주",
   };
-  return map[value] ?? `${value}일`;
+  return map[value] ?? `${value}주차`;
 }
 
 function formatRuleDaySchedule(value: number | null | undefined) {
@@ -76,15 +76,16 @@ function formatRuleDaySchedule(value: number | null | undefined) {
 
 function formatRuleOrdinal(value: number | null | undefined) {
   if (value == null) return "";
-  if (value === -1) return "마지막주";
+  if (value === -1) return "마지막";
   if (value === -2) return "첫번째 영업일";
   const map: Record<number, string> = {
-    1: "첫번째 주",
-    2: "두번째 주",
-    3: "세번째 주",
-    4: "네번째 주",
+    1: "첫번째",
+    2: "두번째",
+    3: "세번째",
+    4: "네번째",
+    5: "다섯번째",
   };
-  return map[value] ?? `${value}`;
+  return map[value] ?? `${value}번째`;
 }
 
 function formatRuleWeekday(value: number | null | undefined) {
@@ -133,11 +134,20 @@ export function formatBookingRuleCardText(rule: CourtBookingRule) {
   const time = formatTime(rule.open_time);
   const offset = rule.open_offset?.trim();
 
-  if (rule.open_type === "week") {
-    const week = formatRuleDayOfMonth(rule.open_day_of_month);
+  if (rule.rule_type === "ordinal") {
     const ordinal = formatRuleOrdinal(rule.open_ordinal);
     const weekday = formatRuleWeekday(rule.open_day_of_week);
-    const prefix = [ordinal || week, weekday].filter(Boolean).join(" ");
+    const prefix = [ordinal, weekday].filter(Boolean).join(" ");
+    return appendOpenDateAdjustment(
+      `${[prefix, time].filter(Boolean).join(" ")}${offset ? `, ${offset}` : ""} 예약 오픈`.trim(),
+      rule
+    );
+  }
+
+  if (rule.open_type === "week") {
+    const week = formatRuleWeekOfMonth(rule.open_day_of_month);
+    const weekday = formatRuleWeekday(rule.open_day_of_week);
+    const prefix = [week, weekday].filter(Boolean).join(" ");
     return appendOpenDateAdjustment(
       `${[prefix, time].filter(Boolean).join(" ")}${offset ? `, ${offset}` : ""} 예약 오픈`.trim(),
       rule
