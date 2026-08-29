@@ -492,8 +492,7 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
       case "checking":
         return <CheckingContent court={c} />;
       default:
-        // 기본값은 fixed_schedule로 처리
-        return <FixedScheduleContent court={c} />;
+        return <CheckingContent court={c} />;
     }
   };
 

@@ -134,19 +134,25 @@ async function attachBookingRules<T extends { id?: string | null }>(courts: T[])
   const ids = courts.map((court) => court.id).filter((id): id is string => Boolean(id));
   if (!ids.length) return courts.map((court) => ({ ...court, court_booking_rules: [] }));
 
-  const { data: rules, error } = await getSupabaseAdmin()
-    .from("court_booking_rules")
-    .select("*")
-    .in("court_id", ids)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
+  const rules: Record<string, unknown>[] = [];
+  for (let index = 0; index < ids.length; index += 100) {
+    const idChunk = ids.slice(index, index + 100);
+    const { data, error } = await getSupabaseAdmin()
+      .from("court_booking_rules")
+      .select("*")
+      .in("court_id", idChunk)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    rules.push(...(data ?? []));
   }
 
   const rulesByCourtId = new Map<string, unknown[]>();
-  for (const rule of rules ?? []) {
+  for (const rule of rules) {
     const courtId = typeof rule.court_id === "string" ? rule.court_id : "";
     if (!courtId) continue;
     const currentRules = rulesByCourtId.get(courtId) ?? [];

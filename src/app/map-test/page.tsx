@@ -19,15 +19,25 @@ async function attachBookingRules(courts: Court[]) {
   const courtIds = courts.map((court) => court.id).filter(Boolean);
   if (courtIds.length === 0) return courts.map((court) => ({ ...court, court_booking_rules: [] }));
 
-  const { data: rules } = await getSupabaseAdmin()
-    .from("court_booking_rules")
-    .select("*")
-    .in("court_id", courtIds)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
+  const bookingRules: CourtBookingRule[] = [];
+  for (let index = 0; index < courtIds.length; index += 100) {
+    const idChunk = courtIds.slice(index, index + 100);
+    const { data: rules, error } = await getSupabaseAdmin()
+      .from("court_booking_rules")
+      .select("*")
+      .in("court_id", idChunk)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    bookingRules.push(...((rules ?? []) as CourtBookingRule[]));
+  }
 
   const rulesByCourtId = new Map<string, CourtBookingRule[]>();
-  for (const rule of (rules ?? []) as CourtBookingRule[]) {
+  for (const rule of bookingRules) {
     if (!rule.court_id) continue;
     const current = rulesByCourtId.get(rule.court_id) ?? [];
     current.push(rule);
@@ -44,14 +54,24 @@ async function attachBlogLinks(courts: Court[]) {
   const courtIds = courts.map((court) => court.id).filter(Boolean);
   if (courtIds.length === 0) return courts.map((court) => ({ ...court, court_blog_links: [] }));
 
-  const { data: blogLinks } = await getSupabaseAdmin()
-    .from("court_blog_links")
-    .select("*")
-    .in("court_id", courtIds)
-    .order("sort_order", { ascending: true });
+  const allBlogLinks: CourtBlogLink[] = [];
+  for (let index = 0; index < courtIds.length; index += 100) {
+    const idChunk = courtIds.slice(index, index + 100);
+    const { data: blogLinks, error } = await getSupabaseAdmin()
+      .from("court_blog_links")
+      .select("*")
+      .in("court_id", idChunk)
+      .order("sort_order", { ascending: true });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    allBlogLinks.push(...((blogLinks ?? []) as CourtBlogLink[]));
+  }
 
   const linksByCourtId = new Map<string, CourtBlogLink[]>();
-  for (const link of (blogLinks ?? []) as CourtBlogLink[]) {
+  for (const link of allBlogLinks) {
     if (!link.court_id) continue;
     const current = linksByCourtId.get(link.court_id) ?? [];
     current.push(link);

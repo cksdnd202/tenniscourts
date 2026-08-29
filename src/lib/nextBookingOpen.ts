@@ -326,11 +326,27 @@ function nextIntervalWeeklyOpen(
   const intervalWeeks = toFiniteInt(intervalWeeksRaw);
   const weekday = toFiniteInt(weekdayRaw);
   const t = parseTimeParts(timeStr);
-  if (!anchorDate || !intervalWeeks || intervalWeeks < 1 || intervalWeeks > 52 || weekday == null || !t) {
+  if (!intervalWeeks || intervalWeeks < 1 || intervalWeeks > 52 || weekday == null || !t) {
     return null;
   }
 
   const wantedWeekday = courtWeekdayToJs(weekday);
+  if (!anchorDate && intervalWeeks === 1) {
+    const { y, m, d } = getSeoulYMDFromInstant(from);
+    const currentWeekday = getSeoulWeekday(y, m, d);
+    let dayDelta = (wantedWeekday - currentWeekday + 7) % 7;
+    let next = addCalendarDaysSeoul(y, m, d, dayDelta);
+    let cand = seoulWallToUtc(next.y, next.m, next.d, t.h, t.m, 0);
+    if (cand.getTime() <= from.getTime()) {
+      dayDelta += 7;
+      next = addCalendarDaysSeoul(y, m, d, dayDelta);
+      cand = seoulWallToUtc(next.y, next.m, next.d, t.h, t.m, 0);
+    }
+    return cand;
+  }
+
+  if (!anchorDate) return null;
+
   const anchorWeekday = getSeoulWeekday(anchorDate.y, anchorDate.m, anchorDate.d);
   const weekdayDelta = (wantedWeekday - anchorWeekday + 7) % 7;
   const adjustedAnchor = weekdayDelta

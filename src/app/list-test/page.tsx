@@ -22,15 +22,24 @@ async function attachBookingRules(courts: Court[]) {
   const courtIds = courts.map((court) => court.id).filter(Boolean);
   if (courtIds.length === 0) return courts.map((court) => ({ ...court, court_booking_rules: [] }));
 
-  const { data: rules } = await getSupabaseAdmin()
-    .from("court_booking_rules")
-    .select("*")
-    .in("court_id", courtIds)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
+  const bookingRules: CourtBookingRule[] = [];
+  for (let index = 0; index < courtIds.length; index += 100) {
+    const idChunk = courtIds.slice(index, index + 100);
+    const { data: rules, error } = await getSupabaseAdmin()
+      .from("court_booking_rules")
+      .select("*")
+      .in("court_id", idChunk)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    bookingRules.push(...((rules ?? []) as CourtBookingRule[]));
+  }
 
   const rulesByCourtId = new Map<string, NonNullable<Court["court_booking_rules"]>>();
-  const bookingRules = (rules ?? []) as CourtBookingRule[];
   for (const rule of bookingRules) {
     const courtId = rule.court_id;
     if (!courtId) continue;

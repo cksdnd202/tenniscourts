@@ -104,17 +104,25 @@ export async function GET(req: NextRequest) {
   const url = new URL(
     `https://www.eshare.go.kr/eshare-openapi/rsrc/list/010500/${encodeURIComponent(apiKey)}`
   );
-  url.searchParams.set("pageNo", String(pageNo));
-  url.searchParams.set("numOfRows", String(numOfRows));
-  url.searchParams.set("ctpvCd", ctpvCd);
-  if (sggCd) url.searchParams.set("sggCd", sggCd);
+
+  const payload: Record<string, string | number> = {
+    pageNo,
+    numOfRows,
+    ctpvCd,
+  };
+  if (sggCd) payload.sggCd = sggCd;
 
   let response: Response;
   let text: string;
 
   try {
     response = await fetch(url, {
-      headers: { Accept: "application/json" },
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify(payload),
       cache: "no-store",
     });
     text = await response.text();
