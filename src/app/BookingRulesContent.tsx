@@ -30,6 +30,7 @@ export function formatBookingRuleEligibility(value: string | null | undefined) {
     resident: "구민",
     citizen: "시민",
     inhabitant: "주민",
+    non_resident: "타지역",
     normal: "전체",
     none: "없음",
   };

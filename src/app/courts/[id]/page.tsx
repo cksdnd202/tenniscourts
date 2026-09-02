@@ -10,6 +10,7 @@ import { CourtSearchHeader } from "../../CourtSearchHeader";
 import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSection";
 import { CourtDetailAddress, CourtDetailTable, CourtDetailMap } from "../../detail/CourtDetailCommon";
 import { CourtDetailAside, CourtDetailMobileBookBar } from "../../detail/CourtDetailAside";
+import { CourtFeesSection } from "../../detail/CourtFeesSection";
 import { CourtDetailViewTracker } from "../../detail/CourtDetailViewTracker";
 import { RecentCourtViewTracker } from "../../detail/RecentCourtViewTracker";
 import { ShareButton } from "../../detail/ShareButton";
@@ -115,6 +116,25 @@ async function attachActiveBookingRules(court: Court) {
   return {
     ...court,
     court_booking_rules: (bookingRulesData ?? []) as NonNullable<Court["court_booking_rules"]>,
+  };
+}
+
+async function attachBookingRuleFees(court: Court) {
+  const bookingRuleIds = (court.court_booking_rules ?? []).map((rule) => rule.id);
+  if (bookingRuleIds.length === 0) {
+    return { ...court, court_booking_rule_fees: [] };
+  }
+
+  const { data: feeData } = await supabase
+    .from("court_booking_rule_fees")
+    .select("*")
+    .in("booking_rule_id", bookingRuleIds);
+
+  return {
+    ...court,
+    court_booking_rule_fees: (feeData ?? []) as NonNullable<
+      Court["court_booking_rule_fees"]
+    >,
   };
 }
 
@@ -264,7 +284,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
       .order("basic_court_name", { ascending: true }),
   ]);
 
-  let detailData = detailRes.data;
+  const detailData = detailRes.data;
   const detailError = detailRes.error;
   let court = detailData as Court | null;
   const courtsForSearch = searchRes.data ?? [];
@@ -300,6 +320,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
   }
 
   court = await attachActiveBookingRules(court);
+  court = await attachBookingRuleFees(court);
 
   let relatedCourts: RelatedCourt[] = [];
   let blogLinks: CourtBlogLink[] = [];
@@ -368,15 +389,19 @@ export default async function CourtDetailPage({ params }: PageProps) {
 
               <section aria-label="위치 정보" className="space-y-3 border-y border-[#242426] py-5">
                 <CourtDetailAddress court={court} />
-                <CourtDetailMap court={court} />
+                <CourtDetailMap court={court} showResetControl />
               </section>
 
-              <RelatedReservationInfo courts={relatedCourts} />
+              <CourtFeesSection court={court} />
 
               <section>
-                <h2 className="text-white font-semibold mb-3">코트</h2>
+                <h2 className="text-white font-semibold mb-3">코트 종류</h2>
                 <CourtDetailTable court={court} />
               </section>
+
+              <CourtBlogLinks links={blogLinks} courtId={court.id} courtName={court.basic_court_name} />
+
+              <RelatedReservationInfo courts={relatedCourts} />
 
               <section>
                 <h2 className="text-white font-semibold mb-3">부가 정보</h2>
@@ -386,8 +411,6 @@ export default async function CourtDetailPage({ params }: PageProps) {
                     : "등록된 부가 정보가 없습니다."}
                 </div>
               </section>
-
-              <CourtBlogLinks links={blogLinks} courtId={court.id} courtName={court.basic_court_name} />
             </div>
 
             {/* 우측 사이드바 (~25–30%), 1032px 이상만 */}

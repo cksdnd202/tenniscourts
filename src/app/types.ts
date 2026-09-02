@@ -77,6 +77,7 @@ export type Court = {
 
   /*새 예약 규칙 테이블 - 전환 테스트용*/
   court_booking_rules?: CourtBookingRule[];
+  court_booking_rule_fees?: CourtBookingRuleFee[];
   court_blog_links?: CourtBlogLink[];
 };
 
@@ -101,6 +102,23 @@ export type CourtBookingRule = {
   usage_period_label?: string | null;
   is_active: boolean;
   sort_order: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type CourtBookingRuleFee = {
+  id: string;
+  booking_rule_id: string;
+  is_free: boolean;
+  price_basis_hours: 1 | 2 | 3;
+  outdoor_weekday_price: number | null;
+  outdoor_weekend_price: number | null;
+  indoor_weekday_price: number | null;
+  indoor_weekend_price: number | null;
+  lighting_fee_separate: boolean;
+  lighting_fee_amount: number | null;
+  lighting_fee_basis_hours: 1 | 2 | 3 | null;
+  lighting_start_time: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };

@@ -70,6 +70,8 @@ function formatEligibilityForSeo(value: string | null | undefined): string {
       return "시민";
     case "inhabitant":
       return "주민";
+    case "non_resident":
+      return "타지역";
     case "normal":
       return "전체";
     default:

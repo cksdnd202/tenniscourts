@@ -176,6 +176,26 @@ export async function GET(req: NextRequest) {
   if (denied) return denied;
 
   try {
+    const courtId = req.nextUrl.searchParams.get("id")?.trim();
+
+    if (courtId) {
+      const { data, error } = await getSupabaseAdmin()
+        .from("courtinfo")
+        .select("*")
+        .eq("id", courtId)
+        .maybeSingle();
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      if (!data) {
+        return NextResponse.json({ error: "테니스장을 찾을 수 없습니다." }, { status: 404 });
+      }
+
+      const court = await attachBookingRulesToCourt(data);
+      return NextResponse.json({ court }, { headers: { "Cache-Control": "no-store" } });
+    }
+
     const { data, error } = await getSupabaseAdmin()
       .from("courtinfo")
       .select("*")
@@ -251,6 +271,43 @@ export async function PUT(req: NextRequest) {
     const court = await attachBookingRulesToCourt(data);
 
     return NextResponse.json({ court });
+  } catch (error) {
+    return adminApiError(error);
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  const denied = await denyUnlessAdmin(req);
+  if (denied) return denied;
+
+  try {
+    const body = (await req.json()) as { ids?: unknown; use_or_not?: unknown };
+    const ids = Array.isArray(body.ids)
+      ? body.ids.filter((id): id is string => typeof id === "string" && Boolean(id.trim()))
+      : [];
+    const useOrNot = body.use_or_not;
+
+    if (ids.length === 0) {
+      return NextResponse.json({ error: "변경할 테니스장을 선택해주세요." }, { status: 400 });
+    }
+
+    if (typeof useOrNot !== "boolean") {
+      return NextResponse.json({ error: "use_or_not 값이 필요합니다." }, { status: 400 });
+    }
+
+    const { data, error } = await getSupabaseAdmin()
+      .from("courtinfo")
+      .update({ use_or_not: useOrNot, updated_at: new Date().toISOString() })
+      .in("id", ids)
+      .select("*");
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const courts = await attachBookingRules(data ?? []);
+
+    return NextResponse.json({ courts, updatedCount: courts.length });
   } catch (error) {
     return adminApiError(error);
   }

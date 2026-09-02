@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import type { Court, CourtBlogLink, CourtBookingRule } from "../types";
+import type { Court, CourtBlogLink, CourtBookingRule, CourtBookingRuleFee } from "../types";
 import { CheckingContent } from "../CheckingContent";
 import { FixedScheduleContent } from "../FixedScheduleContent";
 import { IrregularContent } from "../IrregularContent";
@@ -29,6 +29,30 @@ type SortDirection = "asc" | "desc";
 type CourtBlogLinkDraft = Partial<CourtBlogLink>;
 type CourtBookingRuleDraft = Partial<CourtBookingRule>;
 type RulePreviewMode = "full" | "grouped" | "compact";
+type CourtFeeDraft = {
+  id: string;
+  bookingRuleId: string;
+  isFree: boolean;
+  priceBasisHours: string;
+  outdoorWeekdayPrice: string;
+  outdoorWeekendPrice: string;
+  indoorWeekdayPrice: string;
+  indoorWeekendPrice: string;
+  lightingFeeSeparate: boolean;
+  lightingFeeAmount: string;
+  lightingFeeBasisHours: string;
+  lightingStartTime: string;
+};
+type CourtFeeTextField =
+  | "bookingRuleId"
+  | "priceBasisHours"
+  | "outdoorWeekdayPrice"
+  | "outdoorWeekendPrice"
+  | "indoorWeekdayPrice"
+  | "indoorWeekendPrice"
+  | "lightingFeeAmount"
+  | "lightingFeeBasisHours"
+  | "lightingStartTime";
 
 type SeoulRuleCandidate = {
   serviceId: string | null;
@@ -81,6 +105,88 @@ const TEMP_BOOKING_RULE_ID_PREFIX = "temp-booking-rule-";
 
 function createTempBookingRuleId() {
   return `${TEMP_BOOKING_RULE_ID_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function createCourtFeeDraft(bookingRuleId: string): CourtFeeDraft {
+  return {
+    id: `temp-court-fee-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    bookingRuleId,
+    isFree: false,
+    priceBasisHours: "1",
+    outdoorWeekdayPrice: "",
+    outdoorWeekendPrice: "",
+    indoorWeekdayPrice: "",
+    indoorWeekendPrice: "",
+    lightingFeeSeparate: false,
+    lightingFeeAmount: "",
+    lightingFeeBasisHours: "1",
+    lightingStartTime: "",
+  };
+}
+
+function formatPriceInput(value: string) {
+  return value.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function toCourtFeeDraft(fee: CourtBookingRuleFee): CourtFeeDraft {
+  return {
+    id: fee.id,
+    bookingRuleId: fee.booking_rule_id,
+    isFree: Boolean(fee.is_free),
+    priceBasisHours: String(fee.price_basis_hours ?? 1),
+    outdoorWeekdayPrice:
+      fee.outdoor_weekday_price == null ? "" : String(fee.outdoor_weekday_price),
+    outdoorWeekendPrice:
+      fee.outdoor_weekend_price == null ? "" : String(fee.outdoor_weekend_price),
+    indoorWeekdayPrice:
+      fee.indoor_weekday_price == null ? "" : String(fee.indoor_weekday_price),
+    indoorWeekendPrice:
+      fee.indoor_weekend_price == null ? "" : String(fee.indoor_weekend_price),
+    lightingFeeSeparate: Boolean(fee.lighting_fee_separate),
+    lightingFeeAmount:
+      fee.lighting_fee_amount == null ? "" : String(fee.lighting_fee_amount),
+    lightingFeeBasisHours: String(
+      fee.lighting_fee_basis_hours ?? fee.price_basis_hours ?? 1
+    ),
+    lightingStartTime: fee.lighting_start_time?.slice(0, 5) ?? "",
+  };
+}
+
+function toCourtFeePayload(fee: CourtFeeDraft): CourtBookingRuleFee {
+  return {
+    id: fee.id,
+    booking_rule_id: fee.bookingRuleId,
+    is_free: fee.isFree,
+    price_basis_hours: Number(fee.priceBasisHours) as 1 | 2 | 3,
+    outdoor_weekday_price:
+      fee.outdoorWeekdayPrice === "" ? null : Number(fee.outdoorWeekdayPrice),
+    outdoor_weekend_price:
+      fee.outdoorWeekendPrice === "" ? null : Number(fee.outdoorWeekendPrice),
+    indoor_weekday_price:
+      fee.indoorWeekdayPrice === "" ? null : Number(fee.indoorWeekdayPrice),
+    indoor_weekend_price:
+      fee.indoorWeekendPrice === "" ? null : Number(fee.indoorWeekendPrice),
+    lighting_fee_separate: fee.lightingFeeSeparate,
+    lighting_fee_amount:
+      fee.lightingFeeSeparate && fee.lightingFeeAmount !== ""
+        ? Number(fee.lightingFeeAmount)
+        : null,
+    lighting_fee_basis_hours:
+      fee.lightingFeeSeparate && fee.lightingFeeAmount !== ""
+        ? (Number(fee.lightingFeeBasisHours) as 1 | 2 | 3)
+        : null,
+    lighting_start_time:
+      fee.lightingFeeSeparate && fee.lightingStartTime ? fee.lightingStartTime : null,
+  };
+}
+
+function courtFeeHasAnyPrice(fee: CourtFeeDraft) {
+  return Boolean(
+    fee.outdoorWeekdayPrice ||
+      fee.outdoorWeekendPrice ||
+      fee.indoorWeekdayPrice ||
+      fee.indoorWeekendPrice
+  );
 }
 
 function createEmptyBlogLinks(): CourtBlogLinkDraft[] {
@@ -502,6 +608,8 @@ function formatRuleEligibility(value: string | null | undefined) {
       return "시민";
     case "inhabitant":
       return "주민";
+    case "non_resident":
+      return "타지역";
     case "normal":
       return "전체";
     case "none":
@@ -718,6 +826,7 @@ const bookingRuleEligibilityOptions = [
   { label: "구민(resident)", value: "resident" },
   { label: "시민(citizen)", value: "citizen" },
   { label: "주민(inhabitant)", value: "inhabitant" },
+  { label: "타지역(non_resident)", value: "non_resident" },
   { label: "전체(normal)", value: "normal" },
   { label: "없음(none)", value: "none" },
 ];
@@ -1148,6 +1257,263 @@ function BookingRulesEditor({
       ) : null}
 
       {draft && !editingRuleId ? draftForm : null}
+    </section>
+  );
+}
+
+function CourtFeesEditor({
+  rules,
+  fees,
+  onAdd,
+  onChange,
+  onFreeChange,
+  onLightingFeeSeparateChange,
+  onDelete,
+}: {
+  rules: CourtBookingRule[] | null | undefined;
+  fees: CourtFeeDraft[];
+  onAdd: () => void;
+  onChange: (feeId: string, key: CourtFeeTextField, value: string) => void;
+  onFreeChange: (feeId: string, checked: boolean) => void;
+  onLightingFeeSeparateChange: (feeId: string, checked: boolean) => void;
+  onDelete: (feeId: string) => void;
+}) {
+  const sortedRules = sortBookingRules(rules);
+  const selectedRuleIds = new Set(fees.map((fee) => fee.bookingRuleId).filter(Boolean));
+  const canAdd = sortedRules.some((rule) => !selectedRuleIds.has(rule.id));
+
+  function ruleOptionLabel(rule: CourtBookingRule) {
+    const label = formatRuleDisplayText(rule.label) || "예약 규칙";
+    return `${label} · ${formatRuleEligibility(rule.eligibility)}`;
+  }
+
+  return (
+    <section className="mt-3 flex flex-col gap-3 rounded-lg border border-[#2f2f2f] bg-[#101010] p-3">
+      <div className="flex items-start justify-between gap-3 border-b border-[#2f2f2f] pb-2">
+        <div>
+          <h3 className="text-sm font-semibold text-[#4ade80]">요금 정보</h3>
+          <p className="mt-1 text-xs leading-relaxed text-[#8c8c8c]">
+            예약 규칙마다 무료 여부, 기준 시간, 실외·실내의 평일/주말 요금을 입력합니다.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onAdd}
+          disabled={!canAdd}
+          className="shrink-0 rounded-lg bg-[#4ade80] px-3 py-2 text-xs font-semibold text-black hover:bg-[#3fcf6f] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          요금 추가
+        </button>
+      </div>
+
+      {sortedRules.length === 0 ? (
+        <p className="rounded-lg border border-[#2f2f2f] bg-black px-3 py-4 text-sm text-[#a7a7a7]">
+          요금을 연결하려면 예약 규칙을 먼저 추가해 주세요.
+        </p>
+      ) : fees.length === 0 ? (
+        <p className="rounded-lg border border-[#2f2f2f] bg-black px-3 py-4 text-sm text-[#a7a7a7]">
+          등록된 요금 정보가 없습니다. ‘요금 추가’를 눌러 예약 규칙별 요금을 입력해 주세요.
+        </p>
+      ) : (
+        <div className="grid gap-3">
+          {fees.map((fee) => (
+            <div
+              key={fee.id}
+              className="grid gap-3 rounded-lg border border-[#2f2f2f] bg-black p-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <label className="flex min-w-0 flex-1 flex-col gap-2">
+                  <span className="text-xs text-[#a7a7a7]">연결할 예약 규칙</span>
+                  <select
+                    value={fee.bookingRuleId}
+                    onChange={(event) => onChange(fee.id, "bookingRuleId", event.target.value)}
+                    className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-[#111] px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
+                  >
+                    {sortedRules.map((rule) => {
+                      const isUsedByAnotherFee = fees.some(
+                        (candidate) =>
+                          candidate.id !== fee.id && candidate.bookingRuleId === rule.id
+                      );
+                      return (
+                        <option key={rule.id} value={rule.id} disabled={isUsedByAnotherFee}>
+                          {ruleOptionLabel(rule)}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => onDelete(fee.id)}
+                  className="mt-6 shrink-0 rounded-lg border border-[#6b2d2d] bg-[#261313] px-3 py-2 text-xs font-medium text-[#ffb3b3] hover:bg-[#341818]"
+                >
+                  삭제
+                </button>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-[#2f2f2f] bg-[#111] px-3 py-2 text-sm text-white">
+                  <input
+                    type="checkbox"
+                    checked={fee.isFree}
+                    onChange={(event) => onFreeChange(fee.id, event.target.checked)}
+                    className="h-4 w-4 accent-[#4ade80]"
+                  />
+                  <span>무료 이용</span>
+                </label>
+                <label className="flex items-center gap-3 rounded-lg border border-[#2f2f2f] bg-[#111] px-3 py-2">
+                  <span className="shrink-0 text-xs text-[#a7a7a7]">요금 기준</span>
+                  <select
+                    value={fee.priceBasisHours}
+                    onChange={(event) =>
+                      onChange(fee.id, "priceBasisHours", event.target.value)
+                    }
+                    className="min-w-0 flex-1 rounded-md border border-[#3c3c3c] bg-black px-3 py-1.5 text-sm text-white outline-none focus:border-[#4ade80]"
+                  >
+                    <option value="1">1시간</option>
+                    <option value="2">2시간</option>
+                    <option value="3">3시간</option>
+                  </select>
+                </label>
+              </div>
+
+              {!fee.isFree ? (
+                <>
+                  {[
+                    {
+                      title: "실외 코트",
+                      fields: [
+                        { key: "outdoorWeekdayPrice" as const, label: "평일 요금" },
+                        { key: "outdoorWeekendPrice" as const, label: "주말·공휴일 요금" },
+                      ],
+                    },
+                    {
+                      title: "실내 코트",
+                      fields: [
+                        { key: "indoorWeekdayPrice" as const, label: "평일 요금" },
+                        { key: "indoorWeekendPrice" as const, label: "주말·공휴일 요금" },
+                      ],
+                    },
+                  ].map((group) => (
+                    <fieldset
+                      key={group.title}
+                      className="grid gap-3 rounded-lg border border-[#2f2f2f] bg-[#111] p-3"
+                    >
+                      <legend className="px-1 text-xs font-semibold text-white">{group.title}</legend>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {group.fields.map((field) => (
+                          <label key={field.key} className="flex flex-col gap-2">
+                            <span className="text-xs text-[#a7a7a7]">{field.label}</span>
+                            <span className="relative block">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9,]*"
+                                value={formatPriceInput(fee[field.key])}
+                                onChange={(event) =>
+                                  onChange(
+                                    fee.id,
+                                    field.key,
+                                    event.target.value.replace(/[^0-9]/g, "")
+                                  )
+                                }
+                                placeholder="예: 10,000"
+                                aria-label={`${group.title} ${field.label} (원)`}
+                                className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black py-2 pl-3 pr-9 text-sm text-white outline-none focus:border-[#4ade80]"
+                              />
+                              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-[#a7a7a7]">
+                                원
+                              </span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ))}
+
+                  <fieldset className="grid gap-3 rounded-lg border border-[#2f2f2f] bg-[#111] p-3">
+                    <legend className="px-1 text-xs font-semibold text-white">조명비</legend>
+                    <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-white">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(fee.lightingFeeSeparate)}
+                        onChange={(event) =>
+                          onLightingFeeSeparateChange(fee.id, event.target.checked)
+                        }
+                        className="h-4 w-4 accent-[#4ade80]"
+                      />
+                      <span>조명비 별도</span>
+                    </label>
+
+                    {fee.lightingFeeSeparate ? (
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <label className="flex flex-col gap-2">
+                          <span className="text-xs text-[#a7a7a7]">조명비 금액</span>
+                          <span className="relative block">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9,]*"
+                              value={formatPriceInput(fee.lightingFeeAmount)}
+                              onChange={(event) =>
+                                onChange(
+                                  fee.id,
+                                  "lightingFeeAmount",
+                                  event.target.value.replace(/[^0-9]/g, "")
+                                )
+                              }
+                              placeholder="예: 5,000"
+                              aria-label="조명비 금액 (원)"
+                              className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black py-2 pl-3 pr-9 text-sm text-white outline-none focus:border-[#4ade80]"
+                            />
+                            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-[#a7a7a7]">
+                              원
+                            </span>
+                          </span>
+                        </label>
+                        <label className="flex flex-col gap-2">
+                          <span className="text-xs text-[#a7a7a7]">조명비 기준</span>
+                          <select
+                            value={fee.lightingFeeBasisHours}
+                            onChange={(event) =>
+                              onChange(fee.id, "lightingFeeBasisHours", event.target.value)
+                            }
+                            className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
+                          >
+                            <option value="1">1시간</option>
+                            <option value="2">2시간</option>
+                            <option value="3">3시간</option>
+                          </select>
+                        </label>
+                        <label className="flex flex-col gap-2">
+                          <span className="text-xs text-[#a7a7a7]">적용 시작 시간 (선택)</span>
+                          <input
+                            type="time"
+                            value={fee.lightingStartTime}
+                            onChange={(event) =>
+                              onChange(fee.id, "lightingStartTime", event.target.value)
+                            }
+                            className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
+                          />
+                        </label>
+                      </div>
+                    ) : null}
+                    {fee.lightingFeeSeparate && fee.lightingFeeAmount === "" ? (
+                      <p className="text-xs text-[#8c8c8c]">
+                        금액이 아직 확인되지 않았다면 비워둔 채 ‘조명비 별도’만 표시할 수 있습니다.
+                      </p>
+                    ) : null}
+                  </fieldset>
+                </>
+              ) : (
+                <p className="rounded-lg border border-[#24452f] bg-[#102117] px-3 py-3 text-sm text-[#86efac]">
+                  무료 이용으로 표시되며 금액은 저장하지 않습니다.
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -1727,6 +2093,8 @@ function toPreviewCourt(form: CourtForm): Court {
   };
 }
 
+const ADMIN_DETAIL_PREVIEW_STORAGE_PREFIX = "courtskorea:admin-detail-preview:";
+
 function AdminCourtPreviewCard({ form }: { form: CourtForm }) {
   const court = toPreviewCourt(form);
   const hasNewBookingRules = sortBookingRules(court.court_booking_rules).some((rule) => rule.is_active);
@@ -1818,9 +2186,11 @@ function normalizeForSave(form: CourtForm) {
 export function AdminCourtManager() {
   const [courts, setCourts] = useState<Court[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [checkedCourtIds, setCheckedCourtIds] = useState<string[]>([]);
   const [form, setForm] = useState<CourtForm>(emptyForm);
   const [blogLinks, setBlogLinks] = useState<CourtBlogLinkDraft[]>(createEmptyBlogLinks);
   const [blogSeenUrls, setBlogSeenUrls] = useState<string[]>([]);
+  const [feeDrafts, setFeeDrafts] = useState<CourtFeeDraft[]>([]);
   const [ruleDraft, setRuleDraft] = useState<CourtBookingRuleDraft | null>(null);
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [isSavingRule, setIsSavingRule] = useState(false);
@@ -1829,6 +2199,7 @@ export function AdminCourtManager() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [isSyncingSeoulLinks, setIsSyncingSeoulLinks] = useState(false);
   const [isFetchingSeoulCandidate, setIsFetchingSeoulCandidate] = useState(false);
   const [isFindingSeoulRuleCandidates, setIsFindingSeoulRuleCandidates] = useState(false);
@@ -1845,6 +2216,9 @@ export function AdminCourtManager() {
   const [isPreviewTestOpen, setIsPreviewTestOpen] = useState(false);
   const [previewTestMode, setPreviewTestMode] = useState<RulePreviewMode>("compact");
   const [importQuery, setImportQuery] = useState("");
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [isRegionFilterOpen, setIsRegionFilterOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -1861,10 +2235,41 @@ export function AdminCourtManager() {
     return false;
   }
 
+  const regionOptions = useMemo(() => {
+    return Array.from(
+      new Set(courts.map((court) => stringifyValue(court.basic_region).trim()).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [courts]);
+
+  const cityOptionsByRegion = useMemo(() => {
+    return regionOptions.reduce<Record<string, string[]>>((map, region) => {
+      map[region] = Array.from(
+        new Set(
+          courts
+            .filter((court) => stringifyValue(court.basic_region).trim() === region)
+            .map((court) => stringifyValue(court.basic_city).trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b, "ko"));
+      return map;
+    }, {});
+  }, [courts, regionOptions]);
+
+  const visibleCityRegions = selectedRegions.length > 0 ? selectedRegions : regionOptions;
+  const activeRegionFilterCount = selectedRegions.length + selectedCities.length;
+
   const filteredCourts = useMemo(() => {
     const keyword = query.trim().toLowerCase();
-    const searchedCourts = keyword
-      ? courts.filter((court) =>
+    const searchedCourts = courts.filter((court) => {
+      const courtRegion = stringifyValue(court.basic_region).trim();
+      const courtCity = stringifyValue(court.basic_city).trim();
+      const matchesRegion = selectedRegions.length === 0 || selectedRegions.includes(courtRegion);
+      const matchesCity = selectedCities.length === 0 || selectedCities.includes(courtCity);
+
+      if (!matchesRegion || !matchesCity) return false;
+      if (!keyword) return true;
+
+      return (
           [
             court.basic_court_name,
             court.basic_region,
@@ -1874,8 +2279,8 @@ export function AdminCourtManager() {
           ]
             .filter(Boolean)
             .some((value) => String(value).toLowerCase().includes(keyword))
-        )
-      : courts;
+      );
+    });
 
     return [...searchedCourts].sort((a, b) => {
       const direction = sortDirection === "asc" ? 1 : -1;
@@ -1896,7 +2301,97 @@ export function AdminCourtManager() {
 
       return nameComparison * direction;
     });
-  }, [courts, query, sortDirection, sortKey]);
+  }, [courts, query, selectedCities, selectedRegions, sortDirection, sortKey]);
+
+  const filteredCourtIds = useMemo(
+    () => filteredCourts.map((court) => court.id).filter(Boolean),
+    [filteredCourts]
+  );
+  const checkedCourtIdSet = useMemo(() => new Set(checkedCourtIds), [checkedCourtIds]);
+  const isAllFilteredChecked =
+    filteredCourtIds.length > 0 && filteredCourtIds.every((id) => checkedCourtIdSet.has(id));
+
+  function toggleSelectedRegion(region: string) {
+    setSelectedRegions((current) => {
+      const next = current.includes(region)
+        ? current.filter((value) => value !== region)
+        : [...current, region];
+      const allowedRegions = next.length > 0 ? next : regionOptions;
+      const allowedCities = new Set(
+        allowedRegions.flatMap((regionName) => cityOptionsByRegion[regionName] ?? [])
+      );
+      setSelectedCities((currentCities) =>
+        currentCities.filter((city) => allowedCities.has(city))
+      );
+      return next;
+    });
+  }
+
+  function toggleSelectedCity(city: string) {
+    setSelectedCities((current) =>
+      current.includes(city)
+        ? current.filter((value) => value !== city)
+        : [...current, city]
+    );
+  }
+
+  function resetListFilters() {
+    setSelectedRegions([]);
+    setSelectedCities([]);
+    setQuery("");
+  }
+
+  function toggleCheckedCourt(courtId: string) {
+    setCheckedCourtIds((current) =>
+      current.includes(courtId)
+        ? current.filter((id) => id !== courtId)
+        : [...current, courtId]
+    );
+  }
+
+  function toggleCheckAllFilteredCourts() {
+    setCheckedCourtIds((current) => {
+      const currentSet = new Set(current);
+      if (isAllFilteredChecked) {
+        return current.filter((id) => !filteredCourtIds.includes(id));
+      }
+
+      filteredCourtIds.forEach((id) => currentSet.add(id));
+      return Array.from(currentSet);
+    });
+  }
+
+  async function updateCheckedCourtsVisibility(useOrNot: boolean) {
+    if (checkedCourtIds.length === 0) return;
+
+    setIsBulkUpdating(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const response = await adminFetch("/api/admin/courts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: checkedCourtIds, use_or_not: useOrNot }),
+      });
+      const data = await readAdminResponse(response, "노출 여부를 변경하지 못했습니다.");
+      const updatedCourts = (data.courts ?? []) as Court[];
+
+      setCourts((current) =>
+        current.map((court) => updatedCourts.find((updated) => updated.id === court.id) ?? court)
+      );
+      setCheckedCourtIds([]);
+      setMessage(`${data.updatedCount ?? updatedCourts.length}개 테니스장의 노출 여부를 ${useOrNot ? "YES" : "NO"}로 변경했습니다.`);
+    } catch (bulkUpdateError) {
+      setError(
+        bulkUpdateError instanceof Error
+          ? bulkUpdateError.message
+          : "노출 여부를 변경하지 못했습니다."
+      );
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  }
 
   const importPickerCourts = useMemo(() => {
     const keyword = importQuery.trim().toLowerCase();
@@ -2014,6 +2509,20 @@ export function AdminCourtManager() {
     }
   }
 
+  async function loadCourtFees(courtId: string) {
+    try {
+      const response = await adminFetch(
+        `/api/admin/courts/booking-rule-fees?courtId=${encodeURIComponent(courtId)}`,
+        { cache: "no-store" }
+      );
+      const data = await readAdminResponse(response, "요금정보를 불러오지 못했습니다.");
+      setFeeDrafts(((data.fees ?? []) as CourtBookingRuleFee[]).map(toCourtFeeDraft));
+    } catch (feeError) {
+      setFeeDrafts([]);
+      setError(feeError instanceof Error ? feeError.message : "요금정보를 불러오지 못했습니다.");
+    }
+  }
+
   async function refreshBookingRules(courtId: string) {
     const response = await adminFetch(
       `/api/admin/courts/booking-rules?courtId=${encodeURIComponent(courtId)}`,
@@ -2049,9 +2558,11 @@ export function AdminCourtManager() {
     setForm(toForm(court));
     setBlogLinks(createEmptyBlogLinks());
     setBlogSeenUrls([]);
+    setFeeDrafts([]);
     setRuleDraft(null);
     setEditingRuleId(null);
     loadBlogLinks(court.id);
+    loadCourtFees(court.id);
     setIsFormOpen(true);
     setMessage(null);
     setError(null);
@@ -2062,6 +2573,7 @@ export function AdminCourtManager() {
     setForm(emptyForm);
     setBlogLinks(createEmptyBlogLinks());
     setBlogSeenUrls([]);
+    setFeeDrafts([]);
     setRuleDraft(null);
     setEditingRuleId(null);
     setIsFormOpen(true);
@@ -2077,8 +2589,71 @@ export function AdminCourtManager() {
     setSeoulRuleCandidates([]);
     setRuleDraft(null);
     setEditingRuleId(null);
+    setFeeDrafts([]);
     setMessage(null);
     setError(null);
+  }
+
+  function addFeeDraft() {
+    const usedRuleIds = new Set(feeDrafts.map((fee) => fee.bookingRuleId));
+    const availableRule = sortBookingRules(form.court_booking_rules).find(
+      (rule) => !usedRuleIds.has(rule.id)
+    );
+    if (!availableRule) return;
+
+    setFeeDrafts((current) => [...current, createCourtFeeDraft(availableRule.id)]);
+  }
+
+  function updateFeeDraft(
+    feeId: string,
+    key: CourtFeeTextField,
+    value: string
+  ) {
+    setFeeDrafts((current) =>
+      current.map((fee) => (fee.id === feeId ? { ...fee, [key]: value } : fee))
+    );
+  }
+
+  function updateFeeLightingFeeSeparate(feeId: string, checked: boolean) {
+    setFeeDrafts((current) =>
+      current.map((fee) =>
+        fee.id === feeId
+          ? {
+              ...fee,
+              lightingFeeSeparate: checked,
+              ...(!checked
+                ? { lightingFeeAmount: "", lightingStartTime: "" }
+                : fee.lightingFeeBasisHours
+                  ? {}
+                  : { lightingFeeBasisHours: fee.priceBasisHours || "1" }),
+            }
+          : fee
+      )
+    );
+  }
+
+  function updateFeeFree(feeId: string, checked: boolean) {
+    setFeeDrafts((current) =>
+      current.map((fee) =>
+        fee.id === feeId
+          ? {
+              ...fee,
+              isFree: checked,
+              ...(checked
+                ? {
+                    lightingFeeSeparate: false,
+                    lightingFeeAmount: "",
+                    lightingStartTime: "",
+                  }
+                : {}),
+            }
+          : fee
+      )
+    );
+  }
+
+  function deleteFeeDraft(feeId: string) {
+    setFeeDrafts((current) => current.filter((fee) => fee.id !== feeId));
   }
 
   async function importCourtDetails(source: Court) {
@@ -2442,6 +3017,9 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
         setEditingRuleId(null);
         setRuleDraft(null);
       }
+      setFeeDrafts((current) =>
+        current.filter((fee) => fee.bookingRuleId !== rule.id)
+      );
       setMessage("임시 예약 규칙을 삭제했습니다.");
       return;
     }
@@ -2458,6 +3036,9 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
       await readAdminResponse(response, "예약 규칙을 삭제하지 못했습니다.");
       await refreshBookingRules(courtId);
       markCourtUpdatedAt(courtId);
+      setFeeDrafts((current) =>
+        current.filter((fee) => fee.bookingRuleId !== rule.id)
+      );
       if (editingRuleId === rule.id) {
         setEditingRuleId(null);
         setRuleDraft(null);
@@ -2601,6 +3182,49 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
     if (!reservationLink) return;
 
     window.open(reservationLink, "_blank", "noopener,noreferrer");
+  }
+
+  function openDetailPreview() {
+    const courtId = stringifyValue(form.id).trim();
+    if (!courtId) return;
+
+    const mapLink = stringifyValue(form.basic_map_link).trim();
+    const relatedCourts = mapLink
+      ? courts
+          .filter(
+            (court) =>
+              court.id !== courtId && stringifyValue(court.basic_map_link).trim() === mapLink
+          )
+          .map((court) => ({
+            id: court.id,
+            slug: court.slug ?? null,
+            basic_court_name: court.basic_court_name ?? null,
+            basic_owner_type: court.basic_owner_type ?? null,
+            basic_region: court.basic_region ?? null,
+            basic_city: court.basic_city ?? null,
+          }))
+      : [];
+
+    try {
+      window.localStorage.setItem(
+        `${ADMIN_DETAIL_PREVIEW_STORAGE_PREFIX}${courtId}`,
+        JSON.stringify({
+          savedAt: Date.now(),
+          court: {
+            ...toPreviewCourt(form),
+            court_booking_rule_fees: feeDrafts.map(toCourtFeePayload),
+          },
+          blogLinks: blogLinks.filter((link) => stringifyValue(link.url).trim()),
+          relatedCourts,
+        })
+      );
+    } catch {
+      // 임시 저장이 불가능해도 테스트 페이지가 DB 데이터를 불러올 수 있습니다.
+    }
+
+    window.location.assign(
+      `/admin/courtslist/${encodeURIComponent(courtId)}/detail-preview`
+    );
   }
 
   async function findCoordinates() {
@@ -2801,10 +3425,51 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
     rememberBlogUrls(savedLinks);
   }
 
+  async function saveCourtFeesForCourt(courtId: string, fees: CourtFeeDraft[]) {
+    const response = await adminFetch("/api/admin/courts/booking-rule-fees", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        courtId,
+        fees: fees.map((fee) => ({
+          booking_rule_id: fee.bookingRuleId,
+          is_free: fee.isFree,
+          price_basis_hours: Number(fee.priceBasisHours),
+          outdoor_weekday_price:
+            fee.outdoorWeekdayPrice === "" ? null : Number(fee.outdoorWeekdayPrice),
+          outdoor_weekend_price:
+            fee.outdoorWeekendPrice === "" ? null : Number(fee.outdoorWeekendPrice),
+          indoor_weekday_price:
+            fee.indoorWeekdayPrice === "" ? null : Number(fee.indoorWeekdayPrice),
+          indoor_weekend_price:
+            fee.indoorWeekendPrice === "" ? null : Number(fee.indoorWeekendPrice),
+          lighting_fee_separate: fee.lightingFeeSeparate,
+          lighting_fee_amount:
+            fee.lightingFeeSeparate && fee.lightingFeeAmount !== ""
+              ? Number(fee.lightingFeeAmount)
+              : null,
+          lighting_fee_basis_hours:
+            fee.lightingFeeSeparate && fee.lightingFeeAmount !== ""
+              ? Number(fee.lightingFeeBasisHours)
+              : null,
+          lighting_start_time:
+            fee.lightingFeeSeparate && fee.lightingStartTime
+              ? fee.lightingStartTime
+              : null,
+        })),
+      }),
+    });
+    const data = await readAdminResponse(response, "요금정보를 저장하지 못했습니다.");
+    const savedFees = ((data.fees ?? []) as CourtBookingRuleFee[]).map(toCourtFeeDraft);
+    setFeeDrafts(savedFees);
+    return savedFees;
+  }
+
   async function savePendingBookingRulesForCourt(courtId: string, rules: CourtBookingRule[] | null | undefined) {
     const pendingRules = sortBookingRules(rules).filter((rule) =>
       rule.id.startsWith(TEMP_BOOKING_RULE_ID_PREFIX)
     );
+    const savedRuleIdsByTempId = new Map<string, string>();
 
     for (const rule of pendingRules) {
       const response = await adminFetch("/api/admin/courts/booking-rules", {
@@ -2815,8 +3480,12 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
           court_id: courtId,
         }),
       });
-      await readAdminResponse(response, "예약 규칙을 저장하지 못했습니다.");
+      const data = await readAdminResponse(response, "예약 규칙을 저장하지 못했습니다.");
+      const savedRule = data.rule as CourtBookingRule;
+      savedRuleIdsByTempId.set(rule.id, savedRule.id);
     }
+
+    return savedRuleIdsByTempId;
   }
 
   async function deletePersistedBookingRulesForCourt(courtId: string) {
@@ -2842,6 +3511,13 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
       return;
     }
 
+    if (feeDrafts.some((fee) => !fee.isFree && !courtFeeHasAnyPrice(fee))) {
+      setError(
+        "유료 요금정보에는 실외 또는 실내의 평일/주말·공휴일 요금을 하나 이상 입력해주세요."
+      );
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -2859,17 +3535,30 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
         sortBookingRules(form.court_booking_rules).some((rule) =>
           rule.id.startsWith(TEMP_BOOKING_RULE_ID_PREFIX)
         );
+      let savedRuleIdsByTempId = new Map<string, string>();
       if (hadPendingRules) {
         if (isUpdate) {
           await deletePersistedBookingRulesForCourt(savedCourt.id);
         }
-        await savePendingBookingRulesForCourt(savedCourt.id, form.court_booking_rules);
+        savedRuleIdsByTempId = await savePendingBookingRulesForCourt(
+          savedCourt.id,
+          form.court_booking_rules
+        );
       }
       const savedRules = await refreshBookingRules(savedCourt.id);
+      const savedRuleIdSet = new Set(savedRules.map((rule) => rule.id));
+      const mappedFeeDrafts = feeDrafts
+        .map((fee) => ({
+          ...fee,
+          bookingRuleId: savedRuleIdsByTempId.get(fee.bookingRuleId) ?? fee.bookingRuleId,
+        }))
+        .filter((fee) => savedRuleIdSet.has(fee.bookingRuleId));
+      const savedFees = await saveCourtFeesForCourt(savedCourt.id, mappedFeeDrafts);
       const savedCourtWithRules = {
         ...savedCourt,
         updated_at: hadPendingRules ? new Date().toISOString() : savedCourt.updated_at,
         court_booking_rules: savedRules,
+        court_booking_rule_fees: savedFees.map(toCourtFeePayload),
       };
       setCourts((current) => {
         if (isUpdate) {
@@ -2969,12 +3658,127 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                 <h2 className="text-lg font-semibold">목록</h2>
                 <span className="text-sm text-[#a7a7a7]">{filteredCourts.length}개</span>
               </div>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                className="mt-3 w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
-                placeholder="이름, 지역, 주소, slug 검색"
-              />
+              <div className="mt-3 grid gap-2 lg:grid-cols-[320px_minmax(0,1fr)]">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsRegionFilterOpen((current) => !current)}
+                    className="flex w-full items-center justify-between rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-left text-sm text-white outline-none transition hover:border-[#4ade80]"
+                    aria-expanded={isRegionFilterOpen}
+                  >
+                    <span>
+                      {activeRegionFilterCount > 0
+                        ? `지역 ${activeRegionFilterCount}개 선택`
+                        : "전체 지역"}
+                    </span>
+                    <span className="text-[#8c8c8c]">▾</span>
+                  </button>
+                  {isRegionFilterOpen ? (
+                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 overflow-hidden rounded-lg border border-[#333] bg-[#111] shadow-2xl">
+                      <div className="flex items-center justify-between border-b border-[#2f2f2f] px-3 py-2">
+                        <p className="text-xs font-semibold text-[#cfcfcf]">지역 필터</p>
+                        {activeRegionFilterCount > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedRegions([]);
+                              setSelectedCities([]);
+                            }}
+                            className="text-xs font-medium text-[#8c8c8c] hover:text-white"
+                          >
+                            지역 초기화
+                          </button>
+                        ) : null}
+                      </div>
+                      <div className="grid max-h-[360px] grid-cols-[110px_minmax(0,1fr)] overflow-hidden">
+                        <div className="border-r border-[#2f2f2f] bg-black/40 p-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedRegions([]);
+                              setSelectedCities([]);
+                            }}
+                            className={`mb-1 w-full rounded-md px-2 py-2 text-left text-xs font-semibold transition ${
+                              selectedRegions.length === 0
+                                ? "bg-[#23412f] text-[#86efac]"
+                                : "text-[#a7a7a7] hover:bg-[#1f1f1f] hover:text-white"
+                            }`}
+                          >
+                            전체
+                          </button>
+                          <div className="max-h-[302px] overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            {regionOptions.map((region) => {
+                              const isSelected = selectedRegions.includes(region);
+                              return (
+                                <button
+                                  key={region}
+                                  type="button"
+                                  onClick={() => toggleSelectedRegion(region)}
+                                  className={`mb-1 flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-xs font-semibold transition ${
+                                    isSelected
+                                      ? "bg-[#23412f] text-[#86efac]"
+                                      : "text-[#a7a7a7] hover:bg-[#1f1f1f] hover:text-white"
+                                  }`}
+                                >
+                                  <span>{region}</span>
+                                  {isSelected ? <span>✓</span> : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="max-h-[360px] overflow-y-auto p-2 pr-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                          {visibleCityRegions.map((region) => {
+                            const cities = cityOptionsByRegion[region] ?? [];
+                            if (cities.length === 0) return null;
+                            return (
+                              <div key={region} className="mb-3 last:mb-0">
+                                <p className="px-1 pb-1 text-[11px] font-semibold text-[#777]">
+                                  {region}
+                                </p>
+                                <div className="grid grid-cols-2 gap-1">
+                                  {cities.map((city) => {
+                                    const isSelected = selectedCities.includes(city);
+                                    return (
+                                      <button
+                                        key={`${region}-${city}`}
+                                        type="button"
+                                        onClick={() => toggleSelectedCity(city)}
+                                        className={`rounded-md px-2 py-2 text-left text-xs font-semibold transition ${
+                                          isSelected
+                                            ? "bg-[#23412f] text-[#86efac]"
+                                            : "text-[#b8b8b8] hover:bg-[#1f1f1f] hover:text-white"
+                                        }`}
+                                      >
+                                        {city}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="flex min-w-0 gap-2">
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
+                    placeholder="이름, 지역, 주소, slug 검색"
+                  />
+                  <button
+                    type="button"
+                    onClick={resetListFilters}
+                    className="shrink-0 rounded-lg border border-[#3c3c3c] bg-[#202020] px-4 py-2 text-sm font-semibold text-[#d8d8d8] transition hover:border-[#4ade80] hover:text-white"
+                  >
+                    초기화
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="max-h-[calc(100vh-250px)] overflow-y-auto">
               {isLoading ? (
@@ -2983,7 +3787,14 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                 <p className="p-4 text-sm text-[#a7a7a7]">표시할 테니스장이 없습니다.</p>
               ) : (
                 <ul className="divide-y divide-[#2f2f2f]">
-                  <li className="sticky top-0 z-10 grid grid-cols-[minmax(0,1fr)_140px_82px] gap-3 border-b border-[#2f2f2f] bg-[#151515] px-4 py-2 text-sm font-semibold text-[#a7a7a7]">
+                  <li className="sticky top-0 z-10 grid grid-cols-[44px_minmax(0,1fr)_140px_82px] items-center gap-3 border-b border-[#2f2f2f] bg-[#151515] px-4 py-2 text-sm font-semibold text-[#a7a7a7]">
+                    <input
+                      type="checkbox"
+                      checked={isAllFilteredChecked}
+                      onChange={toggleCheckAllFilteredCourts}
+                      className="h-4 w-4 rounded border-[#3c3c3c] accent-[#4ade80]"
+                      aria-label="현재 목록 전체 선택"
+                    />
                     <button
                       type="button"
                       onClick={() => handleSort("name")}
@@ -3007,13 +3818,25 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                     </button>
                   </li>
                   {filteredCourts.map((court) => (
-                    <li key={court.id}>
+                    <li
+                      key={court.id}
+                      className={`grid grid-cols-[44px_minmax(0,1fr)] items-stretch ${
+                        court.id === selectedId ? "bg-[#20281f]" : ""
+                      }`}
+                    >
+                      <div className="flex items-center justify-center py-3 pl-4">
+                        <input
+                          type="checkbox"
+                          checked={checkedCourtIdSet.has(court.id)}
+                          onChange={() => toggleCheckedCourt(court.id)}
+                          className="h-4 w-4 rounded border-[#3c3c3c] accent-[#4ade80]"
+                          aria-label={`${court.basic_court_name ?? "테니스장"} 선택`}
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={() => selectCourt(court)}
-                        className={`grid w-full grid-cols-[minmax(0,1fr)_140px_82px] items-center gap-3 px-4 py-3 text-left hover:bg-[#202020] ${
-                          court.id === selectedId ? "bg-[#20281f]" : ""
-                        }`}
+                        className="grid w-full grid-cols-[minmax(0,1fr)_140px_82px] items-center gap-3 px-4 py-3 text-left hover:bg-[#202020]"
                       >
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-medium text-white">
@@ -3093,6 +3916,15 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                 >
                   정보 불러오기
                 </button>
+                {form.id ? (
+                  <button
+                    type="button"
+                    onClick={openDetailPreview}
+                    className="rounded-lg border border-[#2C8B56] bg-[#102217] px-4 py-2 text-sm font-semibold text-[#86efac] hover:bg-[#173522]"
+                  >
+                    상세페이지
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={saveCourt}
@@ -3386,6 +4218,17 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                   </label>
                 );
                       })}
+                      {group.title === "예약 정보" ? (
+                        <CourtFeesEditor
+                          rules={form.court_booking_rules}
+                          fees={feeDrafts}
+                          onAdd={addFeeDraft}
+                          onChange={updateFeeDraft}
+                          onFreeChange={updateFeeFree}
+                          onLightingFeeSeparateChange={updateFeeLightingFeeSeparate}
+                          onDelete={deleteFeeDraft}
+                        />
+                      ) : null}
                     </div>
                   )}
                 </section>
@@ -3768,6 +4611,38 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
             </div>
           ) : null}
         </div>
+        {checkedCourtIds.length > 0 ? (
+          <div className="fixed bottom-6 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-3 rounded-xl border border-[#3c3c3c] bg-[#111] px-4 py-3 shadow-2xl">
+            <span className="whitespace-nowrap text-sm font-semibold text-white">
+              {checkedCourtIds.length}개 선택
+            </span>
+            <div className="h-5 w-px bg-[#333]" />
+            <button
+              type="button"
+              onClick={() => updateCheckedCourtsVisibility(true)}
+              disabled={isBulkUpdating}
+              className="rounded-lg bg-[#4ade80] px-4 py-2 text-sm font-semibold text-black transition hover:bg-[#3fcf6f] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              YES로 변경
+            </button>
+            <button
+              type="button"
+              onClick={() => updateCheckedCourtsVisibility(false)}
+              disabled={isBulkUpdating}
+              className="rounded-lg border border-[#4a2a2a] bg-[#241616] px-4 py-2 text-sm font-semibold text-[#ffb4b4] transition hover:border-[#7f3d3d] hover:bg-[#321b1b] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              NO로 변경
+            </button>
+            <button
+              type="button"
+              onClick={() => setCheckedCourtIds([])}
+              disabled={isBulkUpdating}
+              className="rounded-lg border border-[#3c3c3c] bg-[#202020] px-3 py-2 text-sm font-medium text-[#d8d8d8] transition hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              선택 해제
+            </button>
+          </div>
+        ) : null}
       </div>
   );
 }

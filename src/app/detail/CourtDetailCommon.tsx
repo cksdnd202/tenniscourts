@@ -12,7 +12,10 @@ declare global {
     kakao?: {
       maps?: {
         load: (callback: () => void) => void;
-        Map: new (container: HTMLElement, options: { center: unknown; level: number }) => unknown;
+        Map: new (container: HTMLElement, options: { center: unknown; level: number }) => {
+          setCenter: (center: unknown) => void;
+          setLevel: (level: number) => void;
+        };
         LatLng: new (lat: number, lng: number) => unknown;
         Marker: new (opts: { position: unknown }) => { setMap: (map: unknown) => void };
       };
@@ -68,11 +71,24 @@ export function CourtDetailAddress({ court }: { court: Court }) {
   );
 }
 const DEFAULT_CENTER = { lat: 37.3595704, lng: 127.105399 };
+const DETAIL_MAP_LEVEL = 3;
 
-export function CourtDetailMap({ court }: { court: Court }) {
+export function CourtDetailMap({
+  court,
+  showResetControl = false,
+}: {
+  court: Court;
+  showResetControl?: boolean;
+}) {
   const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<{
+    setCenter: (center: unknown) => void;
+    setLevel: (level: number) => void;
+  } | null>(null);
+  const initialCenterRef = useRef<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [geocodeFailed, setGeocodeFailed] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const address = court.basic_address?.trim() || "";
   const latitude = court.basic_latitude;
   const longitude = court.basic_longitude;
@@ -84,6 +100,9 @@ export function CourtDetailMap({ court }: { court: Court }) {
     }
     setError(null);
     setGeocodeFailed(false);
+    setMapReady(false);
+    mapInstanceRef.current = null;
+    initialCenterRef.current = null;
     const scriptId = "kakao-maps-script";
 
     const loadScript = (): Promise<void> => {
@@ -125,10 +144,13 @@ export function CourtDetailMap({ court }: { court: Court }) {
       try {
         const el = mapRef.current;
         const center = new window.kakao.maps.LatLng(lat, lng);
-        const map = new window.kakao.maps.Map(el, { center, level: 3 });
+        const map = new window.kakao.maps.Map(el, { center, level: DETAIL_MAP_LEVEL });
         const marker = new window.kakao.maps.Marker({ position: center });
         marker.setMap(map);
-      } catch (e) {
+        mapInstanceRef.current = map;
+        initialCenterRef.current = center;
+        setMapReady(true);
+      } catch {
         setError("지도를 불러올 수 없습니다.");
       }
     };
@@ -139,15 +161,20 @@ export function CourtDetailMap({ court }: { court: Court }) {
         .catch(() => setError("지도를 불러올 수 없습니다."));
     };
 
+    const cleanup = () => {
+      mapInstanceRef.current = null;
+      initialCenterRef.current = null;
+    };
+
     if (typeof latitude === "number" && typeof longitude === "number") {
       run(latitude, longitude);
-      return;
+      return cleanup;
     }
 
     if (!address) {
       setGeocodeFailed(true);
       run(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
-      return;
+      return cleanup;
     }
 
     fetch(`/api/geocode?address=${encodeURIComponent(address)}`)
@@ -161,7 +188,18 @@ export function CourtDetailMap({ court }: { court: Court }) {
         setGeocodeFailed(true);
         run(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
       });
+
+    return cleanup;
   }, [address, latitude, longitude]);
+
+  function resetMapPosition() {
+    const map = mapInstanceRef.current;
+    const center = initialCenterRef.current;
+    if (!map || !center) return;
+
+    map.setLevel(DETAIL_MAP_LEVEL);
+    map.setCenter(center);
+  }
 
   if (!court.basic_address) return null;
   if (error) {
@@ -173,10 +211,37 @@ export function CourtDetailMap({ court }: { court: Court }) {
   }
   return (
     <div className="w-full overflow-hidden rounded-2xl border border-[#2C2C2C] bg-[#1A1A1B] p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.18)]">
-      <div
-        ref={mapRef}
-        className="w-full min-h-[260px] overflow-hidden rounded-xl bg-[#2C2C2C] sm:min-h-[300px]"
-      />
+      <div className="relative overflow-hidden rounded-xl">
+        <div
+          ref={mapRef}
+          className="w-full min-h-[260px] overflow-hidden bg-[#2C2C2C] sm:min-h-[300px]"
+        />
+        {showResetControl ? (
+          <button
+            type="button"
+            onClick={resetMapPosition}
+            disabled={!mapReady}
+            aria-label="테니스장 원래 위치로 이동"
+            title="테니스장 원래 위치로 이동"
+            className="absolute bottom-3 right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[#D6D6D6] bg-white text-[#222] shadow-[0_3px_12px_rgba(0,0,0,0.32)] transition hover:bg-[#F2F2F2] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:bottom-4 sm:right-4"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="5" />
+              <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+            </svg>
+          </button>
+        ) : null}
+      </div>
       {geocodeFailed && (
         <p className="px-2 pb-1.5 pt-2 text-[#6B7280] text-xs">
           주소로 위치를 찾지 못해 기본 위치를 표시합니다. .env.local과 Vercel 환경변수에
