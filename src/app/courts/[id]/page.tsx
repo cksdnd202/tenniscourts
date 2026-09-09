@@ -388,7 +388,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
               </section>
 
               <section aria-label="위치 정보" className="space-y-3 border-y border-[#242426] py-5">
-                <CourtDetailAddress court={court} />
+                <CourtDetailAddress court={court} showNearbyAction />
                 <CourtDetailMap court={court} showResetControl />
               </section>
 

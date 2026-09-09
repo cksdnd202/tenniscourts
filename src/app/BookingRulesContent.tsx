@@ -128,6 +128,12 @@ export function formatBookingRuleCardText(rule: CourtBookingRule) {
     return `${[interval, weekday, time].filter(Boolean).join(" ")}${offset ? `, ${offset}` : ""} 예약 오픈`.trim();
   }
 
+  if (rule.rule_type === "monthly_relative") {
+    const daysBefore = rule.open_offset?.trim();
+    const time = formatTime(rule.open_time);
+    return `다음 달 ${daysBefore ? `${daysBefore}일 전` : "이전"}${time ? `, ${time}` : ""} 예약 오픈`;
+  }
+
   if (rule.rule_type === "lottery" && rule.lottery_desc?.trim()) {
     return rule.lottery_desc.trim();
   }

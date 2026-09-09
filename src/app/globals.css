@@ -127,6 +127,32 @@ body {
   animation: onboardingPhoneCalendar 4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
+.onboarding-map-list-tab {
+  animation: onboardingMapListTab 5s ease-in-out infinite;
+}
+
+.onboarding-map-map-tab {
+  animation: onboardingMapMapTab 5s ease-in-out infinite;
+}
+
+.onboarding-map-toggle-indicator {
+  animation: onboardingMapToggleIndicator 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.onboarding-map-toggle-stage {
+  animation: onboardingMapToggleStage 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.onboarding-map-view {
+  opacity: 0;
+  animation: onboardingMapView 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.onboarding-map-marker {
+  opacity: 0;
+  animation: onboardingMapMarker 5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
 @keyframes mobileFadeIn {
   from {
     opacity: 0;
@@ -397,6 +423,105 @@ body {
   100% {
     transform: translateY(0);
     opacity: 0;
+  }
+}
+
+@keyframes onboardingMapListTab {
+  0%,
+  10% {
+    color: #FFFFFF;
+  }
+  24%,
+  88% {
+    color: #8A8F98;
+  }
+  88.1%,
+  100% {
+    color: #FFFFFF;
+  }
+}
+
+@keyframes onboardingMapMapTab {
+  0%,
+  10% {
+    color: #8A8F98;
+  }
+  24%,
+  88% {
+    color: #FFFFFF;
+  }
+  88.1%,
+  100% {
+    color: #8A8F98;
+  }
+}
+
+@keyframes onboardingMapToggleIndicator {
+  0%,
+  10% {
+    transform: translateX(0);
+  }
+  24%,
+  88% {
+    transform: translateX(100%);
+  }
+  88.1%,
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes onboardingMapToggleStage {
+  0%,
+  34% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  46%,
+  88% {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+  88.1%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes onboardingMapView {
+  0%,
+  31% {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+  44%,
+  88% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  88.1%,
+  100% {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes onboardingMapMarker {
+  0%,
+  44% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.65);
+  }
+  54%,
+  88% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  88.1%,
+  100% {
+    opacity: 0;
+    transform: translateY(0) scale(1);
   }
 }
 

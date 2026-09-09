@@ -269,9 +269,8 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
   const lastCapturedMapSearchRef = useRef("");
   const lastCapturedMapDetailScrollRef = useRef<string | null>(null);
   const [query, setQuery] = useState("");
-  const [selectedCourtId, setSelectedCourtId] = useState<string | null>(
-    courts.find(hasCoordinate)?.id ?? courts[0]?.id ?? null
-  );
+  const [selectedCourtId, setSelectedCourtId] = useState<string | null>(null);
+  const nearbyCourtRef = useRef<Court | null>(null);
   const [activeLocationKey, setActiveLocationKey] = useState<string | null>(null);
   const [activeMenu, setActiveMenu] = useState<MapMenu>("search");
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
@@ -472,7 +471,6 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
     () => (selectedCourtId ? courts.find((court) => court.id === selectedCourtId) ?? null : null),
     [courts, selectedCourtId]
   );
-
   const upcomingOpens = useMemo(
     () =>
       courts
@@ -636,7 +634,27 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
   }, [isMobileViewport]);
 
   useEffect(() => {
-    const courtId = new URLSearchParams(window.location.search).get("courtId");
+    const searchParams = new URLSearchParams(window.location.search);
+    const nearbyId = searchParams.get("nearbyCourtId");
+    if (nearbyId) {
+      const targetCourt = courts.find((court) => court.id === nearbyId);
+      if (!targetCourt || !hasCoordinate(targetCourt)) return;
+
+      nearbyCourtRef.current = targetCourt;
+      setSelectedCourtId(null);
+      setActiveLocationKey(null);
+      hasClearedMobileInitialSelectionRef.current = true;
+      setMobileMode("map");
+      capturePostHogEvent("nearby_map_opened", {
+        courtId: targetCourt.id,
+        courtName: targetCourt.basic_court_name,
+        city: targetCourt.basic_city,
+        source: "detail_page",
+      });
+      return;
+    }
+
+    const courtId = searchParams.get("courtId");
     if (!courtId) return;
     const targetCourt = courts.find((court) => court.id === courtId);
     if (!targetCourt) return;
@@ -660,11 +678,7 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
       .then(() => {
         if (cancelled || !mapRef.current) return;
         const kakao = (window as any).kakao;
-        const firstCourt = selectedCourt && hasCoordinate(selectedCourt) ? selectedCourt : mappableCourts[0];
-        const center = new kakao.maps.LatLng(
-          firstCourt?.basic_latitude ?? DEFAULT_CENTER.lat,
-          firstCourt?.basic_longitude ?? DEFAULT_CENTER.lng
-        );
+        const center = new kakao.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
         const map = new kakao.maps.Map(mapRef.current, { center, level: 8 }) as MapHandle;
         mapInstanceRef.current = map;
         setMapError(null);
@@ -813,6 +827,17 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
       map.panBy?.(-panelOffset, 0);
     });
   }, [isMapReady, isMobileViewport, selectedCourt]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const kakao = (window as any).kakao;
+    const nearbyCourt = nearbyCourtRef.current;
+    if (!isMapReady || !map || !kakao?.maps || !nearbyCourt || !hasCoordinate(nearbyCourt)) return;
+
+    const center = new kakao.maps.LatLng(nearbyCourt.basic_latitude, nearbyCourt.basic_longitude);
+    map.setCenter?.(center);
+    map.setLevel?.(5);
+  }, [isMapReady]);
 
   useEffect(() => {
     if (!shareMessage) return;

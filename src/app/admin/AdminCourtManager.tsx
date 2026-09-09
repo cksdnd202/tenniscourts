@@ -631,6 +631,8 @@ function formatRuleType(value: string | null | undefined) {
       return "상시/롤링";
     case "interval_weekly":
       return "주기 반복";
+    case "monthly_relative":
+      return "다음 달 기준 역산";
     case "lottery":
       return "추첨";
     case "phone":
@@ -802,6 +804,10 @@ function isBookingRuleDraftFieldVisible(
     );
   }
 
+  if (ruleType === "monthly_relative") {
+    return field === "open_time" || field === "open_offset" || field === "anchor_date";
+  }
+
   if (ruleType === "fixed_schedule") {
     if (field === "open_type" || field === "open_time" || field === "open_offset") return true;
     if (field === "open_date_adjustment") return openType === "day" || openType === "week";
@@ -836,6 +842,7 @@ const bookingRuleTypeOptions = [
   { label: "고정 일정(fixed_schedule)", value: "fixed_schedule" },
   { label: "상시/롤링(rolling)", value: "rolling" },
   { label: "주기 반복(interval_weekly)", value: "interval_weekly" },
+  { label: "다음 달 기준 역산(monthly_relative)", value: "monthly_relative" },
   { label: "추첨(lottery)", value: "lottery" },
   { label: "전화(phone)", value: "phone" },
   { label: "현장(on_site)", value: "on_site" },
@@ -1041,14 +1048,21 @@ function BookingRulesEditor({
         ) : null}
         {isBookingRuleDraftFieldVisible(draft, "open_offset") ? (
           <RuleDraftTextInput
-            label="오픈되는 범위"
+            label={
+              stringifyValue(draft.rule_type) === "monthly_relative"
+                ? "다음 달 1일 전 일수"
+                : "오픈되는 범위"
+            }
             value={draft.open_offset}
+            type={stringifyValue(draft.rule_type) === "monthly_relative" ? "number" : "text"}
             onChange={(value) => onChange("open_offset", value)}
             placeholder={
               stringifyValue(draft.rule_type) === "rolling"
                 ? "예: 30"
                 : stringifyValue(draft.rule_type) === "interval_weekly"
                   ? "예: 다음 2주"
+                  : stringifyValue(draft.rule_type) === "monthly_relative"
+                    ? "예: 7"
                   : "예: 다음달 또는 당월"
             }
           />
@@ -1072,10 +1086,18 @@ function BookingRulesEditor({
         ) : null}
         {isBookingRuleDraftFieldVisible(draft, "anchor_date") ? (
           <RuleDraftTextInput
-            label="기준 오픈일"
+            label={
+              stringifyValue(draft.rule_type) === "monthly_relative"
+                ? "적용 시작월"
+                : "기준 오픈일"
+            }
             value={draft.anchor_date}
             onChange={(value) => onChange("anchor_date", value)}
-            placeholder="예: 2026-08-15"
+            placeholder={
+              stringifyValue(draft.rule_type) === "monthly_relative"
+                ? "예: 2022-09-01"
+                : "예: 2026-08-15"
+            }
           />
         ) : null}
         <RuleDraftTextInput
@@ -1691,6 +1713,12 @@ function formatRuleCardText(rule: CourtBookingRule) {
     const offset = rule.open_offset?.trim();
     const openText = [interval, weekday !== "-" ? weekday : "", time].filter(Boolean).join(" ");
     return `${openText}${offset ? `, ${offset}` : ""} 예약 오픈`.trim();
+  }
+
+  if (rule.rule_type === "monthly_relative") {
+    const daysBefore = rule.open_offset?.trim();
+    const time = formatTime(rule.open_time);
+    return `다음 달 ${daysBefore ? `${daysBefore}일 전` : "이전"}${time ? `, ${time}` : ""} 예약 오픈`;
   }
 
   const adjustmentText = rule.open_date_adjustment === "next_weekday" ? " (주말이면 다음 평일)" : "";
@@ -2888,7 +2916,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
         const ruleType = stringifyValue(value);
         const keepsSchedule =
           ruleType === "fixed_schedule" || ruleType === "ordinal" || ruleType === "interval_weekly";
-        const keepsTime = keepsSchedule || ruleType === "rolling";
+        const keepsTime = keepsSchedule || ruleType === "rolling" || ruleType === "monthly_relative";
 
         return {
           ...current,
@@ -2902,13 +2930,17 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
             ruleType === "fixed_schedule" ||
             ruleType === "rolling" ||
             ruleType === "ordinal" ||
-            ruleType === "interval_weekly"
+            ruleType === "interval_weekly" ||
+            ruleType === "monthly_relative"
               ? current.open_offset
               : null,
           open_date_adjustment:
             ruleType === "fixed_schedule" || ruleType === "ordinal" ? current.open_date_adjustment || "none" : "none",
           interval_weeks: ruleType === "interval_weekly" ? current.interval_weeks || 2 : null,
-          anchor_date: ruleType === "interval_weekly" ? current.anchor_date || null : null,
+          anchor_date:
+            ruleType === "interval_weekly" || ruleType === "monthly_relative"
+              ? current.anchor_date || null
+              : null,
           lottery_desc: ruleType === "lottery" ? current.lottery_desc : null,
         };
       }

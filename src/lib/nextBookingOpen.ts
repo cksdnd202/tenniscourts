@@ -4,6 +4,7 @@ import {
   hasPriorityEligibility,
   type PriorityEligibilityLabel,
 } from "@/lib/bookingEligibility";
+import { nextMonthlyRelativeOpen } from "@/lib/monthlyRelativeBooking";
 
 const SEOUL_OFFSET_HOURS = 9;
 
@@ -453,6 +454,10 @@ export function getNextBookingRuleOpen(
     return wrap(
       nextIntervalWeeklyOpen(rule.anchor_date, rule.interval_weeks, rule.open_day_of_week, rule.open_time, from)
     );
+  }
+
+  if (rule.rule_type === "monthly_relative") {
+    return wrap(nextMonthlyRelativeOpen(rule.open_offset, rule.open_time, rule.anchor_date, from));
   }
 
   const ruleCourt = buildCourtFromBookingRule(court, rule);

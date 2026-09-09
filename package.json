@@ -6,7 +6,8 @@
     "dev": "node scripts/run-next-filtered.js dev --webpack --hostname 127.0.0.1",
     "build": "node scripts/run-next-filtered.js build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "audit:courts": "node scripts/audit-courts.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.80.0",

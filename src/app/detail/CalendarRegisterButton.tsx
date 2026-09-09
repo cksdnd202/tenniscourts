@@ -69,8 +69,8 @@ export function CalendarRegisterButton({
   badge,
 }: Props) {
   const className = compact
-    ? "text-[11px] text-[#8A8F98] underline underline-offset-2"
-    : "text-sm text-[#8A8F98] underline underline-offset-2";
+    ? "inline-flex shrink-0 whitespace-nowrap text-[11px] text-[#8A8F98] underline underline-offset-2"
+    : "inline-flex shrink-0 whitespace-nowrap text-sm text-[#8A8F98] underline underline-offset-2";
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (isDesktopPc()) {

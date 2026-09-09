@@ -108,9 +108,11 @@ function buildBlogSearchQueries({
   const compactPrimaryName = primaryName.replace(/\s+/g, "");
   const baseSuffix = primaryName.includes("테니스장") ? "후기" : "테니스장 후기";
   const queries = [
+    [city, primaryName, "이용후기"].filter(Boolean).join(" "),
+    [city, primaryName, "코트 대여 후기"].filter(Boolean).join(" "),
+    [region, city, primaryName, baseSuffix].filter(Boolean).join(" "),
     [primaryName, baseSuffix].filter(Boolean).join(" "),
     [compactPrimaryName, baseSuffix].filter(Boolean).join(" "),
-    [region, city, primaryName, baseSuffix].filter(Boolean).join(" "),
     [primaryName, "예약 후기"].filter(Boolean).join(" "),
     [primaryName, "주차 후기"].filter(Boolean).join(" "),
     ...searchNames.slice(1, 5).flatMap((name) => [
@@ -122,16 +124,22 @@ function buildBlogSearchQueries({
   return Array.from(new Set(queries.map(normalizeKeywordPart).filter(Boolean)));
 }
 
-function getBlogItemScoreForName(item: NaverBlogItem, courtName: string) {
+function getBlogItemScoreForName(
+  item: NaverBlogItem,
+  courtName: string,
+  locationKeywords: string[]
+) {
   const title = stripHtml(item.title);
   const description = stripHtml(item.description);
   const text = normalizeForSearch(`${title} ${description} ${item.bloggername ?? ""}`);
   const titleText = normalizeForSearch(title);
   const compactCourtName = normalizeForSearch(courtName);
-  const tokens = courtName
-    .split(/\s+/)
+  const tokens = [
+    ...courtName.split(/\s+/),
+    courtName.replace(/테니스장|테니스코트|근린공원|체육공원|공원/g, " "),
+  ]
     .map((token) => normalizeForSearch(token))
-    .filter((token) => token && token !== "테니스장");
+    .filter((token) => token && token !== "테니스장" && token !== "테니스코트");
 
   let score = 0;
 
@@ -141,7 +149,12 @@ function getBlogItemScoreForName(item: NaverBlogItem, courtName: string) {
   const matchedTokens = tokens.filter((token) => text.includes(token)).length;
   score += matchedTokens * 25;
 
+  const matchedLocations = locationKeywords.filter((keyword) => text.includes(keyword)).length;
+  score += matchedLocations * 30;
+  if (locationKeywords.length > 0 && matchedLocations === 0) score -= 45;
+
   if (titleText.includes("후기")) score += 20;
+  if (/이용\s*후기|대여\s*후기|코트\s*후기|리뷰/i.test(title)) score += 20;
   if (titleText.includes("예약")) score += 12;
   if (titleText.includes("주차")) score += 8;
   if (titleText.includes("코트")) score += 8;
@@ -151,13 +164,29 @@ function getBlogItemScoreForName(item: NaverBlogItem, courtName: string) {
     score -= 120;
   }
 
+  const postYear = Number((item.postdate ?? "").slice(0, 4));
+  const currentYear = new Date().getFullYear();
+  if (Number.isFinite(postYear)) {
+    if (postYear >= currentYear) score += 24;
+    else if (postYear === currentYear - 1) score += 18;
+    else if (postYear >= currentYear - 3) score += 8;
+  }
+
   return score;
 }
 
-function getBlogItemScore(item: NaverBlogItem, courtName: string) {
+function getBlogItemScore(
+  item: NaverBlogItem,
+  courtName: string,
+  region: string,
+  city: string
+) {
   const searchNames = buildBlogSearchNames(courtName);
   const candidateNames = Array.from(new Set([courtName, ...searchNames]));
-  return Math.max(...candidateNames.map((name) => getBlogItemScoreForName(item, name)));
+  const locationKeywords = Array.from(new Set([region, city].map(normalizeForSearch).filter(Boolean)));
+  return Math.max(
+    ...candidateNames.map((name) => getBlogItemScoreForName(item, name, locationKeywords))
+  );
 }
 
 async function fetchNaverBlogItems({
@@ -236,7 +265,7 @@ export async function POST(req: NextRequest) {
         if (!item.link) continue;
         if (excludeUrls.has(item.link)) continue;
 
-        const score = getBlogItemScore(item, courtName);
+        const score = getBlogItemScore(item, courtName, region, city);
         const existing = uniqueItems.get(item.link);
         if (!existing || score > existing.score) {
           uniqueItems.set(item.link, { item, score, order: uniqueItems.size });
@@ -245,19 +274,10 @@ export async function POST(req: NextRequest) {
     }
 
     const selectedItems = Array.from(uniqueItems.values())
-      .filter(({ score }) => score > 0)
+      .filter(({ score }) => score >= 60)
       .sort((a, b) => b.score - a.score || a.order - b.order)
       .slice(0, count)
       .map(({ item }) => item);
-
-    if (selectedItems.length < count) {
-      for (const { item } of Array.from(uniqueItems.values()).sort((a, b) => a.order - b.order)) {
-        if (selectedItems.some((selected) => selected.link === item.link)) continue;
-        if (!item.link) continue;
-        selectedItems.push(item);
-        if (selectedItems.length >= count) break;
-      }
-    }
 
     const links = await Promise.all(
       selectedItems.map((item, index) =>

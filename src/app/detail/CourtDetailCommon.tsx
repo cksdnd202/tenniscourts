@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Court } from "../types";
 import { getReservationHref } from "@/lib/reservationLink";
 import { getPhoneReservationHref, isPhoneReservationCourt } from "@/lib/phoneReservation";
+import { capturePostHogEvent } from "@/lib/posthogClient";
 
 const KAKAO_JAVASCRIPT_KEY = (process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY ?? "").trim();
 
@@ -49,24 +50,66 @@ function PhoneCallIcon({ className = "" }: { className?: string }) {
 }
 
 /** 상세 페이지: 주소 + 지도에서 보기 링크 */
-export function CourtDetailAddress({ court }: { court: Court }) {
+export function CourtDetailAddress({
+  court,
+  showNearbyAction = false,
+}: {
+  court: Court;
+  showNearbyAction?: boolean;
+}) {
   if (!court.basic_address) return null;
+  const canOpenNearbyMap =
+    typeof court.basic_latitude === "number" && typeof court.basic_longitude === "number";
+
   return (
-    <div className="flex items-center gap-0.5 min-w-0">
-      <Image
-        src="/icon/icon_map.svg"
-        alt="지도"
-        width={16}
-        height={16}
-        className="flex-shrink-0"
-      />
-      <span className={`${courtitem_courtaddress} truncate`}>{court.basic_address}</span>
-      <a
-        href={`/map?courtId=${encodeURIComponent(court.id)}`}
-        className={`${courtitem_courtmaplink} flex-shrink-0`}
-      >
-        지도에서 보기
-      </a>
+    <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <div className="flex min-w-0 items-center gap-0.5">
+        <Image
+          src="/icon/icon_map.svg"
+          alt="지도"
+          width={16}
+          height={16}
+          className="flex-shrink-0"
+        />
+        <span className={`${courtitem_courtaddress} truncate`}>{court.basic_address}</span>
+        <a
+          href={`/map?courtId=${encodeURIComponent(court.id)}`}
+          className={`${courtitem_courtmaplink} flex-shrink-0`}
+        >
+          지도에서 보기
+        </a>
+      </div>
+
+      {showNearbyAction && canOpenNearbyMap ? (
+        <a
+          href={`/map?nearbyCourtId=${encodeURIComponent(court.id)}`}
+          onClick={() =>
+            capturePostHogEvent("nearby_courts_button_clicked", {
+              courtId: court.id,
+              courtName: court.basic_court_name,
+              city: court.basic_city,
+              source: "detail_page",
+            })
+          }
+          aria-label={`${court.basic_court_name ?? "현재 테니스장"} 근처 테니스장 지도에서 보기`}
+          className="inline-flex h-9 flex-shrink-0 self-end items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-[#343438] bg-[#1A1A1B] px-3 text-xs font-semibold text-[#72E2A5] transition hover:border-[#4A4A50] hover:bg-[#222224] active:scale-[0.98] sm:self-auto"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
+            <circle cx="12" cy="10" r="2.5" />
+          </svg>
+          근처 테니스장 보기
+        </a>
+      ) : null}
     </div>
   );
 }
