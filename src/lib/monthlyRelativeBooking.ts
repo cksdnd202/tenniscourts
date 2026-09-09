@@ -1,10 +1,32 @@
 const SEOUL_OFFSET_HOURS = 9;
 
-function seoulWallToUtc(year, month, day, hour, minute) {
+type SeoulYmd = {
+  year: number;
+  month: number;
+  day: number;
+};
+
+type ClockTime = {
+  hour: number;
+  minute: number;
+};
+
+type EffectiveMonth = {
+  year: number;
+  month: number;
+};
+
+function seoulWallToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number
+): Date {
   return new Date(Date.UTC(year, month - 1, day, hour - SEOUL_OFFSET_HOURS, minute, 0));
 }
 
-function getSeoulYmd(instant) {
+function getSeoulYmd(instant: Date): SeoulYmd {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
     year: "numeric",
@@ -15,20 +37,20 @@ function getSeoulYmd(instant) {
   return { year: Number(values.year), month: Number(values.month), day: Number(values.day) };
 }
 
-function addCalendarDays(year, month, day, delta) {
+function addCalendarDays(year: number, month: number, day: number, delta: number): SeoulYmd {
   const instant = seoulWallToUtc(year, month, day, 12, 0);
   instant.setUTCDate(instant.getUTCDate() + delta);
   return getSeoulYmd(instant);
 }
 
-function parsePositiveInteger(value) {
+function parsePositiveInteger(value: string | null | undefined): number | null {
   if (value == null || value === "") return null;
   const number = Number(value);
   if (!Number.isFinite(number)) return null;
   return Math.trunc(number);
 }
 
-function parseTime(value) {
+function parseTime(value: string | null | undefined): ClockTime | null {
   if (!value?.trim()) return null;
   const [hourRaw, minuteRaw] = value.trim().split(":");
   const hour = Number(hourRaw);
@@ -38,7 +60,7 @@ function parseTime(value) {
   return { hour, minute };
 }
 
-function parseEffectiveMonth(value) {
+function parseEffectiveMonth(value: string | null | undefined): EffectiveMonth | null {
   if (!value?.trim()) return null;
   const match = value.trim().match(/^(\d{4})-(\d{2})/);
   if (!match) return null;
@@ -49,7 +71,12 @@ function parseEffectiveMonth(value) {
 }
 
 /** 다음 이용월 1일을 기준으로 N일 전 정해진 시각에 열리는 월 단위 예약 */
-export function nextMonthlyRelativeOpen(daysBeforeRaw, timeRaw, effectiveFromRaw, from) {
+export function nextMonthlyRelativeOpen(
+  daysBeforeRaw: string | null | undefined,
+  timeRaw: string | null | undefined,
+  effectiveFromRaw: string | null | undefined,
+  from: Date
+): Date | null {
   const daysBefore = parsePositiveInteger(daysBeforeRaw);
   const time = parseTime(timeRaw);
   if (daysBefore == null || daysBefore < 1 || daysBefore > 31 || !time) return null;
