@@ -21,6 +21,7 @@ import {
   type NextOpenResult,
 } from "@/lib/nextBookingOpen";
 import { getCourtDetailPath } from "@/lib/courtPath";
+import { getBookingRuleCondition, getBookingRuleTargetText } from "@/lib/bookingRuleDisplay";
 import { fmt, formatTime, td, tdIcon, th } from "../styles";
 
 type CourtForm = Partial<Court>;
@@ -205,6 +206,7 @@ function createEmptyBookingRuleDraft(courtId: string, sortOrder = 0): CourtBooki
     court_id: courtId,
     label: "",
     eligibility: "normal",
+    target_condition: "",
     rule_type: "fixed_schedule",
     open_type: "day",
     open_day_of_month: null,
@@ -744,6 +746,7 @@ function normalizeBookingRuleForSave(rule: CourtBookingRuleDraft) {
     ...rule,
     label: stringifyValue(rule.label).trim() || null,
     eligibility: stringifyValue(rule.eligibility).trim() || null,
+    target_condition: stringifyValue(rule.target_condition).trim(),
     rule_type: stringifyValue(rule.rule_type).trim() || null,
     open_type: stringifyValue(rule.open_type).trim() || null,
     open_day_of_month: numberOrNull(rule.open_day_of_month),
@@ -1005,6 +1008,15 @@ function BookingRulesEditor({
           options={bookingRuleTypeOptions}
           onChange={(value) => onChange("rule_type", value)}
         />
+        <RuleDraftTextInput
+          label="추가 대상 조건（선택）"
+          value={draft.target_condition}
+          onChange={(value) => onChange("target_condition", value)}
+          placeholder="예: 3인 이상 팀, 연합회 소속 클럽"
+        />
+        <p className="text-xs leading-relaxed text-[#A7A7A7] md:col-span-2">
+          자격 옆에 표시되는 조건입니다. 조건이 없으면 비워두세요. 정렬 순서는 배치에만 사용하며 차수를 자동 생성하지 않습니다.
+        </p>
         {isBookingRuleDraftFieldVisible(draft, "open_type") ? (
           <RuleDraftSelect
             label="오픈 타입"
@@ -1107,7 +1119,7 @@ function BookingRulesEditor({
           onChange={(value) => onChange("sort_order", value)}
         />
         <RuleDraftTextInput
-          label="차수명"
+          label="차수명（실제 차수 구분이 있을 때만）"
           value={draft.booking_round_label}
           onChange={(value) => onChange("booking_round_label", value)}
           placeholder="예: 1차 예약"
@@ -1218,6 +1230,7 @@ function BookingRulesEditor({
                     <span className="text-sm font-semibold text-white">
                       {formatRuleDisplayText(rule.label) || "예약 규칙"}
                     </span>
+                    {rule.target_condition ? <span className="text-xs text-[#CFCFCF]">{rule.target_condition}</span> : null}
                   </div>
                   <p className="mt-2 text-xs text-[#a7a7a7]">
                     {[
@@ -1796,7 +1809,7 @@ function BookingRulesCardBlock({
                   key={rule.id}
                   className="rounded bg-[#12351f] px-1.5 py-0.5 text-xs font-bold text-[#6FCF97]"
                 >
-                  {formatRuleEligibility(rule.eligibility)}
+                  {getBookingRuleTargetText(rule)}
                 </span>
               ))}
             </span>
@@ -1818,8 +1831,8 @@ function BookingRulesCardBlock({
         </p>
         {visibleRules.map((rule) => (
           <div key={rule.id} className="flex min-w-0 items-baseline gap-2">
-            <span className="shrink-0 text-sm font-bold text-[#6FCF97]">
-              {formatRuleEligibility(rule.eligibility)} :
+            <span className="max-w-full shrink-0 break-keep text-sm font-bold text-[#6FCF97]">
+              {getBookingRuleTargetText(rule)} :
             </span>
             <span className="min-w-0 truncate text-sm font-semibold text-white">
               {formatRuleCardText(rule)}
@@ -1851,7 +1864,7 @@ function BookingRulesCardBlock({
       {rules.map((rule) => (
         <p key={rule.id} className="break-words text-sm font-bold text-white">
           <span className="text-[#6FCF97]">
-            {formatRuleEligibility(rule.eligibility)} :{" "}
+            {getBookingRuleTargetText(rule)} :{" "}
           </span>
           <span className="font-semibold text-white">{formatRuleCardText(rule)}</span>
         </p>
@@ -2902,6 +2915,7 @@ export function AdminCourtManager() {
     setEditingRuleId(rule.id);
     setRuleDraft({
       ...rule,
+      target_condition: getBookingRuleCondition(rule),
       open_time: toTimeInputValue(rule.open_time),
     });
     setMessage(null);

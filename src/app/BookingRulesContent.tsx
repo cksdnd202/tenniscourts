@@ -2,13 +2,9 @@ import Link from "next/link";
 import type { Court, CourtBookingRule } from "./types";
 import { getCourtDetailPath } from "@/lib/courtPath";
 import { formatTime } from "./styles";
-import { BookingOpenCardRow } from "./detail/BookingOpenCardRow";
 import { HorizontalScrollArea } from "./detail/HorizontalScrollArea";
-import {
-  bookingOpenLabelTextClass,
-  detailCard,
-  type BookingOpenLabelTone,
-} from "./detail/detailLayoutStyles";
+import { type BookingOpenLabelTone } from "./detail/detailLayoutStyles";
+import { getBookingRuleTargetText, getBookingRuleDisplayContext } from "@/lib/bookingRuleDisplay";
 
 function sortActiveBookingRules(rules: CourtBookingRule[] | null | undefined) {
   return (rules ?? [])
@@ -45,16 +41,6 @@ function getBookingRuleLabelTone(value: string | null | undefined): BookingOpenL
   }
   return key === "normal" || !key ? "normal" : "priority";
 }
-
-function isNormalEligibility(value: string | null | undefined) {
-  return value === "normal";
-}
-
-const detailBookingRulesLayoutClass =
-  "flex snap-x gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[1032px]:grid min-[1032px]:grid-cols-2 min-[1032px]:gap-4 min-[1032px]:overflow-visible min-[1032px]:pb-0";
-
-const detailBookingRuleCardClass =
-  "w-[44%] min-w-[44%] snap-start min-[1032px]:w-auto min-[1032px]:min-w-0";
 
 function formatRuleWeekOfMonth(value: number | null | undefined) {
   if (value == null) return "";
@@ -181,8 +167,8 @@ export function BookingRulesCompactContent({ court }: { court: Court }) {
       <p className="text-xs font-semibold text-[#a7a7a7]">예약 오픈 정보 {rules.length}개</p>
       {visibleRules.map((rule) => (
         <div key={rule.id} className="flex min-w-0 items-baseline gap-2">
-          <span className="shrink-0 text-sm font-bold text-[#6FCF97]">
-            {formatBookingRuleEligibility(rule.eligibility)} :
+          <span className="max-w-full shrink-0 break-keep text-sm font-bold text-[#6FCF97]">
+            {getBookingRuleTargetText(rule)} :
           </span>
           <span className="min-w-0 truncate text-sm font-semibold text-white">
             {formatBookingRuleCardText(rule)}
@@ -203,135 +189,25 @@ export function BookingRulesCompactContent({ court }: { court: Court }) {
 
 export function BookingRulesDetailBlock({ court }: { court: Court }) {
   const rules = sortActiveBookingRules(court.court_booking_rules);
-
-  if (rules.length === 0) return null;
-
-  const eligibilityCounts = rules.reduce<Record<string, number>>((counts, rule) => {
-    const key = rule.eligibility?.trim() || "normal";
-    counts[key] = (counts[key] ?? 0) + 1;
-    return counts;
-  }, {});
-
-  const hasRepeatedEligibility = Object.values(eligibilityCounts).some((count) => count > 1);
-
-  if (hasRepeatedEligibility) {
-    const seenByEligibility: Record<string, number> = {};
-    const phaseGroups = new Map<number, CourtBookingRule[]>();
-
-    for (const rule of rules) {
-      const key = rule.eligibility?.trim() || "normal";
-      const phase = (seenByEligibility[key] ?? 0) + 1;
-      seenByEligibility[key] = phase;
-
-      const current = phaseGroups.get(phase) ?? [];
-      current.push(rule);
-      phaseGroups.set(phase, current);
-    }
-
-    return (
-      <HorizontalScrollArea className={detailBookingRulesLayoutClass}>
-        {Array.from(phaseGroups.entries()).map(([phase, groupRules]) => (
-          <BookingRulesGroupCard
-            key={phase}
-            title={`${phase}차 예약`}
-            rules={groupRules}
-          />
+  if (!rules.length) return null;
+  return (
+    <div className="space-y-3">
+      <h2 className="font-semibold text-white">예약 오픈 정보</h2>
+      <HorizontalScrollArea className="flex snap-x snap-proximity items-stretch gap-3 overflow-x-auto pb-2">
+        {rules.map((rule) => (
+          <div key={rule.id} className={`flex min-w-0 snap-start flex-col gap-5 rounded-xl border border-[#35383D] bg-[#111214] px-5 py-5 ${rules.length === 1 ? "w-full" : "w-[280px] max-w-[85%] shrink-0 sm:max-w-none sm:flex-[1_0_280px]"}`}>
+            <div className="min-w-0">
+              <p className={getBookingRuleLabelTone(rule.eligibility) === "normal" ? "break-keep text-base font-semibold text-white" : "break-keep text-base font-semibold text-[#6FCF97]"}>
+                {getBookingRuleTargetText(rule)}
+              </p>
+              {getBookingRuleDisplayContext(rule).length > 0 ? (
+                <p className="mt-2 break-keep text-sm leading-relaxed text-[#A7A7A7]">{getBookingRuleDisplayContext(rule).join(" · ")}</p>
+              ) : null}
+            </div>
+            <p className="mt-auto break-keep text-base font-bold leading-relaxed text-white">{formatBookingRuleCardText(rule)}</p>
+          </div>
         ))}
       </HorizontalScrollArea>
-    );
-  }
-
-  if (rules.length > 1) {
-    const priorityRules = rules.filter((rule) => !isNormalEligibility(rule.eligibility));
-    const normalRules = rules.filter((rule) => isNormalEligibility(rule.eligibility));
-
-    return (
-      <HorizontalScrollArea className={detailBookingRulesLayoutClass}>
-        {priorityRules.length > 0 ? (
-          <BookingRulesGroupCard title="우선 예약" rules={priorityRules} />
-        ) : null}
-        {normalRules.length > 0 ? (
-          <BookingRulesGroupCard title="전체 예약" rules={normalRules} />
-        ) : null}
-      </HorizontalScrollArea>
-    );
-  }
-
-  return (
-    <HorizontalScrollArea className={detailBookingRulesLayoutClass}>
-      {rules.map((rule) => (
-        <div key={rule.id} className={detailBookingRuleCardClass}>
-          <div className={detailCard}>
-            <BookingOpenCardRow
-              label={formatBookingRuleEligibility(rule.eligibility)}
-              labelTone={getBookingRuleLabelTone(rule.eligibility)}
-            >
-              <span className="font-bold">{formatBookingRuleCardText(rule)}</span>
-            </BookingOpenCardRow>
-          </div>
-        </div>
-      ))}
-    </HorizontalScrollArea>
-  );
-}
-
-function BookingRulesGroupCard({
-  title,
-  rules,
-}: {
-  title: string;
-  rules: CourtBookingRule[];
-}) {
-  return (
-    <div className={`${detailBookingRuleCardClass} min-h-[124px] rounded-xl border border-[#35383D] bg-[#111214] px-4 py-4 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] min-[1032px]:min-h-0`}>
-      <div className="flex min-h-[92px] flex-col min-[1032px]:hidden">
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <h3 className="text-sm font-medium text-white">{title}</h3>
-          {rules.length === 1 && rules[0] ? (
-            <span
-              className={`shrink-0 rounded-md bg-[#0D0D0F] px-2.5 py-1 text-xs font-medium leading-none ring-1 ring-white/5 ${bookingOpenLabelTextClass[getBookingRuleLabelTone(rules[0].eligibility)]}`}
-            >
-              {formatBookingRuleEligibility(rules[0].eligibility)}
-            </span>
-          ) : null}
-        </div>
-        <div className="mt-auto grid gap-2">
-          {rules.map((rule) => (
-            <div
-              key={rule.id}
-              className={rules.length > 1 ? "grid gap-2 border-t border-white/[0.1] pt-3 first:border-t-0 first:pt-0" : ""}
-            >
-              {rules.length > 1 ? (
-                <span
-                  className={`w-fit rounded-md bg-[#0D0D0F] px-2.5 py-1 text-xs font-medium leading-none ring-1 ring-white/5 ${bookingOpenLabelTextClass[getBookingRuleLabelTone(rule.eligibility)]}`}
-                >
-                  {formatBookingRuleEligibility(rule.eligibility)}
-                </span>
-              ) : null}
-              <p className="text-sm font-bold leading-snug text-white break-keep">
-                {formatBookingRuleCardText(rule)}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="hidden min-[1032px]:block">
-        <div className="mb-3 flex items-center justify-between gap-3 border-b border-white/[0.14] pb-3">
-          <h3 className="text-sm font-semibold text-white">{title}</h3>
-        </div>
-        <div className="grid gap-1">
-          {rules.map((rule) => (
-            <BookingOpenCardRow
-              key={rule.id}
-              label={formatBookingRuleEligibility(rule.eligibility)}
-              labelTone={getBookingRuleLabelTone(rule.eligibility)}
-              compact
-            >
-              <span className="font-bold">{formatBookingRuleCardText(rule)}</span>
-            </BookingOpenCardRow>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

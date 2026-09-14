@@ -86,6 +86,7 @@ export type CourtBookingRule = {
   court_id: string;
   label: string | null;
   eligibility: string | null;
+  target_condition?: string | null;
   rule_type: string | null;
   open_type: string | null;
   open_day_of_month: number | null;

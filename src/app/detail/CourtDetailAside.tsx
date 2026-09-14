@@ -19,7 +19,7 @@ import {
   getPhoneReservationHref,
   isPhoneReservationCourt,
 } from "@/lib/phoneReservation";
-import { formatBookingRuleEligibility } from "../BookingRulesContent";
+import { getBookingRuleTargetText } from "@/lib/bookingRuleDisplay";
 
 const DEFAULT_CAL_DURATION_MIN = 10;
 
@@ -79,7 +79,7 @@ function getNextOpenPreviews(court: Court): NextOpenPreview[] {
       .map<NextOpenPreview | null>((rule) => {
         const open = getNextBookingRuleOpen(court, rule);
         if (!open) return null;
-        const badge = formatBookingRuleEligibility(rule.eligibility);
+        const badge = getBookingRuleTargetText(rule);
         return {
           key: rule.id,
           badge,
@@ -223,7 +223,7 @@ function NextOpenPreviewCard({
       <div className={`flex items-center justify-between gap-2 ${compact ? "mb-3" : "mb-4"}`}>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span
-            className={`shrink-0 rounded-md bg-[#0D0D0F] font-medium ring-1 ring-white/5 ${badgeTextClass} ${
+            className={`max-w-full break-keep rounded-md bg-[#0D0D0F] font-medium ring-1 ring-white/5 ${badgeTextClass} ${
               compact ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs"
             }`}
           >

@@ -6,6 +6,7 @@ const editableFields = [
   "court_id",
   "label",
   "eligibility",
+  "target_condition",
   "rule_type",
   "open_type",
   "open_day_of_month",
@@ -39,6 +40,13 @@ function normalizePayload(input: Record<string, unknown>) {
     if (!(field in input)) continue;
 
     const value = input[field];
+    if (field === "target_condition") {
+      if (value !== null && value !== undefined && typeof value !== "string") {
+        throw new Error("추가 대상 조건은 텍스트로 입력해 주세요.");
+      }
+      payload[field] = typeof value === "string" ? value.trim() : "";
+      continue;
+    }
     if (field === "is_active") {
       payload[field] = value === null || value === undefined ? true : Boolean(value);
       continue;
@@ -62,6 +70,9 @@ function normalizePayload(input: Record<string, unknown>) {
 }
 
 function adminApiError(error: unknown) {
+  if (error instanceof Error && error.message.includes("target_condition")) {
+    return NextResponse.json({ error: "추가 대상 조건 DB 컬럼이 아직 적용되지 않았습니다. 준비된 SQL을 먼저 실행해 주세요." }, { status: 500 });
+  }
   return NextResponse.json(
     { error: error instanceof Error ? error.message : "예약 규칙 API 처리 중 오류가 발생했습니다." },
     { status: 500 }
@@ -100,7 +111,7 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: true });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return adminApiError(new Error(error.message));
     }
 
     return NextResponse.json({ rules: data ?? [] }, { headers: { "Cache-Control": "no-store" } });
@@ -135,7 +146,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return adminApiError(new Error(error.message));
     }
 
     await touchCourtUpdatedAt(courtId, updatedAt);
@@ -171,7 +182,7 @@ export async function PUT(req: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return adminApiError(new Error(error.message));
     }
 
     const courtId = typeof data?.court_id === "string" ? data.court_id : "";
@@ -203,7 +214,7 @@ export async function DELETE(req: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return adminApiError(new Error(error.message));
     }
 
     const courtId = typeof data?.court_id === "string" ? data.court_id : "";
