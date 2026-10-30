@@ -1,3 +1,4 @@
+import { normalizeCourtDescription } from "@/lib/normalizeCourtDescription";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
@@ -218,7 +219,7 @@ export async function POST(req: NextRequest) {
       basic_city: extractTag(firstCandidate.raw, "AREANM"),
       basic_latitude: null,
       basic_longitude: null,
-      etc_desc: extractTag(firstCandidate.raw, "DTLCONT"),
+      etc_desc: normalizeCourtDescription(extractTag(firstCandidate.raw, "DTLCONT")),
       basic_time_of_use_weekday_from: extractTag(firstCandidate.raw, "V_MIN"),
       basic_time_of_use_weekday_to: extractTag(firstCandidate.raw, "V_MAX"),
       basic_region: "서울",

@@ -1,9 +1,40 @@
+import type { CourtAmenity } from "@/lib/courtAmenities";
+
+export type SportType = "tennis" | "badminton";
+
+export type CourtSurfaceType =
+  | "hard"
+  | "grass"
+  | "clay"
+  | "wood"
+  | "urethane"
+  | "synthetic"
+  | "artificial_grass"
+  | "clay_soil"
+  | "modular"
+  | "concrete"
+  | "pending"
+  | "other";
+
+export type CourtSurfaceCount = {
+  id?: string;
+  court_id?: string;
+  surface_type: CourtSurfaceType;
+  indoor_count: number;
+  outdoor_count: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
 export type Court = {
   /*코트 기본 정보*/
   id: string;
+  sport_type?: SportType;
   created_at?: string | null;
   updated_at?: string | null;
   basic_court_name: string | null;
+  /** Instagram search hashtag without the leading #. */
+  instagram_hashtag?: string | null;
   // 슬러그 기반 상세 페이지 이동을 위한 필드
   slug?: string | null;
   basic_owner_type: string | null;
@@ -21,6 +52,10 @@ export type Court = {
 
   /*노출 여부*/
   use_or_not: boolean | null;
+
+  /** Confirmed environment presence; null means unknown. Roofed courts count as indoor. */
+  has_indoor_courts?: boolean | null;
+  has_outdoor_courts?: boolean | null;
 
   /*코트 수 정보*/
   court_count_hard_indoor: number | null;
@@ -78,7 +113,20 @@ export type Court = {
   /*새 예약 규칙 테이블 - 전환 테스트용*/
   court_booking_rules?: CourtBookingRule[];
   court_booking_rule_fees?: CourtBookingRuleFee[];
+  /** 메인 목록 가격 필터용으로 서버에서 집계한 요금 요약. */
+  court_fee_summary?: CourtFeeSummary;
   court_blog_links?: CourtBlogLink[];
+  court_surface_counts?: CourtSurfaceCount[];
+  /** Facility amenity states; public detail renders only entries marked present. */
+  court_amenities?: CourtAmenity[];
+};
+
+export type CourtFeeSummary = {
+  has_free: boolean;
+  has_paid: boolean;
+  min_price: number | null;
+  max_price: number | null;
+  price_values: number[];
 };
 
 export type CourtBookingRule = {

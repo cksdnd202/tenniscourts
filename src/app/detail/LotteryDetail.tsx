@@ -37,7 +37,7 @@ export function LotteryBookingBlock({ court }: { court: Court }) {
       </div>
       <div className={detailCard}>
         {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" ? (
-          <BookingOpenCardRow label="전체" labelTone="general">
+          <BookingOpenCardRow label="누구나" labelTone="general">
             <span className="font-bold">
               {court.booking_open_day_normal != null
                 ? `${court.booking_normal_iscurrentmonth ? "당월 " : ""}${formatDayOfMonth(court.booking_open_day_normal)} `
@@ -52,7 +52,7 @@ export function LotteryBookingBlock({ court }: { court: Court }) {
             </span>
           </BookingOpenCardRow>
         ) : (
-          <span className={detailNoNormalClass}>전체 예약 정보 없음</span>
+          <span className={detailNoNormalClass}>누구나 예약 정보 없음</span>
         )}
       </div>
     </div>

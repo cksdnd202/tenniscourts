@@ -1,0 +1,8 @@
+apps/
+supabase/
+docs/
+.env*
+.next*/
+.codex/
+.agents/
+*.tsbuildinfo

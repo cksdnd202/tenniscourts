@@ -1,5 +1,7 @@
 "use client";
 
+import { normalizeCourtDescription } from "@/lib/normalizeCourtDescription";
+
 import { useEffect, useState } from "react";
 import type { Court, CourtBlogLink, CourtBookingRuleFee } from "@/app/types";
 import { CourtDetailBookingSection } from "@/app/detail/CourtDetailBookingSection";
@@ -10,6 +12,7 @@ import {
 } from "@/app/detail/CourtDetailCommon";
 import { CourtDetailAside, CourtDetailMobileBookBar } from "@/app/detail/CourtDetailAside";
 import { CourtFeesSection } from "@/app/detail/CourtFeesSection";
+import { CourtAmenitiesSection } from "@/app/detail/CourtAmenitiesSection";
 import { ShareButton } from "@/app/detail/ShareButton";
 import { FavoriteButton } from "@/app/FavoriteButton";
 import { supabase } from "@/lib/supabase";
@@ -266,6 +269,13 @@ export function AdminCourtDetailPreview({ courtId }: { courtId: string }) {
                 <CourtDetailTable court={court} />
               </section>
 
+              <CourtAmenitiesSection
+                amenities={court.court_amenities}
+                courtId={court.id}
+                courtName={court.basic_court_name ?? "이름 없음"}
+                sportType={court.sport_type === "badminton" ? "badminton" : "tennis"}
+              />
+
               <BlogLinksPreview links={blogLinks} />
 
               <RelatedReservationPreview courts={relatedCourts} />
@@ -273,7 +283,7 @@ export function AdminCourtDetailPreview({ courtId }: { courtId: string }) {
               <section>
                 <h2 className="mb-3 font-semibold text-white">부가 정보</h2>
                 <div className="min-h-[120px] whitespace-pre-wrap rounded-xl border border-[#2C2C2C] bg-[#1A1A1B] px-4 py-4 text-sm text-[#B0B0B0]">
-                  {court.etc_desc?.trim() || "등록된 부가 정보가 없습니다."}
+                  {normalizeCourtDescription(court.etc_desc) || "등록된 부가 정보가 없습니다."}
                 </div>
               </section>
             </div>

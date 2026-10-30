@@ -26,7 +26,7 @@ export default function TermsPage() {
       <main className="min-h-screen bg-black px-5 py-16 text-white">
         <div className="mx-auto max-w-3xl">
           <h1 className="text-3xl font-bold">이용약관</h1>
-          <p className="mt-3 text-sm text-[#8A8F98]">시행일: 2026년 7월 12일</p>
+          <p className="mt-3 text-sm text-[#8A8F98]">시행일: 2026년 10월 21일</p>
 
           <div className="mt-8 space-y-10 rounded-lg border border-[#2C2C2C] bg-[#191B1E] p-6 text-sm leading-7 text-[#B0B0B0]">
             <section>
@@ -45,7 +45,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-lg font-semibold text-white">2. 서비스의 내용</h2>
               <p className="mt-3">
-                서비스는 테니스장 정보, 코트 수, 위치, 예약 사이트 링크, 예약 오픈 일정 등 테니스장 이용에 참고할 수 있는 정보를 제공합니다. 또한 로그인한 이용자에게 찜한 테니스장, 최근 본 테니스장, 내 프로필 등의 개인화 기능을 제공합니다.
+                서비스는 테니스장 정보, 코트 수, 위치, 예약 사이트 링크, 예약 오픈 일정 등 테니스장 이용에 참고할 수 있는 정보를 제공합니다. 이용자가 휴대폰 위치 권한을 허용한 경우 현재 위치를 기준으로 가까운 테니스장을 확인하거나 지도에서 현재 위치로 이동할 수 있습니다. 또한 로그인한 이용자에게 찜한 테니스장, 최근 본 테니스장, 내 프로필 등의 개인화 기능을 제공합니다.
               </p>
             </section>
 

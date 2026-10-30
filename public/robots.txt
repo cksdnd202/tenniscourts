@@ -49,3 +49,5 @@ Disallow: /api/
 # LLMs: https://courtskorea.com/llms.txt
 
 Sitemap: https://courtskorea.com/sitemap.xml
+
+Sitemap: https://courtskorea.com/badminton-sitemap.xml

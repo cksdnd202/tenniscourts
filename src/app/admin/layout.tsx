@@ -9,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <AdminLayoutShell>{children}</AdminLayoutShell>;
+  return (
+    <div className="admin-document-surface min-h-screen">
+      <AdminLayoutShell>{children}</AdminLayoutShell>
+    </div>
+  );
 }

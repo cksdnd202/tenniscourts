@@ -1,0 +1,151 @@
+/* Facility editor: preserve type sizes while completing the light palette. */
+:global(.admin-legacy) .dialog {
+  color: #202c35;
+  border-color: #d8e0e5 !important;
+}
+
+:global(.admin-legacy) .dialog [class~="text-[#cfcfcf]"],
+:global(.admin-legacy) .dialog [class~="text-[#CFCFCF]"],
+:global(.admin-legacy) .dialog [class~="text-[#d8d8d8]"] {
+  color: #36454f !important;
+}
+
+:global(.admin-legacy) .dialog [class~="text-[#8c8c8c]"],
+:global(.admin-legacy) .dialog [class~="text-[#777]"],
+:global(.admin-legacy) .dialog [class~="text-[#a7a7a7]"],
+:global(.admin-legacy) .dialog [class~="text-[#A7A7A7]"],
+:global(.admin-legacy) .dialog [class~="text-[#B0B0B0]"],
+:global(.admin-legacy) .dialog [class~="text-[#b8b8b8]"] {
+  color: #5b6872 !important;
+}
+
+:global(.admin-legacy) .dialog [class~="text-[#4ade80]"],
+:global(.admin-legacy) .dialog [class~="text-[#6FCF97]"],
+:global(.admin-legacy) .dialog [class~="text-[#86efac]"],
+:global(.admin-legacy) .dialog [class~="text-[#b7f7cd]"] {
+  color: #167347 !important;
+}
+
+:global(.admin-legacy) .dialog [class~="text-[#ffb3b3]"],
+:global(.admin-legacy) .dialog [class~="text-[#ffb4b4]"],
+:global(.admin-legacy) .dialog [class~="text-[#ffd6d6]"] {
+  color: #b42332 !important;
+}
+
+:global(.admin-legacy) .dialog [class~="bg-[#102117]"],
+:global(.admin-legacy) .dialog [class~="bg-[#0b1f12]"],
+:global(.admin-legacy) .dialog [class~="bg-[#183824]"] {
+  background-color: #edf8f1 !important;
+  border-color: #b9ddc8 !important;
+}
+
+:global(.admin-legacy) .dialog [class~="bg-[#241313]"],
+:global(.admin-legacy) .dialog [class~="bg-[#241616]"],
+:global(.admin-legacy) .dialog [class~="bg-[#321b1b]"] {
+  background-color: #fff2f3 !important;
+}
+
+:global(.admin-legacy) .dialog button[class~="bg-[#4ade80]"] {
+  background-color: #167347 !important;
+  color: #ffffff !important;
+}
+
+:global(.admin-legacy) .dialog button[class~="bg-[#4ade80]"]:hover:not(:disabled) {
+  background-color: #105b38 !important;
+}
+
+:global(.admin-legacy) .dialog button:disabled {
+  background-color: #edf1f3 !important;
+  border-color: #dce3e7 !important;
+  color: #5b6872 !important;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+:global(.admin-legacy) .dialog input::placeholder,
+:global(.admin-legacy) .dialog textarea::placeholder {
+  color: #6a7680;
+  opacity: 1;
+}
+
+:global(.admin-legacy) .dialog input:focus-visible,
+:global(.admin-legacy) .dialog select:focus-visible,
+:global(.admin-legacy) .dialog textarea:focus-visible,
+:global(.admin-legacy) .dialog button:focus-visible {
+  border-color: #167347 !important;
+  outline: 2px solid #167347;
+  outline-offset: 2px;
+}
+
+
+/* Distinct surfaces: white toolbar, cool gray canvas, sage preview, white forms. */
+:global(.admin-legacy) .dialog {
+  background-color: #edf1f5 !important;
+  border-radius: 16px;
+}
+:global(.admin-legacy) .dialog > div:first-child {
+  background-color: #ffffff;
+  border-color: #d5dfe5 !important;
+  box-shadow: 0 2px 8px rgb(22 44 35 / 4%);
+}
+:global(.admin-legacy) .dialog [data-dialog-visibility] {
+  background-color: #e3f1e9 !important;
+  border-color: #bdd8c8 !important;
+}
+:global(.admin-legacy) .dialog [data-dialog-preview] {
+  background-color: #e5eee9 !important;
+  border-color: #c5d8ce !important;
+}
+:global(.admin-legacy) .dialog [data-dialog-preview] > div:first-child {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #c5d8ce;
+}
+:global(.admin-legacy) .dialog [data-dialog-fields] > div > section {
+  background-color: #ffffff !important;
+  border: 1px solid #d4dde4;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 6px rgb(32 44 53 / 3%);
+}
+:global(.admin-legacy) .dialog [data-dialog-fields] > div > section > h3 {
+  background-color: #eff5f2;
+  border-color: #d5e3db !important;
+  border-radius: 7px;
+  padding: 10px 12px;
+}
+:global(.admin-legacy) .dialog [data-dialog-fields] [class~="bg-[#101010]"],
+:global(.admin-legacy) .dialog [data-dialog-fields] [class~="bg-black"] {
+  background-color: #f4f7f9 !important;
+  border-color: #dce4e9 !important;
+}
+:global(.admin-legacy) .dialog [data-dialog-fields] input,
+:global(.admin-legacy) .dialog [data-dialog-fields] select,
+:global(.admin-legacy) .dialog [data-dialog-fields] textarea {
+  background-color: #ffffff !important;
+  border-color: #c9d4dc !important;
+}
+
+.amenityRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #dce4e9;
+  border-radius: 10px;
+  background-color: #f4f7f9;
+}
+:global(.admin-legacy) .dialog .amenityChoice {
+  min-width: 100px;
+  color: #5b6872 !important;
+}
+:global(.admin-legacy) .dialog .amenityChoice[data-status="present"] {
+  background-color: #edf8f1 !important;
+  border-color: #a7cfb7 !important;
+  color: #167347 !important;
+}
+:global(.admin-legacy) .dialog .amenityChoice[data-status="absent"] {
+  background-color: #fff2f3 !important;
+  border-color: #e5bdc3 !important;
+  color: #a12c3b !important;
+}

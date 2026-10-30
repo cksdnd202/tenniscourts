@@ -33,9 +33,17 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+/supabase/sql/setup-notification-cron.local.sql
 
 # vercel
 .vercel
+
+# local and generated project artifacts
+/tmp/
+/supabase/.temp/
+/apps/mobile/builds/
+/apps/mobile/dist-*/
+/apps/mobile/node_modules.*/
 
 # typescript
 *.tsbuildinfo

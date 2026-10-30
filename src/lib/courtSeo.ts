@@ -1,13 +1,18 @@
 import type { Court, CourtBookingRule } from "@/app/types";
 import { getPriorityEligibilityLabel } from "@/lib/bookingEligibility";
+import { getSportVenueLabel, normalizeSportType } from "@/lib/sports";
 
 const SITE_NAME = "Courts Korea";
 
 /** SEO용 코트 표기명 (예: 송도 달빛공원 → 송도 달빛공원 테니스장) */
-export function formatCourtDisplayName(raw: string | null | undefined): string {
-  const name = raw?.trim() || "테니스코트";
-  if (/테니스\s*장|테니스코트/i.test(name)) return name;
-  return `${name} 테니스장`;
+export function formatCourtDisplayName(
+  raw: string | null | undefined,
+  sportType: Court["sport_type"] = "tennis"
+): string {
+  const venueLabel = getSportVenueLabel(normalizeSportType(sportType));
+  const name = raw?.trim() || venueLabel;
+  if (name.includes(venueLabel)) return name;
+  return `${name} ${venueLabel}`;
 }
 
 function formatTimeForSeo(timeString: string | null | undefined): string {
@@ -73,9 +78,9 @@ function formatEligibilityForSeo(value: string | null | undefined): string {
     case "non_resident":
       return "타지역";
     case "normal":
-      return "전체";
+      return "누구나";
     default:
-      return getPriorityEligibilityLabel(value) || "전체";
+      return getPriorityEligibilityLabel(value) || "누구나";
   }
 }
 
@@ -253,34 +258,34 @@ function buildNormalReservationSentence(court: Court): string | null {
   const rt = court.booking_rule_type;
 
   if (rt === "rolling") {
-    return `전체 예약은 매일 ${time}에 새 예약이 오픈됩니다.`;
+    return `누구나 예약은 매일 ${time}에 새 예약이 오픈됩니다.`;
   }
 
   if (rt === "fixed_schedule") {
     if (court.booking_open_type === "day") {
-      return `전체 예약은 ${buildDayOpenPhrase(court.booking_open_day_normal, time, targetLabel)}`;
+      return `누구나 예약은 ${buildDayOpenPhrase(court.booking_open_day_normal, time, targetLabel)}`;
     }
     if (court.booking_open_type === "week") {
-      return `전체 예약은 ${buildWeekOpenPhrase(
+      return `누구나 예약은 ${buildWeekOpenPhrase(
         court.booking_open_day_of_month,
         court.booking_open_day_of_week,
         time,
         targetLabel
       )}`;
     }
-    return `전체 예약은 ${buildDayOpenPhrase(court.booking_open_day_normal, time, targetLabel)}`;
+    return `누구나 예약은 ${buildDayOpenPhrase(court.booking_open_day_normal, time, targetLabel)}`;
   }
 
   if (rt === "ordinal") {
     if (court.booking_open_type === "week") {
-      return `전체 예약은 ${buildOrdinalOpenPhrase(
+      return `누구나 예약은 ${buildOrdinalOpenPhrase(
         court.booking_open_ordinal,
         court.booking_open_day_of_week,
         time,
         targetLabel
       )}`;
     }
-    return `전체 예약은 ${buildDayOpenPhrase(court.booking_open_day_normal, time, targetLabel)}`;
+    return `누구나 예약은 ${buildDayOpenPhrase(court.booking_open_day_normal, time, targetLabel)}`;
   }
 
   return null;
@@ -290,6 +295,8 @@ function buildRuleFallbackSentence(court: Court): string {
   switch (court.booking_rule_type) {
     case "phone":
       return "전화로 예약할 수 있습니다.";
+    case "outdoor_open":
+      return "실외 개방 배드민턴장입니다.";
     case "on_site":
       return "현장 접수로 예약할 수 있습니다.";
     case "lottery":
@@ -318,11 +325,12 @@ export function buildReservationSummary(court: Court): string {
 }
 
 export function buildCourtDetailMetadata(court: Court) {
-  const displayName = formatCourtDisplayName(court.basic_court_name);
+  const displayName = formatCourtDisplayName(court.basic_court_name, court.sport_type);
   const reservationSummary = buildReservationSummary(court);
 
-  const title = `${displayName} 예약 방법·오픈 시간 | ${SITE_NAME}`;
-  const description = `${displayName}의 예약 오픈 시간, 주소, 코트 종류, 예약 사이트 정보를 확인하세요. ${reservationSummary}`;
+  const region = [court.basic_region, court.basic_city].filter(Boolean).join(" ");
+  const title = `${region ? `${region} ` : ""}${displayName} ${court.booking_rule_type === "outdoor_open" ? "실외 개방·이용 정보" : "예약 방법·오픈 시간"} | ${SITE_NAME}`;
+  const description = `${region ? `${region}에 위치한 ` : ""}${displayName}의 위치, 이용 대상, ${court.sport_type === "badminton" ? "바닥 종류" : "코트 종류"} 및 이용 방법을 확인하세요. ${reservationSummary}`;
 
   return { title, description, displayName, reservationSummary };
 }

@@ -6,6 +6,11 @@ import { FavoriteButton } from "@/app/FavoriteButton";
 import { formatBookingRuleCardText, formatBookingRuleEligibility } from "@/app/BookingRulesContent";
 import type { Court } from "@/app/types";
 import { getCourtDetailPath } from "@/lib/courtPath";
+import {
+  getCourtSurfaceRows,
+  getSportVenueLabel,
+  normalizeSportType,
+} from "@/lib/sports";
 import { capturePostHogEvent } from "@/lib/posthogClient";
 import {
   getNextBookingRuleOpen,
@@ -19,15 +24,58 @@ import { supabase } from "@/lib/supabase";
 
 const KAKAO_JAVASCRIPT_KEY = (process.env.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY ?? "").trim();
 const DEFAULT_CENTER = { lat: 37.5665, lng: 126.978 };
+const MAP_MAX_LEVEL = 12;
+const MAP_VISIBLE_LIMITS = {
+  south: 30,
+  west: 121,
+  north: 43.5,
+  east: 134.5,
+};
 
 type OverlayHandle = {
   setMap: (map: unknown | null) => void;
 };
 
+type MapPoint = {
+  x: number;
+  y: number;
+};
+
+type MapProjectionHandle = {
+  pointFromCoords: (coords: unknown) => MapPoint;
+  coordsFromPoint: (point: unknown) => unknown;
+};
+
+type LatLngHandle = {
+  getLat: () => number;
+  getLng: () => number;
+};
+
+type MapBoundsHandle = {
+  getSouthWest: () => LatLngHandle;
+  getNorthEast: () => LatLngHandle;
+};
+
 type MapHandle = {
   setCenter?: (center: unknown) => void;
   setLevel?: (level: number) => void;
+  setMaxLevel?: (level: number) => void;
+  getCenter?: () => LatLngHandle;
+  getBounds?: () => MapBoundsHandle;
+  panTo?: (center: unknown) => void;
   panBy?: (x: number, y: number) => void;
+  getProjection?: () => MapProjectionHandle;
+};
+
+type KakaoMapsForLocation = {
+  CustomOverlay: new (options: {
+    content: HTMLElement;
+    position: unknown;
+    xAnchor: number;
+    yAnchor: number;
+    zIndex: number;
+  }) => OverlayHandle;
+  LatLng: new (latitude: number, longitude: number) => unknown;
 };
 
 type UpcomingOpen = {
@@ -48,6 +96,76 @@ type CourtLocationGroup = {
 type MapMenu = "search" | "schedule" | "favorites";
 type MobileMapMode = "map" | "search" | "schedule" | "favorites" | "detail";
 type MobileDetailReturnMode = Exclude<MobileMapMode, "detail">;
+type MapSportType = "tennis" | "badminton";
+type MapSportFilter = "all" | MapSportType;
+
+const MAP_SPORT_FILTER_OPTIONS: Array<{
+  value: MapSportFilter;
+  label: string;
+  icon?: string;
+  selectedBackground: string;
+}> = [
+  { value: "all", label: "전체", selectedBackground: "#2C2C2C" },
+  {
+    value: "tennis",
+    label: "테니스장",
+    icon: "/tennis-ball-icon.svg",
+    selectedBackground: "#32C985",
+  },
+  {
+    value: "badminton",
+    label: "배드민턴장",
+    icon: "/icon/loading_Badminton.svg",
+    selectedBackground: "#375AE6",
+  },
+];
+
+function MapSportFilterBar({
+  value,
+  onChange,
+}: {
+  value: MapSportFilter;
+  onChange: (value: MapSportFilter) => void;
+}) {
+  return (
+    <div
+      data-map-sport-filter="true"
+      role="radiogroup"
+      aria-label="지도 종목 필터"
+      className="scrollbar-hide flex max-w-full gap-2 overflow-x-auto px-3 py-3"
+    >
+      {MAP_SPORT_FILTER_OPTIONS.map((option) => {
+        const selected = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onChange(option.value)}
+            className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full border px-4 text-[15px] font-bold transition active:scale-[0.98]"
+            style={{
+              backgroundColor: selected ? option.selectedBackground : "#FFFFFF",
+              borderColor: selected ? option.selectedBackground : "#ECEDEF",
+              color: selected ? "#FFFFFF" : "#17191D",
+              boxShadow: "0 1px 8px rgba(0, 0, 0, 0.16)",
+            }}
+          >
+            {option.icon ? (
+              <img
+                src={option.icon}
+                alt=""
+                aria-hidden="true"
+                className="h-6 w-6 shrink-0"
+              />
+            ) : null}
+            <span>{option.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function hasCoordinate(court: Court) {
   return typeof court.basic_latitude === "number" && typeof court.basic_longitude === "number";
@@ -55,6 +173,12 @@ function hasCoordinate(court: Court) {
 
 function getCourtLocationKey(court: Court) {
   return `${court.basic_latitude?.toFixed(6) ?? "0"}:${court.basic_longitude?.toFixed(6) ?? "0"}`;
+}
+
+function getCourtMarkerIcon(court: Court | null | undefined) {
+  return normalizeSportType(court?.sport_type) === "badminton"
+    ? "/icon/loading_Badminton.svg"
+    : "/tennis-ball-icon.svg";
 }
 
 function formatOwnerType(value: string | null | undefined) {
@@ -77,6 +201,86 @@ function escapeHtml(value: string | null | undefined) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function createPointerDragGuard(element: HTMLElement) {
+  const dragThreshold = 8;
+  let wasDragged = false;
+
+  element.addEventListener("pointerdown", (startEvent) => {
+    const { clientX: startX, clientY: startY, pointerId } = startEvent;
+    wasDragged = false;
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId || wasDragged) return;
+      const movedX = moveEvent.clientX - startX;
+      const movedY = moveEvent.clientY - startY;
+      wasDragged = Math.hypot(movedX, movedY) >= dragThreshold;
+    };
+
+    const cleanup = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerEnd);
+      window.removeEventListener("pointercancel", handlePointerEnd);
+      window.removeEventListener("blur", cleanup);
+    };
+
+    const handlePointerEnd = (endEvent: PointerEvent) => {
+      if (endEvent.pointerId !== pointerId) return;
+      cleanup();
+    };
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    window.addEventListener("pointerup", handlePointerEnd);
+    window.addEventListener("pointercancel", handlePointerEnd);
+    window.addEventListener("blur", cleanup, { once: true });
+  });
+
+  return () => {
+    const result = wasDragged;
+    wasDragged = false;
+    return result;
+  };
+}
+
+function getClampedMapCenter(map: MapHandle) {
+  const center = map.getCenter?.();
+  const bounds = map.getBounds?.();
+  if (!center || !bounds) return null;
+
+  const southWest = bounds.getSouthWest();
+  const northEast = bounds.getNorthEast();
+  const visibleLatitudeSpan = northEast.getLat() - southWest.getLat();
+  const visibleLongitudeSpan = northEast.getLng() - southWest.getLng();
+  const allowedLatitudeSpan = MAP_VISIBLE_LIMITS.north - MAP_VISIBLE_LIMITS.south;
+  const allowedLongitudeSpan = MAP_VISIBLE_LIMITS.east - MAP_VISIBLE_LIMITS.west;
+  let latitude = center.getLat();
+  let longitude = center.getLng();
+
+  if (visibleLatitudeSpan >= allowedLatitudeSpan) {
+    latitude = (MAP_VISIBLE_LIMITS.south + MAP_VISIBLE_LIMITS.north) / 2;
+  } else if (southWest.getLat() < MAP_VISIBLE_LIMITS.south) {
+    latitude += MAP_VISIBLE_LIMITS.south - southWest.getLat();
+  } else if (northEast.getLat() > MAP_VISIBLE_LIMITS.north) {
+    latitude -= northEast.getLat() - MAP_VISIBLE_LIMITS.north;
+  }
+
+  if (visibleLongitudeSpan >= allowedLongitudeSpan) {
+    longitude = (MAP_VISIBLE_LIMITS.west + MAP_VISIBLE_LIMITS.east) / 2;
+  } else if (southWest.getLng() < MAP_VISIBLE_LIMITS.west) {
+    longitude += MAP_VISIBLE_LIMITS.west - southWest.getLng();
+  } else if (northEast.getLng() > MAP_VISIBLE_LIMITS.east) {
+    longitude -= northEast.getLng() - MAP_VISIBLE_LIMITS.east;
+  }
+
+  if (
+    Math.abs(latitude - center.getLat()) < 0.000001 &&
+    Math.abs(longitude - center.getLng()) < 0.000001
+  ) {
+    return null;
+  }
+
+  return { latitude, longitude };
 }
 
 function MapMenuIcon({ id }: { id: MapMenu }) {
@@ -134,36 +338,10 @@ function formatCourtCount(value: number | null | undefined) {
   return value && value > 0 ? `${value}개` : "-";
 }
 
-function getCourtSurfaceRows(court: Court) {
-  return [
-    {
-      key: "hard",
-      icon: "/icon/icon_hard_court.svg",
-      label: "하드",
-      indoor: court.court_count_hard_indoor,
-      outdoor: court.court_count_hard_outdoor,
-    },
-    {
-      key: "grass",
-      icon: "/icon/icon_grass_court.svg",
-      label: "인조잔디",
-      indoor: court.court_count_grass_indoor,
-      outdoor: court.court_count_grass_outdoor,
-    },
-    {
-      key: "clay",
-      icon: "/icon/icon_clay_court.svg",
-      label: "클레이",
-      indoor: court.court_count_clay_indoor,
-      outdoor: court.court_count_clay_outdoor,
-    },
-  ];
-}
-
 function buildMapCalendarHref(court: Court, open: UpcomingOpen) {
   const params = new URLSearchParams({
-    title: `[${open.badge}] ${court.basic_court_name ?? "테니스장"} 예약 오픈`,
-    description: `${court.basic_court_name ?? "테니스장"} 예약 오픈 시간입니다.`,
+    title: `[${open.badge}] ${court.basic_court_name ?? getSportVenueLabel(court.sport_type)} 예약 오픈`,
+    description: `${court.basic_court_name ?? getSportVenueLabel(court.sport_type)} 예약 오픈 시간입니다.`,
     start: open.result.instant.toISOString(),
     durationMin: "10",
   });
@@ -210,8 +388,8 @@ function getCourtUpcomingOpens(court: Court): UpcomingOpen[] {
     items.push({
       key: `${court.id}-normal`,
       court,
-      badge: "전체",
-      label: "전체 예약 오픈",
+      badge: "누구나",
+      label: "누구나 예약 오픈",
       result: normal,
     });
   }
@@ -259,16 +437,63 @@ function loadKakaoMapScript() {
   });
 }
 
-export function MapTestClient({ courts }: { courts: Court[] }) {
+export function MapTestClient({
+  courts,
+  initialSportType,
+}: {
+  courts: Court[];
+  initialSportType?: MapSportType;
+}) {
+  const [querySportType, setQuerySportType] = useState<MapSportType | null>(null);
+
+  useEffect(() => {
+    if (initialSportType) return;
+
+    const requestedSportType = new URLSearchParams(window.location.search).get("sportType");
+    setQuerySportType(
+      requestedSportType === "tennis" || requestedSportType === "badminton"
+        ? requestedSportType
+        : null
+    );
+  }, [initialSportType]);
+
+  const effectiveSportType = initialSportType ?? querySportType;
+  const visibleCourts = useMemo(
+    () =>
+      effectiveSportType
+        ? courts.filter((court) => normalizeSportType(court.sport_type) === effectiveSportType)
+        : courts,
+    [courts, effectiveSportType]
+  );
+
+  return (
+    <MapTestClientContent
+      courts={visibleCourts}
+      showSportFilter={!effectiveSportType}
+    />
+  );
+}
+
+function MapTestClientContent({
+  courts,
+  showSportFilter,
+}: {
+  courts: Court[];
+  showSportFilter: boolean;
+}) {
+  const venueLabel = "코트";
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<MapHandle | null>(null);
   const overlaysRef = useRef<OverlayHandle[]>([]);
+  const currentLocationOverlayRef = useRef<OverlayHandle | null>(null);
+  const locationRequestTimeoutRef = useRef<number | null>(null);
   const filterScrollRef = useRef<HTMLDivElement | null>(null);
   const filterAreaRef = useRef<HTMLDivElement | null>(null);
   const hasClearedMobileInitialSelectionRef = useRef(false);
   const lastCapturedMapSearchRef = useRef("");
   const lastCapturedMapDetailScrollRef = useRef<string | null>(null);
   const [query, setQuery] = useState("");
+  const [mapSportFilter, setMapSportFilter] = useState<MapSportFilter>("all");
   const [selectedCourtId, setSelectedCourtId] = useState<string | null>(null);
   const nearbyCourtRef = useRef<Court | null>(null);
   const [activeLocationKey, setActiveLocationKey] = useState<string | null>(null);
@@ -279,7 +504,7 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
   const [openFilter, setOpenFilter] = useState<"location" | "owner" | null>(null);
   const [isFilterOverflowing, setIsFilterOverflowing] = useState(false);
   const [favoriteCourtIds, setFavoriteCourtIds] = useState<string[]>([]);
-  const [favoriteMessage, setFavoriteMessage] = useState("찜한 테니스장을 확인하는 중입니다.");
+  const [favoriteMessage, setFavoriteMessage] = useState(`찜한 ${venueLabel}을 확인하는 중입니다.`);
   const [isFavoriteLoading, setIsFavoriteLoading] = useState(false);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
@@ -296,7 +521,17 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
     avatarUrl: string | null;
   } | null>(null);
 
-  const mappableCourts = useMemo(() => courts.filter(hasCoordinate), [courts]);
+  const sportFilteredCourts = useMemo(
+    () =>
+      mapSportFilter === "all"
+        ? courts
+        : courts.filter((court) => normalizeSportType(court.sport_type) === mapSportFilter),
+    [courts, mapSportFilter]
+  );
+  const mappableCourts = useMemo(
+    () => sportFilteredCourts.filter(hasCoordinate),
+    [sportFilteredCourts]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -373,22 +608,22 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
   }, [mappableCourts]);
 
   const regionOptions = useMemo(() => {
-    return Array.from(new Set(courts.map((court) => court.basic_region).filter(Boolean) as string[]));
-  }, [courts]);
+    return Array.from(new Set(sportFilteredCourts.map((court) => court.basic_region).filter(Boolean) as string[]));
+  }, [sportFilteredCourts]);
 
   const cityOptions = useMemo(() => {
     const targetCourts =
       selectedRegions.length > 0
-        ? courts.filter((court) => court.basic_region && selectedRegions.includes(court.basic_region))
-        : courts;
+        ? sportFilteredCourts.filter((court) => court.basic_region && selectedRegions.includes(court.basic_region))
+        : sportFilteredCourts;
     return Array.from(new Set(targetCourts.map((court) => court.basic_city).filter(Boolean) as string[]));
-  }, [courts, selectedRegions]);
+  }, [selectedRegions, sportFilteredCourts]);
 
   const cityOptionsByRegion = useMemo(() => {
     return regionOptions.reduce<Record<string, string[]>>((map, region) => {
       map[region] = Array.from(
         new Set(
-          courts
+          sportFilteredCourts
             .filter((court) => court.basic_region === region)
             .map((court) => court.basic_city)
             .filter(Boolean) as string[]
@@ -396,18 +631,18 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
       );
       return map;
     }, {});
-  }, [courts, regionOptions]);
+  }, [regionOptions, sportFilteredCourts]);
 
   const ownerOptions = useMemo(() => {
     const owners = Array.from(
-      new Set(courts.map((court) => formatOwnerType(court.basic_owner_type)).filter(Boolean))
+      new Set(sportFilteredCourts.map((court) => formatOwnerType(court.basic_owner_type)).filter(Boolean))
     );
     return owners.filter((owner) => owner !== "운영주체 미입력");
-  }, [courts]);
+  }, [sportFilteredCourts]);
 
   const filteredCourts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return courts.filter((court) => {
+    return sportFilteredCourts.filter((court) => {
       const matchesRegion =
         selectedRegions.length === 0 || Boolean(court.basic_region && selectedRegions.includes(court.basic_region));
       const matchesCity =
@@ -428,7 +663,7 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
         .toLowerCase();
       return haystack.includes(normalized);
     });
-  }, [courts, query, selectedCities, selectedOwners, selectedRegions]);
+  }, [query, selectedCities, selectedOwners, selectedRegions, sportFilteredCourts]);
 
   useEffect(() => {
     const trimmedQuery = query.trim();
@@ -499,7 +734,7 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
 
       if (!session) {
         setFavoriteCourtIds([]);
-        setFavoriteMessage("로그인하면 찜한 테니스장을 지도에서 확인할 수 있습니다.");
+        setFavoriteMessage(`로그인하면 찜한 ${venueLabel}을 지도에서 확인할 수 있습니다.`);
         setIsFavoriteLoading(false);
         return;
       }
@@ -514,11 +749,11 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
 
       if (error) {
         setFavoriteCourtIds([]);
-        setFavoriteMessage("찜한 테니스장을 불러오지 못했습니다.");
+        setFavoriteMessage(`찜한 ${venueLabel}을 불러오지 못했습니다.`);
       } else {
         const ids = (data ?? []).map((item: { court_id: string }) => item.court_id).filter(Boolean);
         setFavoriteCourtIds(ids);
-        setFavoriteMessage(ids.length > 0 ? "" : "아직 찜한 테니스장이 없습니다.");
+        setFavoriteMessage(ids.length > 0 ? "" : `아직 찜한 ${venueLabel}이 없습니다.`);
       }
       setIsFavoriteLoading(false);
     }
@@ -528,7 +763,7 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [venueLabel]);
 
   useEffect(() => {
     setSelectedCities((previous) => previous.filter((city) => cityOptions.includes(city)));
@@ -673,6 +908,10 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
     if (!mapRef.current) return;
 
     let cancelled = false;
+    let mapForCleanup: MapHandle | null = null;
+    let kakaoForCleanup: any = null;
+    let clampMapToLimits: (() => void) | null = null;
+    let isClampingMap = false;
 
     loadKakaoMapScript()
       .then(() => {
@@ -680,6 +919,23 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
         const kakao = (window as any).kakao;
         const center = new kakao.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
         const map = new kakao.maps.Map(mapRef.current, { center, level: 8 }) as MapHandle;
+        map.setMaxLevel?.(MAP_MAX_LEVEL);
+        mapForCleanup = map;
+        kakaoForCleanup = kakao;
+        clampMapToLimits = () => {
+          if (isClampingMap) return;
+          const clampedCenter = getClampedMapCenter(map);
+          if (!clampedCenter) return;
+
+          isClampingMap = true;
+          map.setCenter?.(
+            new kakao.maps.LatLng(clampedCenter.latitude, clampedCenter.longitude)
+          );
+          window.requestAnimationFrame(() => {
+            isClampingMap = false;
+          });
+        };
+        kakao.maps.event.addListener(map, "bounds_changed", clampMapToLimits);
         mapInstanceRef.current = map;
         setMapError(null);
         setIsMapReady(true);
@@ -693,6 +949,13 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
 
     return () => {
       cancelled = true;
+      if (mapForCleanup && kakaoForCleanup?.maps?.event && clampMapToLimits) {
+        kakaoForCleanup.maps.event.removeListener(
+          mapForCleanup,
+          "bounds_changed",
+          clampMapToLimits
+        );
+      }
     };
   }, []);
 
@@ -708,24 +971,29 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
       const position = new kakao.maps.LatLng(group.latitude, group.longitude);
       const marker = document.createElement("button");
       const isSelected = group.courts.some((court) => court.id === selectedCourtId);
+      const groupSportType = normalizeSportType(group.courts[0]?.sport_type);
+      const groupMarkerIcon = getCourtMarkerIcon(group.courts[0]);
       marker.type = "button";
       marker.setAttribute(
         "aria-label",
         group.courts.length > 1
-          ? `${group.courts[0]?.basic_court_name ?? "테니스장"} 외 ${group.courts.length - 1}개 위치`
-          : `${group.courts[0]?.basic_court_name ?? "테니스장"} 위치`
+          ? `${group.courts[0]?.basic_court_name ?? venueLabel} 외 ${group.courts.length - 1}개 위치`
+          : `${group.courts[0]?.basic_court_name ?? venueLabel} 위치`
       );
       marker.className = [
         "map-test-marker",
+        `map-test-marker-${groupSportType}`,
         isSelected ? "map-test-marker-selected" : "",
       ].join(" ");
       marker.innerHTML = `
-        <img src="/tennis-ball-icon.svg" alt="" aria-hidden="true" />
+        <img src="${groupMarkerIcon}" alt="" aria-hidden="true" />
         ${group.courts.length > 1 ? `<span class="map-test-marker-count">${group.courts.length}</span>` : ""}
       `;
+      const consumeMarkerDrag = createPointerDragGuard(marker);
       marker.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
+        if (consumeMarkerDrag()) return;
         if (group.courts.length > 1) {
           setActiveLocationKey((current) => (current === group.key ? null : group.key));
           return;
@@ -759,6 +1027,7 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
         for (const court of group.courts) {
           const button = document.createElement("button");
           const courtOpens = getCourtUpcomingOpens(court);
+          const courtMarkerIcon = getCourtMarkerIcon(court);
           button.type = "button";
           button.className = [
             "map-test-location-layer-item",
@@ -766,10 +1035,10 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
           ].join(" ");
           button.innerHTML = `
             <span class="map-test-location-layer-icon">
-              <img src="/tennis-ball-icon.svg" alt="" aria-hidden="true" />
+              <img src="${courtMarkerIcon}" alt="" aria-hidden="true" />
             </span>
             <span class="map-test-location-layer-copy">
-              <strong>${escapeHtml(court.basic_court_name ?? "테니스장")}</strong>
+              <strong>${escapeHtml(court.basic_court_name ?? venueLabel)}</strong>
               <small>${
                 courtOpens[0]
                   ? escapeHtml(`${courtOpens[0].result.dateLabel} ${courtOpens[0].result.timeLabel} 오픈`)
@@ -806,26 +1075,33 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
       overlaysRef.current.forEach((overlay) => overlay.setMap(null));
       overlaysRef.current = [];
     };
-  }, [activeLocationKey, courtLocationGroups, isMapReady, isMobileViewport, selectedCourtId]);
+  }, [activeLocationKey, courtLocationGroups, isMapReady, isMobileViewport, selectedCourtId, venueLabel]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
     const kakao = (window as any).kakao;
     if (!isMapReady || !map || !kakao?.maps || !selectedCourt || !hasCoordinate(selectedCourt)) return;
     const center = new kakao.maps.LatLng(selectedCourt.basic_latitude, selectedCourt.basic_longitude);
+    const mapWidth = mapRef.current?.clientWidth ?? 0;
+    const mapHeight = mapRef.current?.clientHeight ?? 0;
+    const offsetX = isMobileViewport ? 0 : -Math.min(220, Math.max(0, mapWidth * 0.22));
+    const offsetY = isMobileViewport
+      ? Math.min(190, Math.max(120, mapHeight * 0.24))
+      : 0;
+    const projection = map.getProjection?.();
+
+    if (projection && map.panTo && kakao.maps.Point) {
+      const markerPoint = projection.pointFromCoords(center);
+      const adjustedCenterPoint = new kakao.maps.Point(
+        markerPoint.x + offsetX,
+        markerPoint.y + offsetY
+      );
+      map.panTo(projection.coordsFromPoint(adjustedCenterPoint));
+      return;
+    }
+
     map.setCenter?.(center);
-    map.setLevel?.(5);
-    window.requestAnimationFrame(() => {
-      const mapWidth = mapRef.current?.clientWidth ?? 0;
-      if (isMobileViewport) {
-        const mapHeight = mapRef.current?.clientHeight ?? 0;
-        const sheetOffset = Math.min(190, Math.max(120, mapHeight * 0.24));
-        map.panBy?.(0, sheetOffset);
-        return;
-      }
-      const panelOffset = Math.min(220, Math.max(0, mapWidth * 0.22));
-      map.panBy?.(-panelOffset, 0);
-    });
+    window.requestAnimationFrame(() => map.panBy?.(offsetX, offsetY));
   }, [isMapReady, isMobileViewport, selectedCourt]);
 
   useEffect(() => {
@@ -851,6 +1127,79 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
     return () => window.clearTimeout(timer);
   }, [locationMessage]);
 
+  useEffect(() => {
+    const handleNativeLocationResult = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        latitude?: number;
+        longitude?: number;
+        message?: string;
+        status?: "success" | "error";
+      }>).detail;
+
+      if (locationRequestTimeoutRef.current !== null) {
+        window.clearTimeout(locationRequestTimeoutRef.current);
+        locationRequestTimeoutRef.current = null;
+      }
+
+      setIsLocating(false);
+
+      if (
+        detail?.status !== "success" ||
+        typeof detail.latitude !== "number" ||
+        typeof detail.longitude !== "number"
+      ) {
+        setLocationMessage(detail?.message ?? "현재 위치를 확인하지 못했습니다.");
+        return;
+      }
+
+      const map = mapInstanceRef.current;
+      const kakaoMaps = (window as unknown as { kakao?: { maps?: KakaoMapsForLocation } }).kakao?.maps;
+      if (!isMapReady || !map || !kakaoMaps) {
+        setLocationMessage("지도를 불러온 뒤 다시 시도해주세요.");
+        return;
+      }
+
+      const center = new kakaoMaps.LatLng(detail.latitude, detail.longitude);
+      map.setCenter?.(center);
+      setSelectedCourtId(null);
+      setActiveLocationKey(null);
+
+      currentLocationOverlayRef.current?.setMap(null);
+      const marker = document.createElement("div");
+      marker.setAttribute("aria-label", "현재 위치");
+      marker.style.cssText = [
+        "width:22px",
+        "height:22px",
+        "border:3px solid #FFFFFF",
+        "border-radius:999px",
+        "background:#2878FF",
+        "box-shadow:0 0 0 7px rgba(40,120,255,0.18),0 3px 12px rgba(15,23,42,0.28)",
+      ].join(";");
+
+      const overlay = new kakaoMaps.CustomOverlay({
+        position: center,
+        content: marker,
+        xAnchor: 0.5,
+        yAnchor: 0.5,
+        zIndex: 45,
+      }) as OverlayHandle;
+      overlay.setMap(map);
+      currentLocationOverlayRef.current = overlay;
+      setLocationMessage("현재 위치로 이동했어요.");
+    };
+
+    window.addEventListener("courtskorea:native-location-result", handleNativeLocationResult);
+    return () => {
+      window.removeEventListener("courtskorea:native-location-result", handleNativeLocationResult);
+      if (locationRequestTimeoutRef.current !== null) {
+        window.clearTimeout(locationRequestTimeoutRef.current);
+        locationRequestTimeoutRef.current = null;
+      }
+      currentLocationOverlayRef.current?.setMap(null);
+      currentLocationOverlayRef.current = null;
+    };
+  }, [isMapReady]);
+
   const selectedOpens = selectedCourt ? getCourtUpcomingOpens(selectedCourt).slice(0, 4) : [];
   const nextSelectedOpen = selectedOpens[0] ?? null;
   const selectedBlogLinks = selectedCourt?.court_blog_links?.slice(0, 3) ?? [];
@@ -867,19 +1216,33 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
       return;
     }
 
-    if (!navigator.geolocation) {
-      setLocationMessage("현재 브라우저에서는 위치 기능을 사용할 수 없습니다.");
+    setIsLocating(true);
+    setLocationMessage(null);
+
+    const nativeBridge = (window as typeof window & {
+      ReactNativeWebView?: { postMessage: (message: string) => void };
+    }).ReactNativeWebView;
+
+    if (nativeBridge) {
+      nativeBridge.postMessage(JSON.stringify({ type: "current-location-request" }));
+      locationRequestTimeoutRef.current = window.setTimeout(() => {
+        locationRequestTimeoutRef.current = null;
+        setIsLocating(false);
+        setLocationMessage("현재 위치 확인이 지연되고 있어요. 다시 시도해주세요.");
+      }, 15000);
       return;
     }
 
-    setIsLocating(true);
-    setLocationMessage(null);
+    if (!navigator.geolocation) {
+      setIsLocating(false);
+      setLocationMessage("현재 브라우저에서는 위치 기능을 사용할 수 없습니다.");
+      return;
+    }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const center = new kakao.maps.LatLng(position.coords.latitude, position.coords.longitude);
         map.setCenter?.(center);
-        map.setLevel?.(5);
         setSelectedCourtId(null);
         setActiveLocationKey(null);
         setIsLocating(false);
@@ -904,7 +1267,7 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
     if (!selectedCourt) return;
 
     const url = `${window.location.origin}${getCourtDetailPath(selectedCourt)}`;
-    const title = `${selectedCourt.basic_court_name ?? "테니스장"} 예약 정보`;
+    const title = `${selectedCourt.basic_court_name ?? venueLabel} 예약 정보`;
 
     try {
       if (navigator.share) {
@@ -991,6 +1354,32 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
     setSelectedCourtId(null);
     setOpenFilter(null);
   };
+
+  useEffect(() => {
+    const handleNativeBack = (event: Event) => {
+      if (isMobileMenuOpen) {
+        event.preventDefault();
+        setIsMobileMenuOpen(false);
+        return;
+      }
+
+      if (mobileMode === "map") return;
+
+      event.preventDefault();
+      if (mobileMode === "detail") {
+        setSelectedCourtId(null);
+        setMobileMode(mobileDetailReturnMode);
+        return;
+      }
+
+      setMobileMode("map");
+      setSelectedCourtId(null);
+      setOpenFilter(null);
+    };
+
+    window.addEventListener("courtskorea:native-back", handleNativeBack);
+    return () => window.removeEventListener("courtskorea:native-back", handleNativeBack);
+  }, [isMobileMenuOpen, mobileDetailReturnMode, mobileMode]);
 
   const goToMobileMenuPath = (path: string) => {
     setIsMobileMenuOpen(false);
@@ -1225,6 +1614,20 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
   };
 
   const shouldShowInfoLayer = Boolean(selectedCourt && (!isMobileViewport || mobileMode === "detail"));
+  const shouldShowSportFilter =
+    showSportFilter &&
+    !selectedCourt &&
+    !isMobileMenuOpen &&
+    (!isMobileViewport || mobileMode === "map");
+  const handleMapSportFilterChange = (nextFilter: MapSportFilter) => {
+    setMapSportFilter(nextFilter);
+    setSelectedCourtId(null);
+    setActiveLocationKey(null);
+    capturePostHogEvent("map_sport_filter_changed", {
+      sportFilter: nextFilter,
+      source: isMobileViewport ? "mobile_map" : "desktop_map",
+    });
+  };
   const mobileHeaderTitle =
     mobileMode === "detail"
       ? selectedCourt?.basic_court_name ?? "상세 정보"
@@ -1239,7 +1642,23 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
       <div className="relative h-full md:flex">
         <div className="absolute inset-x-3 top-[max(12px,env(safe-area-inset-top))] z-[80] md:hidden">
           <div className="flex h-12 items-center gap-2">
-            {mobileMode !== "map" ? (
+            {mobileMode === "map" ? (
+              <Link
+                href="/"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-white/95 text-[#111827] shadow-[0_10px_24px_rgba(15,23,42,0.14)] backdrop-blur transition hover:bg-white"
+                aria-label="검색 화면으로 돌아가기"
+              >
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M15 18 9 12l6-6"
+                    stroke="currentColor"
+                    strokeWidth="2.3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </Link>
+            ) : (
               <button
                 type="button"
                 onClick={handleMobileBack}
@@ -1256,7 +1675,7 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
                   />
                 </svg>
               </button>
-            ) : null}
+            )}
 
             {mobileHeaderTitle ? (
               <div className="flex h-12 min-w-0 flex-1 items-center rounded-2xl border border-white/70 bg-white/95 px-4 shadow-[0_10px_24px_rgba(15,23,42,0.14)] backdrop-blur">
@@ -1426,7 +1845,7 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
                   onClick={() => goToMobileMenuPath("/map")}
                   className="text-left text-xl font-semibold transition hover:text-[#6FCF97]"
                 >
-                  테니스장 검색하기
+                  {venueLabel} 검색하기
                 </button>
                 {mobileUserProfile ? (
                   <>
@@ -1435,14 +1854,14 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
                       onClick={() => goToMobileMenuPath("/mypage?tab=favorites")}
                       className="text-left text-xl font-semibold transition hover:text-[#6FCF97]"
                     >
-                      찜한 테니스장
+                      찜한 {venueLabel}
                     </button>
                     <button
                       type="button"
                       onClick={() => goToMobileMenuPath("/mypage?tab=recent")}
                       className="text-left text-xl font-semibold transition hover:text-[#6FCF97]"
                     >
-                      최근 본 테니스장
+                      최근 본 {venueLabel}
                     </button>
                     <button
                       type="button"
@@ -1549,7 +1968,7 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
               ) : (
                 <div className="rounded-2xl border border-[#eef1f4] bg-white px-4 py-8 text-center">
                   <p className="text-sm font-semibold text-[#111827]">
-                    {isFavoriteLoading ? "찜한 테니스장을 불러오는 중입니다." : favoriteMessage}
+                    {isFavoriteLoading ? `찜한 ${venueLabel}을 불러오는 중입니다.` : favoriteMessage}
                   </p>
                   {!isFavoriteLoading && favoriteMessage.includes("로그인") ? (
                     <button
@@ -1729,7 +2148,7 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
                     ) : (
                       <div className="rounded-2xl border border-[#eef1f4] bg-white px-4 py-6 text-center">
                         <p className="text-[13px] font-semibold text-[#111827]">
-                          {isFavoriteLoading ? "찜한 테니스장을 불러오는 중입니다." : favoriteMessage}
+                          {isFavoriteLoading ? `찜한 ${venueLabel}을 불러오는 중입니다.` : favoriteMessage}
                         </p>
                         {!isFavoriteLoading && favoriteMessage.includes("로그인") ? (
                           <Link
@@ -1761,6 +2180,33 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
             </div>
           ) : null}
 
+          {shouldShowSportFilter ? (
+            <>
+              <div
+                className="absolute z-[60] min-w-0 md:hidden"
+                style={{
+                  left: 4,
+                  right: 4,
+                  top: "calc(max(12px, env(safe-area-inset-top)) + 54px)",
+                }}
+              >
+                <MapSportFilterBar
+                  value={mapSportFilter}
+                  onChange={handleMapSportFilterChange}
+                />
+              </div>
+              <div
+                className="absolute z-[60] hidden min-w-0 md:block"
+                style={{ left: 12, top: 12 }}
+              >
+                <MapSportFilterBar
+                  value={mapSportFilter}
+                  onChange={handleMapSportFilterChange}
+                />
+              </div>
+            </>
+          ) : null}
+
           {isMapReady && !mapError && (!isMobileViewport || mobileMode === "map") ? (
             <div className="absolute bottom-[calc(max(18px,env(safe-area-inset-bottom))+104px)] right-4 z-[56] flex flex-col items-end gap-2 md:bottom-5 md:right-5">
               {locationMessage ? (
@@ -1771,8 +2217,10 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
               <button
                 type="button"
                 onClick={moveToCurrentLocation}
+                disabled={isLocating}
                 className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#cfd8e3] bg-white text-[#4b5563] shadow-[0_8px_20px_rgba(15,23,42,0.16)] transition hover:border-[#9aa8b7] hover:bg-[#f8fafc] active:scale-95 md:h-12 md:w-12"
                 aria-label="내 위치로 이동"
+                aria-busy={isLocating}
               >
                 <svg
                   className={isLocating ? "animate-spin" : ""}
@@ -1865,34 +2313,38 @@ export function MapTestClient({ courts }: { courts: Court[] }) {
                 상세페이지 보기
               </Link>
 
-              <section className="mt-5 border-t border-[#d6dde5] pt-5">
-                <h3 className="text-sm font-semibold text-[#111827]">코트</h3>
-                <div className="mt-2 overflow-hidden rounded-xl border border-[#e5e7eb]">
-                  <table className="w-full text-center text-sm">
-                    <thead className="bg-[#f7f8fa] text-xs font-semibold text-[#6b7280]">
-                      <tr>
-                        <th className="px-3 py-2">구분</th>
-                        <th className="px-3 py-2">실내</th>
-                        <th className="px-3 py-2">실외</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#eef0f3] text-[#111827]">
-                      {getCourtSurfaceRows(selectedCourt).map((row) => (
-                        <tr key={row.key}>
-                          <td className="px-3 py-2">
-                            <span className="flex items-center justify-center gap-2">
-                              <img src={row.icon} alt="" className="h-5 w-5" />
-                              <span className="sr-only">{row.label}</span>
-                            </span>
-                          </td>
-                          <td className="px-3 py-2 font-medium">{formatCourtCount(row.indoor)}</td>
-                          <td className="px-3 py-2 font-medium">{formatCourtCount(row.outdoor)}</td>
+              {normalizeSportType(selectedCourt.sport_type) === "tennis" ? (
+                <section className="mt-5 border-t border-[#d6dde5] pt-5">
+                  <h3 className="text-sm font-semibold text-[#111827]">코트</h3>
+                  <div className="mt-2 overflow-hidden rounded-xl border border-[#e5e7eb]">
+                    <table className="w-full text-center text-sm">
+                      <thead className="bg-[#f7f8fa] text-xs font-semibold text-[#6b7280]">
+                        <tr>
+                          <th className="px-3 py-2">구분</th>
+                          <th className="px-3 py-2">실내</th>
+                          <th className="px-3 py-2">실외</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
+                      </thead>
+                      <tbody className="divide-y divide-[#eef0f3] text-[#111827]">
+                        {getCourtSurfaceRows(selectedCourt).map((row) => (
+                          <tr key={row.key}>
+                            <td className="px-3 py-2">
+                              <span className="flex items-center justify-center gap-2">
+                                {row.icon ? (
+                                  <img src={row.icon} alt="" className="h-5 w-5" />
+                                ) : null}
+                                <span className="sr-only">{row.label}</span>
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 font-medium">{formatCourtCount(row.indoor)}</td>
+                            <td className="px-3 py-2 font-medium">{formatCourtCount(row.outdoor)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              ) : null}
 
               <section className="mt-5">
                 <div className="flex items-center justify-between gap-3">

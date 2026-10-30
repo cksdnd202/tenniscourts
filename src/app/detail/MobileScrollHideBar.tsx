@@ -44,6 +44,7 @@ export function MobileScrollHideBar({ children }: Props) {
 
   return (
     <div
+      data-courts-korea-mobile-book-bar="true"
       className={`min-[1032px]:hidden fixed bottom-0 left-0 right-0 z-20 transition-transform duration-300 ease-out ${
         isHidden ? "translate-y-full" : "translate-y-0"
       }`}

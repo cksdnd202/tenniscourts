@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import dialogStyles from "./AdminCourtDialog.module.css";
+import { COURT_AMENITIES, AMENITY_STATUSES, amenityFormRows, type CourtAmenityStatus } from "@/lib/courtAmenities";
 import { useEffect, useMemo, useState } from "react";
-import type { Court, CourtBlogLink, CourtBookingRule, CourtBookingRuleFee } from "../types";
+import type { Court, CourtBlogLink, CourtBookingRule, CourtBookingRuleFee, CourtSurfaceType, SportType } from "../types";
 import { CheckingContent } from "../CheckingContent";
 import { FixedScheduleContent } from "../FixedScheduleContent";
 import { IrregularContent } from "../IrregularContent";
@@ -79,6 +81,7 @@ type FieldConfig = {
 };
 
 const emptyForm: CourtForm = {
+  sport_type: "tennis",
   basic_owner_type: null,
   court_count_hard_indoor: 0,
   court_count_hard_outdoor: 0,
@@ -305,7 +308,16 @@ async function readAdminResponse(response: Response, fallbackMessage: string) {
 
 const fields: FieldConfig[] = [
   { key: "use_or_not", label: "노출 여부", type: "boolean" },
-  { key: "basic_court_name", label: "테니스장명" },
+  {
+    key: "sport_type",
+    label: "종목",
+    type: "select",
+    options: [
+      { label: "테니스", value: "tennis" },
+      { label: "배드민턴", value: "badminton" },
+    ],
+  },
+  { key: "basic_court_name", label: "시설명" },
   { key: "slug", label: "상세페이지 slug" },
   {
     key: "basic_owner_type",
@@ -343,6 +355,7 @@ const fields: FieldConfig[] = [
       { label: "추첨(lottery)", value: "lottery" },
       { label: "전화(phone)", value: "phone" },
       { label: "현장(on_site)", value: "on_site" },
+  { label: "실외 개방", value: "outdoor_open" },
       { label: "비정기(irregular)", value: "irregular" },
       { label: "확인 필요(checking)", value: "checking" },
       { label: "순번제(ordinal, 몇 번째 요일인지)", value: "ordinal" },
@@ -457,7 +470,10 @@ const fieldGroups = [
   {
     title: "기본 정보",
     fields: fields.filter(
-      (field) => String(field.key).startsWith("basic_") || field.key === "time_of_use_same"
+      (field) =>
+        String(field.key).startsWith("basic_") ||
+        field.key === "time_of_use_same" ||
+        field.key === "sport_type"
     ),
   },
   {
@@ -551,6 +567,18 @@ const courtSurfaceGroups = [
   },
 ] satisfies Array<{ label: string; indoor: keyof Court; outdoor: keyof Court }>;
 
+const badmintonSurfaceGroups = [
+  { label: "목재 마루", value: "wood" },
+  { label: "PVC·전용 매트", value: "synthetic" },
+  { label: "우레탄·탄성 포장", value: "urethane" },
+  { label: "인조잔디", value: "artificial_grass" },
+  { label: "흙·클레이", value: "clay_soil" },
+  { label: "모듈형 스포츠 바닥", value: "modular" },
+  { label: "콘크리트·시멘트", value: "concrete" },
+  { label: "기타", value: "other" },
+  { label: "확인중", value: "pending" },
+] satisfies Array<{ label: string; value: CourtSurfaceType }>;
+
 function stringifyValue(value: unknown) {
   if (value === null || value === undefined) return "";
   return String(value);
@@ -639,6 +667,8 @@ function formatRuleType(value: string | null | undefined) {
       return "추첨";
     case "phone":
       return "전화";
+    case "outdoor_open":
+      return "실외 개방";
     case "on_site":
       return "현장";
     case "irregular":
@@ -785,7 +815,7 @@ function isBookingRuleDraftFieldVisible(
 
   if (!ruleType) return false;
 
-  if (ruleType === "phone" || ruleType === "on_site" || ruleType === "irregular" || ruleType === "checking") {
+  if (ruleType === "outdoor_open" || ruleType === "phone" || ruleType === "on_site" || ruleType === "irregular" || ruleType === "checking") {
     return false;
   }
 
@@ -849,6 +879,7 @@ const bookingRuleTypeOptions = [
   { label: "추첨(lottery)", value: "lottery" },
   { label: "전화(phone)", value: "phone" },
   { label: "현장(on_site)", value: "on_site" },
+  { label: "실외 개방", value: "outdoor_open" },
   { label: "비정기(irregular)", value: "irregular" },
   { label: "확인 필요(checking)", value: "checking" },
   { label: "순번제(ordinal)", value: "ordinal" },
@@ -1701,6 +1732,7 @@ function formatComparisonOpen(result: NextOpenResult | null) {
 
 function formatRuleCardText(rule: CourtBookingRule) {
   if (rule.rule_type === "phone") return "전화 예약";
+  if (rule.rule_type === "outdoor_open") return "실외 개방";
   if (rule.rule_type === "on_site") return "현장 예약";
   if (rule.rule_type === "irregular") return "비정기 예약";
   if (rule.rule_type === "checking") return "예약 정보 확인 중";
@@ -1880,6 +1912,7 @@ function RuleBasedAdminPreviewContent({
   court: Court;
   previewMode?: RulePreviewMode;
 }) {
+  if (court.booking_rule_type === "outdoor_open") return <CheckingContent court={court} />;
   const rules = sortBookingRules(court.court_booking_rules).filter((rule) => rule.is_active);
   const isPhoneReservation = isPhoneReservationCourt(court);
   const phoneRule = rules.find((rule) => rule.rule_type === "phone");
@@ -2087,6 +2120,7 @@ function toForm(court: Court): CourtForm {
 function toPreviewCourt(form: CourtForm): Court {
   return {
     id: form.id ?? "admin-preview",
+    sport_type: form.sport_type ?? "tennis",
     basic_court_name: form.basic_court_name ?? "(이름 없음)",
     slug: form.slug ?? null,
     basic_owner_type: form.basic_owner_type ?? null,
@@ -2131,6 +2165,7 @@ function toPreviewCourt(form: CourtForm): Court {
     booking_booking_provide: form.booking_booking_provide ?? null,
     etc_desc: form.etc_desc ?? null,
     court_booking_rules: form.court_booking_rules ?? [],
+    court_surface_counts: form.court_surface_counts ?? [],
   };
 }
 
@@ -2141,7 +2176,9 @@ function AdminCourtPreviewCard({ form }: { form: CourtForm }) {
   const hasNewBookingRules = sortBookingRules(court.court_booking_rules).some((rule) => rule.is_active);
 
   const content =
-    hasNewBookingRules ? (
+    court.booking_rule_type === "outdoor_open" ? (
+      <CheckingContent court={court} />
+    ) : hasNewBookingRules ? (
       <RuleBasedAdminPreviewContent court={court} previewMode="compact" />
     ) : court.booking_rule_type === "rolling" ? (
       <RollingContent court={court} />
@@ -2221,6 +2258,9 @@ function normalizeForSave(form: CourtForm) {
     }
   }
 
+  payload.court_surface_counts = form.court_surface_counts ?? [];
+  payload.court_amenities = amenityFormRows(form.court_amenities);
+
   return payload;
 }
 
@@ -2236,6 +2276,7 @@ export function AdminCourtManager() {
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [isSavingRule, setIsSavingRule] = useState(false);
   const [query, setQuery] = useState("");
+  const [sportFilter, setSportFilter] = useState<"all" | SportType>("all");
   const [sortKey, setSortKey] = useState<CourtSortKey>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [isLoading, setIsLoading] = useState(true);
@@ -2308,6 +2349,7 @@ export function AdminCourtManager() {
       const matchesCity = selectedCities.length === 0 || selectedCities.includes(courtCity);
 
       if (!matchesRegion || !matchesCity) return false;
+      if (sportFilter !== "all" && (court.sport_type ?? "tennis") !== sportFilter) return false;
       if (!keyword) return true;
 
       return (
@@ -2342,7 +2384,7 @@ export function AdminCourtManager() {
 
       return nameComparison * direction;
     });
-  }, [courts, query, selectedCities, selectedRegions, sortDirection, sortKey]);
+  }, [courts, query, selectedCities, selectedRegions, sortDirection, sortKey, sportFilter]);
 
   const filteredCourtIds = useMemo(
     () => filteredCourts.map((court) => court.id).filter(Boolean),
@@ -2380,6 +2422,7 @@ export function AdminCourtManager() {
     setSelectedRegions([]);
     setSelectedCities([]);
     setQuery("");
+    setSportFilter("all");
   }
 
   function toggleCheckedCourt(courtId: string) {
@@ -3216,6 +3259,25 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
     });
   }
 
+  function updateBadmintonSurfaceCount(
+    surfaceType: CourtSurfaceType,
+    key: "indoor_count" | "outdoor_count",
+    value: string
+  ) {
+    const count = value === "" ? 0 : Math.max(0, Math.trunc(Number(value) || 0));
+    setForm((current) => {
+      const rows = [...(current.court_surface_counts ?? [])];
+      const index = rows.findIndex((row) => row.surface_type === surfaceType);
+      const nextRow = {
+        ...(index >= 0 ? rows[index] : { surface_type: surfaceType, indoor_count: 0, outdoor_count: 0 }),
+        [key]: count,
+      };
+      if (index >= 0) rows[index] = nextRow;
+      else rows.push(nextRow);
+      return { ...current, court_surface_counts: rows };
+    });
+  }
+
   function openMapLink() {
     const mapLink = stringifyValue(form.basic_map_link).trim();
     if (!mapLink) return;
@@ -3628,7 +3690,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
   async function deleteCourt() {
     if (!selectedCourt) return;
 
-    const ok = window.confirm(`${selectedCourt.basic_court_name ?? "선택한 테니스장"}을 삭제할까요?`);
+    const ok = window.confirm(`${selectedCourt.basic_court_name ?? "선택한 시설"}을 삭제할까요?`);
     if (!ok) return;
 
     setIsSaving(true);
@@ -3658,7 +3720,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
         <section className="flex flex-col gap-4 border-b border-[#2c2c2c] pb-5 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm text-[#a7a7a7]">courtinfo DB 관리</p>
-            <h1 className="mt-2 text-3xl font-semibold">테니스장 목록</h1>
+            <h1 className="mt-2 text-3xl font-semibold">체육시설 목록</h1>
           </div>
           <div className="flex gap-2">
             <button
@@ -3681,7 +3743,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
               onClick={startCreate}
               className="rounded-lg bg-[#4ade80] px-4 py-2 text-sm font-semibold text-black hover:bg-[#3fcf6f]"
             >
-              새 테니스장 추가
+              새 시설 추가
             </button>
           </div>
         </section>
@@ -3703,6 +3765,28 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold">목록</h2>
                 <span className="text-sm text-[#a7a7a7]">{filteredCourts.length}개</span>
+              </div>
+              <div className="mt-3 inline-flex rounded-lg border border-[#3c3c3c] bg-black p-1">
+                {([
+                  ["all", "전체"],
+                  ["tennis", "테니스"],
+                  ["badminton", "배드민턴"],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setSportFilter(value)}
+                    className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+                      sportFilter === value
+                        ? value === "badminton"
+                          ? "bg-[#375AE6] text-white"
+                          : "bg-[#2C8B56] text-white"
+                        : "text-[#a7a7a7] hover:text-white"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
               <div className="mt-3 grid gap-2 lg:grid-cols-[320px_minmax(0,1fr)]">
                 <div className="relative">
@@ -3830,7 +3914,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
               {isLoading ? (
                 <p className="p-4 text-sm text-[#a7a7a7]">불러오는 중...</p>
               ) : filteredCourts.length === 0 ? (
-                <p className="p-4 text-sm text-[#a7a7a7]">표시할 테니스장이 없습니다.</p>
+                <p className="p-4 text-sm text-[#a7a7a7]">표시할 시설이 없습니다.</p>
               ) : (
                 <ul className="divide-y divide-[#2f2f2f]">
                   <li className="sticky top-0 z-10 grid grid-cols-[44px_minmax(0,1fr)_140px_82px] items-center gap-3 border-b border-[#2f2f2f] bg-[#151515] px-4 py-2 text-sm font-semibold text-[#a7a7a7]">
@@ -3846,7 +3930,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                       onClick={() => handleSort("name")}
                       className="min-w-0 text-left hover:text-white"
                     >
-                      {renderSortLabel("테니스장명", "name")}
+                      {renderSortLabel("시설명", "name")}
                     </button>
                     <button
                       type="button"
@@ -3876,7 +3960,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                           checked={checkedCourtIdSet.has(court.id)}
                           onChange={() => toggleCheckedCourt(court.id)}
                           className="h-4 w-4 rounded border-[#3c3c3c] accent-[#4ade80]"
-                          aria-label={`${court.basic_court_name ?? "테니스장"} 선택`}
+                          aria-label={`${court.basic_court_name ?? "시설"} 선택`}
                         />
                       </div>
                       <button
@@ -3888,8 +3972,19 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                           <span className="block truncate font-medium text-white">
                             {court.basic_court_name ?? "이름 없음"}
                           </span>
-                          <span className="mt-1 block truncate text-xs text-[#a7a7a7]">
-                            {[court.basic_region, court.basic_city].filter(Boolean).join(" ")}
+                          <span className="mt-1 flex items-center gap-2 truncate text-xs text-[#a7a7a7]">
+                            <span
+                              className={`rounded px-1.5 py-0.5 font-semibold ${
+                                (court.sport_type ?? "tennis") === "badminton"
+                                  ? "bg-[#253A83] text-[#AFC0FF]"
+                                  : "bg-[#173522] text-[#86efac]"
+                              }`}
+                            >
+                              {(court.sport_type ?? "tennis") === "badminton" ? "배드민턴" : "테니스"}
+                            </span>
+                            <span className="truncate">
+                              {[court.basic_region, court.basic_city].filter(Boolean).join(" ")}
+                            </span>
                           </span>
                         </span>
                         <span className="text-sm text-[#cfcfcf]">
@@ -3914,11 +4009,11 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
 
           {isFormOpen ? (
             <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/75 px-4 py-6 lg:items-center lg:overflow-hidden">
-              <section className="relative flex w-full max-w-6xl flex-col rounded-lg border border-[#2f2f2f] bg-[#151515] shadow-2xl max-lg:min-h-[calc(100vh-48px)] max-lg:overflow-visible lg:max-h-[calc(100vh-48px)] lg:overflow-hidden">
+              <section className={`${dialogStyles.dialog} admin-court-dialog relative flex w-full max-w-6xl flex-col rounded-lg border border-[#2f2f2f] bg-[#151515] shadow-2xl max-lg:min-h-[calc(100vh-48px)] max-lg:overflow-visible lg:max-h-[calc(100vh-48px)] lg:overflow-hidden`}>
             <div className="flex flex-col gap-3 border-b border-[#2f2f2f] p-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-lg font-semibold">
-                  {form.id ? "테니스장 수정" : "테니스장 추가"}
+                  {form.id ? "시설 수정" : "시설 추가"}
                 </h2>
                 {form.id ? <p className="mt-1 text-xs text-[#8c8c8c]">{form.id}</p> : null}
               </div>
@@ -3994,7 +4089,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
             ) : null}
 
             <div className="flex flex-col gap-4 p-4 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
-              <section className="rounded-lg border border-[#2f2f2f] bg-black p-3">
+              <section data-dialog-visibility className="rounded-lg border border-[#2f2f2f] bg-black p-3">
                 <label className="flex min-h-[42px] items-center justify-between gap-3">
                   <span className="text-sm font-medium text-[#cfcfcf]">노출 여부</span>
                   <input
@@ -4007,7 +4102,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
               </section>
 
               <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)]">
-                <aside className="rounded-lg border border-[#2f2f2f] bg-[#111] p-4 lg:min-h-0 lg:overflow-y-auto">
+                <aside data-dialog-preview className="rounded-lg border border-[#2f2f2f] bg-[#111] p-4 lg:min-h-0 lg:overflow-y-auto">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <h3 className="text-sm font-semibold text-[#4ade80]">메인 카드 미리보기</h3>
                     <div className="flex items-center gap-2">
@@ -4026,8 +4121,44 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                   <AdminCourtPreviewCard form={form} />
                 </aside>
 
-              <div className="pr-1 lg:min-h-0 lg:overflow-y-auto">
+              <div data-dialog-fields className="pr-1 lg:min-h-0 lg:overflow-y-auto">
                   <div className="flex flex-col gap-6">
+              <section className="flex flex-col gap-3" aria-labelledby="court-amenities-heading">
+                <h3 id="court-amenities-heading" className="border-b border-[#2f2f2f] pb-2 text-sm font-semibold text-[#4ade80]">
+                  편의시설
+                </h3>
+                <p className="text-xs text-[#8c8c8c]">관리용 정보입니다. 상세페이지에는 표시되지 않습니다.</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {COURT_AMENITIES.map(({ key, label }) => {
+                    const status = form.court_amenities?.find((item) => item.amenity_key === key)?.status ?? "unknown";
+                    return (
+                      <label key={key} className={dialogStyles.amenityRow}>
+                        <span className="text-sm font-medium text-[#cfcfcf]">{label}</span>
+                        <select
+                          aria-label={label}
+                          value={status}
+                          disabled={isSaving}
+                          data-status={status}
+                          className={`${dialogStyles.amenityChoice} rounded-lg border px-3 py-2 text-sm`}
+                          onChange={(event) => {
+                            const nextStatus = event.target.value as CourtAmenityStatus;
+                            setForm((current) => ({
+                              ...current,
+                              court_amenities: amenityFormRows(current.court_amenities).map((item) =>
+                                item.amenity_key === key ? { ...item, status: nextStatus } : item
+                              ),
+                            }));
+                          }}
+                        >
+                          {AMENITY_STATUSES.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                    );
+                  })}
+                </div>
+              </section>
               {fieldGroups.map((group) => (
                 <section key={group.title} className="flex flex-col gap-3">
                   <h3 className="border-b border-[#2f2f2f] pb-2 text-sm font-semibold text-[#4ade80]">
@@ -4035,7 +4166,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                   </h3>
                   {group.title === "코트 정보" ? (
                     <div className="grid gap-3">
-                      {courtSurfaceGroups.map((surface) => (
+                      {(form.sport_type ?? "tennis") === "tennis" ? courtSurfaceGroups.map((surface) => (
                         <div
                           key={surface.label}
                           className="grid gap-3 rounded-lg border border-[#2f2f2f] bg-black p-3"
@@ -4071,7 +4202,38 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                             ))}
                           </div>
                         </div>
-                      ))}
+                      )) : badmintonSurfaceGroups.map((surface) => {
+                        const row = (form.court_surface_counts ?? []).find(
+                          (item) => item.surface_type === surface.value
+                        );
+                        return (
+                          <div
+                            key={surface.value}
+                            className="grid gap-3 rounded-lg border border-[#2f2f2f] bg-black p-3"
+                          >
+                            <span className="text-sm font-medium text-[#cfcfcf]">{surface.label}</span>
+                            <div className="grid grid-cols-2 gap-3">
+                              {([
+                                ["실내", "indoor_count"],
+                                ["실외", "outdoor_count"],
+                              ] as const).map(([label, key]) => (
+                                <label key={key} className="flex flex-col gap-2">
+                                  <span className="text-xs text-[#a7a7a7]">{label}</span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={String(row?.[key] ?? 0)}
+                                    onChange={(event) =>
+                                      updateBadmintonSurfaceCount(surface.value, key, event.target.value)
+                                    }
+                                    className="w-full min-w-0 rounded-lg border border-[#3c3c3c] bg-black px-3 py-2 text-sm text-white outline-none focus:border-[#4ade80]"
+                                  />
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="grid gap-3">

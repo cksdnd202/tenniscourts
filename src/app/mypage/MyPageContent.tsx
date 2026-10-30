@@ -72,7 +72,7 @@ const favoriteViewTabs: Array<{ id: FavoriteViewMode; label: string }> = [
 ];
 const calendarWeekdays = ["일", "월", "화", "수", "목", "금", "토"];
 const favoriteBadgeColorClass: Record<string, string> = {
-  전체: "text-[#3896FB]",
+  누구나: "text-[#3896FB]",
   구민: "text-[#FD844C]",
   시민: "text-[#FD844C]",
   주민: "text-[#FD844C]",
@@ -181,7 +181,8 @@ function renderCourtContent(court: Court) {
       return <OnSiteContent court={court} />;
     case "irregular":
       return <IrregularContent court={court} />;
-    case "checking":
+    case "outdoor_open":
+      case "checking":
       return <CheckingContent court={court} />;
     case "fixed_schedule":
     default:
@@ -227,7 +228,7 @@ function getNextFavoriteOpens(court: Court): FavoriteOpenItem[] {
   const normalOpen = getNextNormalBookingOpen(court);
   const candidates = [
     ownerOpen && priorityLabel ? { key: "priority", badge: priorityLabel, open: ownerOpen } : null,
-    normalOpen ? { key: "normal", badge: "전체", open: normalOpen } : null,
+    normalOpen ? { key: "normal", badge: "누구나", open: normalOpen } : null,
   ].filter((item): item is { key: string; badge: string; open: NextOpenResult } =>
     Boolean(item)
   );
@@ -264,17 +265,17 @@ function groupFavoriteOpens(items: FavoriteOpenItem[]): FavoriteOpenGroup[] {
   }
 
   if (items.length > 1) {
-    const priorityItems = items.filter((item) => item.badge !== "전체");
-    const normalItems = items.filter((item) => item.badge === "전체");
+    const priorityItems = items.filter((item) => item.badge !== "누구나");
+    const normalItems = items.filter((item) => item.badge === "누구나");
     const groups: FavoriteOpenGroup[] = [];
 
     if (priorityItems.length > 0) groups.push({ title: "우선 예약", items: priorityItems });
-    if (normalItems.length > 0) groups.push({ title: "전체 예약", items: normalItems });
+    if (normalItems.length > 0) groups.push({ title: "누구나 예약", items: normalItems });
 
     return groups;
   }
 
-  return [{ title: items[0]?.badge === "전체" ? "전체 예약" : "우선 예약", items }];
+  return [{ title: items[0]?.badge === "누구나" ? "누구나 예약" : "우선 예약", items }];
 }
 
 function getCalendarMonthStart(date: Date) {
@@ -655,76 +656,82 @@ function FavoriteCourtsPanel() {
 
     async function loadFavoriteCourts() {
       setIsLoading(true);
+      setMessage("찜한 테니스장을 불러오는 중입니다.");
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      try {
+        const sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<never>((_, reject) =>
+            window.setTimeout(() => reject(new Error("로그인 확인 시간이 초과되었습니다.")), 10_000)
+          ),
+        ]);
+        const session = sessionResult.data.session;
 
-      if (!session) {
+        if (!session) {
+          if (isMounted) {
+            setCourts([]);
+            setMessage("로그인하면 찜한 테니스장을 확인할 수 있습니다.");
+          }
+          return;
+        }
+
+        const favoriteCourts = supabase.from("favorite_courts" as never) as any;
+        const favoriteResult = await Promise.race([
+          favoriteCourts
+            .select("court_id, created_at")
+            .order("created_at", { ascending: false })
+            .limit(100),
+          new Promise<never>((_, reject) =>
+            window.setTimeout(() => reject(new Error("찜 목록 요청 시간이 초과되었습니다.")), 12_000)
+          ),
+        ]);
+        const { data: favoriteRows, error: favoriteError } = favoriteResult;
+
+        if (favoriteError) throw favoriteError;
+
+        const courtIds: string[] =
+          favoriteRows
+            ?.map((row: { court_id?: string | null }) => row.court_id)
+            .filter((courtId: string | null | undefined): courtId is string => Boolean(courtId)) ??
+          [];
+
+        if (courtIds.length === 0) {
+          if (isMounted) {
+            setCourts([]);
+            setMessage("아직 찜한 테니스장이 없습니다.");
+          }
+          return;
+        }
+
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 12_000);
+        const response = await fetch("/api/courts/by-ids", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: courtIds }),
+          signal: controller.signal,
+        }).finally(() => window.clearTimeout(timeout));
+
+        if (!response.ok) throw new Error("테니스장 정보를 불러오지 못했습니다.");
+
+        const body = (await response.json()) as { courts?: Court[] };
+        const loadedCourts = body.courts ?? [];
+        const courtById = new Map(loadedCourts.map((court) => [court.id, court]));
+        const orderedCourts = courtIds
+          .map((courtId) => courtById.get(courtId))
+          .filter((court): court is Court => Boolean(court));
+
+        if (isMounted) {
+          setCourts(orderedCourts);
+          setMessage(orderedCourts.length === 0 ? "표시할 수 있는 찜한 테니스장이 없습니다." : "");
+        }
+      } catch {
         if (isMounted) {
           setCourts([]);
-          setMessage("로그인하면 찜한 테니스장을 확인할 수 있습니다.");
-          setIsLoading(false);
+          setMessage("찜한 테니스장을 불러오지 못했습니다. 아래로 당겨 다시 시도해 주세요.");
         }
-        return;
-      }
-
-      const favoriteCourts = supabase.from("favorite_courts" as never) as any;
-      const { data: favoriteRows, error: favoriteError } = await favoriteCourts
-        .select("court_id, created_at")
-        .order("created_at", { ascending: false })
-        .limit(100);
-
-      if (favoriteError) {
-        if (isMounted) {
-          setCourts([]);
-          setMessage("찜한 테니스장을 불러오지 못했습니다.");
-          setIsLoading(false);
-        }
-        return;
-      }
-
-      const courtIds: string[] =
-        favoriteRows
-          ?.map((row: { court_id?: string | null }) => row.court_id)
-          .filter((courtId: string | null | undefined): courtId is string => Boolean(courtId)) ??
-        [];
-
-      if (courtIds.length === 0) {
-        if (isMounted) {
-          setCourts([]);
-          setMessage("아직 찜한 테니스장이 없습니다.");
-          setIsLoading(false);
-        }
-        return;
-      }
-
-      const response = await fetch("/api/courts/by-ids", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: courtIds }),
-      });
-
-      if (!response.ok) {
-        if (isMounted) {
-          setCourts([]);
-          setMessage("테니스장 정보를 불러오지 못했습니다.");
-          setIsLoading(false);
-        }
-        return;
-      }
-
-      const body = (await response.json()) as { courts?: Court[] };
-      const loadedCourts = body.courts ?? [];
-      const courtById = new Map(loadedCourts.map((court) => [court.id, court]));
-      const orderedCourts = courtIds
-        .map((courtId) => courtById.get(courtId))
-        .filter((court): court is Court => Boolean(court));
-
-      if (isMounted) {
-        setCourts(orderedCourts);
-        setMessage(orderedCourts.length === 0 ? "표시할 수 있는 찜한 테니스장이 없습니다." : "");
-        setIsLoading(false);
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     }
 

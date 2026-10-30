@@ -58,6 +58,7 @@ export default async function ListTestPage() {
   const { data, error } = await supabase
     .from("courtinfo")
     .select(COURT_CARD_SELECT)
+    .eq("sport_type", "tennis")
     .eq("use_or_not", true)
     .order("created_at", { ascending: false });
 

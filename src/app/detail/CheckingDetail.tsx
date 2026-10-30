@@ -6,7 +6,7 @@ import { detailCard, detailMuted } from "./detailLayoutStyles";
 export function CheckingBookingBlock({ court }: { court: Court }) {
   return (
     <div className={`${detailCard} items-center text-center`}>
-      <span className={`${detailMuted} font-semibold`}>예약 오픈 시간 확인중</span>
+      <span className={`${court.booking_rule_type === "outdoor_open" ? "text-white" : detailMuted} font-semibold`}>{court.booking_rule_type === "outdoor_open" ? "실외 개방" : "예약 오픈 시간 확인중"}</span>
     </div>
   );
 }

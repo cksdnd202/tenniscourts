@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { denyUnlessAdmin } from "@/lib/adminAuth";
+import { invalidateHomeCourtsCache } from "@/lib/homeCourtsCache.server";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 type FeeInput = {
@@ -198,6 +199,7 @@ export async function PUT(req: NextRequest) {
     if (touchError) throw new Error(touchError.message);
 
     const fees = await getFees(ruleIds);
+    invalidateHomeCourtsCache();
     return NextResponse.json({ fees });
   } catch (error) {
     return adminApiError(error);

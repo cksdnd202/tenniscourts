@@ -4,11 +4,12 @@ import { Suspense, useEffect, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import posthog from "posthog-js";
 import { PostHogProvider as PHProvider } from "posthog-js/react";
+import { capturePostHogEvent, isAppWebView } from "@/lib/posthogClient";
 
 let posthogInitialized = false;
 
 function initPostHog() {
-  if (posthogInitialized || typeof window === "undefined") return;
+  if (posthogInitialized || typeof window === "undefined" || isAppWebView()) return;
 
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   if (!key) return;
@@ -29,6 +30,7 @@ function PostHogPageView() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    if (isAppWebView()) return;
     initPostHog();
 
     const search = searchParams.toString();
@@ -87,7 +89,7 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
   initPostHog();
 
   if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) {
-    return <>{children}</>;
+    return <><TrackedClicks />{children}</>;
   }
 
   return (
@@ -112,11 +114,7 @@ function TrackedClicks() {
       const eventName = getPostHogEventName(element);
       if (!eventName) return;
 
-      posthog.capture(eventName, {
-        ...getDatasetProperties(element),
-        pathname: window.location.pathname,
-        url: window.location.href,
-      });
+      capturePostHogEvent(eventName, getDatasetProperties(element));
     };
 
     document.addEventListener("click", handleClick, true);

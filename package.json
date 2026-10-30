@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/run-next-filtered.js dev --webpack --hostname 127.0.0.1",
+    "dev:lan": "node scripts/run-next-filtered.js dev --webpack --hostname 0.0.0.0",
+    "dev:mobile": "node scripts/run-mobile-preview.mjs",
     "build": "node scripts/run-next-filtered.js build",
     "start": "next start",
     "lint": "eslint",

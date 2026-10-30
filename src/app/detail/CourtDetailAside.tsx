@@ -8,6 +8,7 @@ import {
 } from "@/lib/nextBookingOpen";
 import {
   getBookingOpenLabelTextClass,
+  getBookingOpenLabelTextColor,
   type BookingOpenLabelTone,
 } from "./detailLayoutStyles";
 import type { CalendarAndroidEventPayload } from "./calendarAndroidPayload";
@@ -20,6 +21,7 @@ import {
   isPhoneReservationCourt,
 } from "@/lib/phoneReservation";
 import { getBookingRuleTargetText } from "@/lib/bookingRuleDisplay";
+import { normalizeSportType } from "@/lib/sports";
 
 const DEFAULT_CAL_DURATION_MIN = 10;
 
@@ -101,7 +103,7 @@ function getNextOpenPreviews(court: Court): NextOpenPreview[] {
     ownerOpen && priorityLabel
       ? { key: "priority", badge: priorityLabel, badgeTone: "priority" as const, open: ownerOpen }
       : null,
-    normalOpen ? { key: "normal", badge: "전체", badgeTone: "general" as const, open: normalOpen } : null,
+    normalOpen ? { key: "normal", badge: "누구나", badgeTone: "general" as const, open: normalOpen } : null,
   ];
 
   return fallbackPreviews.filter((item): item is NextOpenPreview => Boolean(item));
@@ -197,6 +199,7 @@ function NextOpenPreviewCard({
   reservationUrl,
   reservationUnavailableText,
   compact = false,
+  isBadminton = false,
   courtId,
   courtName,
 }: {
@@ -209,10 +212,16 @@ function NextOpenPreviewCard({
   reservationUrl?: string;
   reservationUnavailableText?: string;
   compact?: boolean;
+  isBadminton?: boolean;
   courtId?: string;
   courtName?: string | null;
 }) {
   const badgeTextClass = getBookingOpenLabelTextClass(badgeTone, badge);
+  const badgeTextColor = getBookingOpenLabelTextColor(badgeTone, badge);
+  const accentTextClass = isBadminton ? "text-[#337DFF]" : "text-[#4ADE80]";
+  const strongActionClass = isBadminton
+    ? "bg-[#375AE6] text-white hover:bg-[#2F4ECC]"
+    : "bg-[#4ADE80] text-black hover:bg-[#3FCF6F]";
 
   return (
     <div
@@ -223,9 +232,11 @@ function NextOpenPreviewCard({
       <div className={`flex items-center justify-between gap-2 ${compact ? "mb-3" : "mb-4"}`}>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span
+            data-detail-auth-label="true"
             className={`max-w-full break-keep rounded-md bg-[#0D0D0F] font-medium ring-1 ring-white/5 ${badgeTextClass} ${
               compact ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs"
             }`}
+            style={{ color: badgeTextColor }}
           >
             {badge}
           </span>
@@ -239,7 +250,7 @@ function NextOpenPreviewCard({
             googleCalendarUrl={calendarLinks.google}
             androidEvent={calendarLinks.androidEvent}
             compact={compact}
-            gtmAction={badge === "전체" ? "calendar_register_general_click" : "calendar_register_priority_click"}
+            gtmAction={badgeTone === "general" || badgeTone === "normal" ? "calendar_register_general_click" : "calendar_register_priority_click"}
             courtId={courtId}
             courtName={courtName ?? undefined}
             badge={badge}
@@ -248,16 +259,18 @@ function NextOpenPreviewCard({
       </div>
       <div className="flex w-full min-w-0 flex-nowrap items-baseline justify-between gap-3">
         <span
-          className={`min-w-0 shrink font-bold tracking-tight text-[#4ADE80] ${
+          className={`${accentTextClass} min-w-0 shrink font-bold tracking-tight ${
             compact ? "text-lg" : "text-xl"
           }`}
+          style={{ color: isBadminton ? "#337DFF" : "#4ADE80" }}
         >
           {dateLabel}
         </span>
         <span
-          className={`shrink-0 text-right font-bold tracking-tight text-[#4ADE80] ${
+          className={`${accentTextClass} shrink-0 text-right font-bold tracking-tight ${
             compact ? "text-lg" : "text-xl"
           }`}
+          style={{ color: isBadminton ? "#337DFF" : "#4ADE80" }}
         >
           {timeLabel}
         </span>
@@ -270,9 +283,13 @@ function NextOpenPreviewCard({
           data-gtm="reserve_click"
           data-court-id={courtId}
           data-court-name={courtName ?? undefined}
-          className={`mt-4 flex w-full items-center justify-center rounded-lg bg-[#4ADE80] text-center font-semibold text-black transition hover:bg-[#3fcf6f] ${
+          className={`${strongActionClass} mt-4 flex w-full items-center justify-center rounded-lg text-center font-semibold transition ${
             compact ? "py-2.5 text-xs" : "py-3 text-sm"
           }`}
+          style={{
+            backgroundColor: isBadminton ? "#375AE6" : "#4ADE80",
+            color: isBadminton ? "#FFFFFF" : "#000000",
+          }}
         >
           예약하러가기
         </a>
@@ -291,6 +308,10 @@ function NextOpenPreviewCard({
 
 /** PC 우측 사이드: 다음 오픈 일 + 예약 CTA */
 export function CourtDetailAside({ court }: { court: Court }) {
+  const isBadminton = normalizeSportType(court.sport_type) === "badminton";
+  const strongActionClass = isBadminton
+    ? "bg-[#375AE6] text-white hover:bg-[#2F4ECC]"
+    : "bg-[#4ADE80] text-black hover:bg-[#3FCF6F]";
   const previews = getNextOpenPreviews(court);
   const reservationHref = getReservationHref(court);
   const phoneRule = getActivePhoneBookingRule(court);
@@ -308,7 +329,7 @@ export function CourtDetailAside({ court }: { court: Court }) {
             key={preview.key}
             badge={preview.badge}
             badgeTone={preview.badgeTone}
-            title={preview.rule?.usage_period_label?.trim() || "다음 예약 오픈 일"}
+            title="다음 예약 오픈 일"
             dateLabel={preview.open.dateLabel}
             timeLabel={preview.open.timeLabel}
             reservationUrl={
@@ -327,6 +348,7 @@ export function CourtDetailAside({ court }: { court: Court }) {
             })}
             courtId={court.id}
             courtName={court.basic_court_name}
+            isBadminton={isBadminton}
           />
         ))}
 
@@ -336,7 +358,11 @@ export function CourtDetailAside({ court }: { court: Court }) {
             data-gtm="reserve_click"
             data-court-id={court.id}
             data-court-name={court.basic_court_name}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#4ADE80] px-5 py-3.5 text-center text-sm font-semibold text-black hover:bg-[#3fcf6f] transition"
+            className={`${strongActionClass} flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-center text-sm font-semibold transition`}
+            style={{
+              backgroundColor: isBadminton ? "#375AE6" : "#4ADE80",
+              color: isBadminton ? "#FFFFFF" : "#000000",
+            }}
           >
             <PhoneCallIcon className="h-4 w-4" />
             전화하기
@@ -353,7 +379,11 @@ export function CourtDetailAside({ court }: { court: Court }) {
             data-gtm="reserve_click"
             data-court-id={court.id}
             data-court-name={court.basic_court_name}
-            className="flex w-full items-center justify-center rounded-xl bg-[#4ADE80] px-5 py-3.5 text-center text-sm font-semibold text-black hover:bg-[#3fcf6f] transition"
+            className={`${strongActionClass} flex w-full items-center justify-center rounded-xl px-5 py-3.5 text-center text-sm font-semibold transition`}
+            style={{
+              backgroundColor: isBadminton ? "#375AE6" : "#4ADE80",
+              color: isBadminton ? "#FFFFFF" : "#000000",
+            }}
           >
             예약하러가기
           </a>
@@ -369,6 +399,10 @@ export function CourtDetailAside({ court }: { court: Court }) {
 
 /** 모바일 하단 고정: 다음 오픈 + 예약 CTA */
 export function CourtDetailMobileBookBar({ court }: { court: Court }) {
+  const isBadminton = normalizeSportType(court.sport_type) === "badminton";
+  const primaryActionClass = isBadminton
+    ? "bg-[#375AE6] text-white hover:bg-[#2F4ECC]"
+    : "bg-[#2C8B56] text-white hover:bg-[#53A978]";
   const previews = getNextOpenPreviews(court);
   const reservationHref = getReservationHref(court);
   const phoneRule = getActivePhoneBookingRule(court);
@@ -389,7 +423,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
                 <NextOpenPreviewCard
                   badge={preview.badge}
                   badgeTone={preview.badgeTone}
-                  title={preview.rule?.usage_period_label?.trim() || "다음 예약 오픈 일"}
+                  title="다음 예약 오픈 일"
                   dateLabel={preview.open.dateLabel}
                   timeLabel={preview.open.timeLabel}
                   reservationUrl={
@@ -408,6 +442,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
                   })}
                   courtId={court.id}
                   courtName={court.basic_court_name}
+                  isBadminton={isBadminton}
                   compact
                 />
               </div>
@@ -418,7 +453,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
           <NextOpenPreviewCard
             badge={previews[0].badge}
             badgeTone={previews[0].badgeTone}
-            title={previews[0].rule?.usage_period_label?.trim() || "다음 예약 오픈 일"}
+            title="다음 예약 오픈 일"
             dateLabel={previews[0].open.dateLabel}
             timeLabel={previews[0].open.timeLabel}
             reservationUrl={
@@ -437,6 +472,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
             })}
             courtId={court.id}
             courtName={court.basic_court_name}
+            isBadminton={isBadminton}
             compact
           />
         ) : null}
@@ -445,7 +481,7 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
 
   return (
     <MobileScrollHideBar>
-      <div className="border-t border-[#2C2C2C] bg-black pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div data-courts-korea-book-bar-content="true" className="border-t border-[#2C2C2C] bg-black pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       {previewBlocks ? (
         <div className="bg-[#000000] px-4 pt-3">
           {previewBlocks}
@@ -459,7 +495,8 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
             data-gtm="reserve_click"
             data-court-id={court.id}
             data-court-name={court.basic_court_name}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#2C8B56] py-3.5 text-sm font-medium text-white hover:bg-[#53A978] transition"
+            className={`${primaryActionClass} flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-medium transition`}
+            style={{ backgroundColor: isBadminton ? "#375AE6" : "#2C8B56", color: "#FFFFFF" }}
           >
             <PhoneCallIcon className="h-4 w-4" />
             전화하기
@@ -476,7 +513,8 @@ export function CourtDetailMobileBookBar({ court }: { court: Court }) {
             data-gtm="reserve_click"
             data-court-id={court.id}
             data-court-name={court.basic_court_name}
-            className="flex w-full items-center justify-center rounded-xl bg-[#2C8B56] py-3.5 text-sm font-medium text-white hover:bg-[#53A978] transition"
+            className={`${primaryActionClass} flex w-full items-center justify-center rounded-xl py-3.5 text-sm font-medium transition`}
+            style={{ backgroundColor: isBadminton ? "#375AE6" : "#2C8B56", color: "#FFFFFF" }}
           >
             예약하러가기
           </a>

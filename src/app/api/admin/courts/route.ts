@@ -1,8 +1,13 @@
+import { normalizeCourtDescription } from "@/lib/normalizeCourtDescription";
 import { NextRequest, NextResponse } from "next/server";
 import { denyUnlessAdmin } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { invalidateHomeCourtsCache } from "@/lib/homeCourtsCache.server";
+
+import { CourtAmenityValidationError, parseCourtAmenities } from "@/lib/courtAmenities";
 
 const editableFields = [
+  "sport_type",
   "slug",
   "basic_court_name",
   "basic_owner_type",
@@ -57,6 +62,22 @@ const editableFields = [
   "source_synced_at",
 ] as const;
 
+const validSportTypes = new Set(["tennis", "badminton"]);
+const validSurfaceTypes = new Set([
+  "hard",
+  "grass",
+  "clay",
+  "wood",
+  "urethane",
+  "synthetic",
+  "artificial_grass",
+  "clay_soil",
+  "modular",
+  "concrete",
+  "pending",
+  "other",
+]);
+
 const numberFields = new Set([
   "court_count_hard_indoor",
   "court_count_hard_outdoor",
@@ -98,7 +119,11 @@ function normalizePayload(input: Record<string, unknown>) {
 
     const value = input[field];
 
-    if (value === "") {
+    if (field === "sport_type") {
+      payload[field] = validSportTypes.has(String(value)) ? String(value) : "tennis";
+    } else if (field === "etc_desc") {
+      payload[field] = normalizeCourtDescription(typeof value === "string" ? value : null) || null;
+    } else if (value === "") {
       payload[field] = nonNegativeNumberFields.has(field) ? 0 : null;
     } else if (numberFields.has(field)) {
       const numberValue =
@@ -123,10 +148,29 @@ function normalizePayload(input: Record<string, unknown>) {
   return payload;
 }
 
+function normalizeSurfaceCounts(input: unknown) {
+  if (!Array.isArray(input)) return undefined;
+
+  return input
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const surfaceType = String(row.surface_type ?? "");
+      if (!validSurfaceTypes.has(surfaceType)) return null;
+      return {
+        surface_type: surfaceType,
+        indoor_count: Math.max(0, Math.trunc(Number(row.indoor_count) || 0)),
+        outdoor_count: Math.max(0, Math.trunc(Number(row.outdoor_count) || 0)),
+        updated_at: new Date().toISOString(),
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => Boolean(row));
+}
+
 function adminApiError(error: unknown) {
   return NextResponse.json(
     { error: error instanceof Error ? error.message : "어드민 API 처리 중 오류가 발생했습니다." },
-    { status: 500 }
+    { status: error instanceof CourtAmenityValidationError ? 400 : 500 }
   );
 }
 
@@ -166,9 +210,91 @@ async function attachBookingRules<T extends { id?: string | null }>(courts: T[])
   }));
 }
 
-async function attachBookingRulesToCourt<T extends { id?: string | null }>(court: T) {
-  const [courtWithRules] = await attachBookingRules([court]);
-  return courtWithRules;
+async function attachSurfaceCounts<T extends { id?: string | null }>(courts: T[]) {
+  const ids = courts.map((court) => court.id).filter((id): id is string => Boolean(id));
+  if (!ids.length) return courts.map((court) => ({ ...court, court_surface_counts: [] }));
+
+  const rows: Record<string, unknown>[] = [];
+  for (let index = 0; index < ids.length; index += 100) {
+    const { data, error } = await getSupabaseAdmin()
+      .from("court_surface_counts")
+      .select("*")
+      .in("court_id", ids.slice(index, index + 100))
+      .order("surface_type", { ascending: true });
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+  }
+
+  const byCourtId = new Map<string, Record<string, unknown>[]>();
+  for (const row of rows) {
+    const courtId = typeof row.court_id === "string" ? row.court_id : "";
+    if (!courtId) continue;
+    byCourtId.set(courtId, [...(byCourtId.get(courtId) ?? []), row]);
+  }
+  return courts.map((court) => ({
+    ...court,
+    court_surface_counts: court.id ? byCourtId.get(court.id) ?? [] : [],
+  }));
+}
+
+async function attachAmenities<T extends { id?: string | null }>(courts: T[]) {
+  const ids = courts.map((court) => court.id).filter((id): id is string => Boolean(id));
+  const byCourtId = new Map<string, Record<string, unknown>[]>();
+  // At most 800 rows per request, below the Data API row limit.
+  for (let index = 0; index < ids.length; index += 100) {
+    const { data, error } = await getSupabaseAdmin()
+      .from("court_amenities")
+      .select("court_id, amenity_key, status, checked_at")
+      .in("court_id", ids.slice(index, index + 100));
+    if (error) throw new Error(`편의시설을 불러오지 못했습니다: ${error.message}`);
+    for (const row of data ?? []) {
+      byCourtId.set(row.court_id, [...(byCourtId.get(row.court_id) ?? []), row]);
+    }
+  }
+  return courts.map((court) => ({
+    ...court,
+    court_amenities: court.id ? byCourtId.get(court.id) ?? [] : [],
+  }));
+}
+
+async function saveAmenities(courtId: string, rows: ReturnType<typeof parseCourtAmenities>) {
+  if (rows === undefined) return;
+  const { error } = await getSupabaseAdmin().from("court_amenities").upsert(
+    rows.map((row) => ({
+      ...row,
+      court_id: courtId,
+      checked_at: new Date().toISOString(),
+    })),
+    { onConflict: "court_id,amenity_key" }
+  );
+  if (error) throw new Error(`편의시설을 저장하지 못했습니다: ${error.message}`);
+}
+
+async function attachCourtRelations<T extends { id?: string | null }>(courts: T[]) {
+  return attachAmenities(await attachSurfaceCounts(await attachBookingRules(courts)));
+}
+
+async function attachCourtRelationsToCourt<T extends { id?: string | null }>(court: T) {
+  const [courtWithRelations] = await attachCourtRelations([court]);
+  return courtWithRelations;
+}
+
+async function replaceSurfaceCounts(
+  courtId: string,
+  rows: ReturnType<typeof normalizeSurfaceCounts>
+) {
+  if (rows === undefined) return;
+  const admin = getSupabaseAdmin();
+  const { error: deleteError } = await admin
+    .from("court_surface_counts")
+    .delete()
+    .eq("court_id", courtId);
+  if (deleteError) throw new Error(deleteError.message);
+  if (rows.length === 0) return;
+  const { error: insertError } = await admin
+    .from("court_surface_counts")
+    .insert(rows.map((row) => ({ ...row, court_id: courtId })));
+  if (insertError) throw new Error(insertError.message);
 }
 
 export async function GET(req: NextRequest) {
@@ -192,7 +318,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "테니스장을 찾을 수 없습니다." }, { status: 404 });
       }
 
-      const court = await attachBookingRulesToCourt(data);
+      const court = await attachCourtRelationsToCourt(data);
       return NextResponse.json({ court }, { headers: { "Cache-Control": "no-store" } });
     }
 
@@ -205,7 +331,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const courts = await attachBookingRules(data ?? []);
+    const courts = await attachCourtRelations(data ?? []);
 
     return NextResponse.json({ courts }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
@@ -219,6 +345,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = (await req.json()) as Record<string, unknown>;
+    const amenities = parseCourtAmenities(body.court_amenities);
+    const surfaceCounts = normalizeSurfaceCounts(body.court_surface_counts);
     const payload = {
       ...normalizePayload(body),
       updated_at: new Date().toISOString(),
@@ -234,7 +362,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const court = await attachBookingRulesToCourt(data);
+    await saveAmenities(data.id, amenities);
+    await replaceSurfaceCounts(data.id, surfaceCounts);
+    const court = await attachCourtRelationsToCourt(data);
+    invalidateHomeCourtsCache();
 
     return NextResponse.json({ court }, { status: 201 });
   } catch (error) {
@@ -248,6 +379,8 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = (await req.json()) as Record<string, unknown>;
+    const amenities = parseCourtAmenities(body.court_amenities);
+    const surfaceCounts = normalizeSurfaceCounts(body.court_surface_counts);
     const id = typeof body.id === "string" ? body.id : "";
 
     if (!id) {
@@ -268,7 +401,10 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const court = await attachBookingRulesToCourt(data);
+    await saveAmenities(data.id, amenities);
+    await replaceSurfaceCounts(data.id, surfaceCounts);
+    const court = await attachCourtRelationsToCourt(data);
+    invalidateHomeCourtsCache();
 
     return NextResponse.json({ court });
   } catch (error) {
@@ -305,7 +441,8 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const courts = await attachBookingRules(data ?? []);
+    const courts = await attachCourtRelations(data ?? []);
+    invalidateHomeCourtsCache();
 
     return NextResponse.json({ courts, updatedCount: courts.length });
   } catch (error) {
@@ -329,6 +466,8 @@ export async function DELETE(req: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    invalidateHomeCourtsCache();
 
     return NextResponse.json({ ok: true });
   } catch (error) {

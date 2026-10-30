@@ -10,8 +10,8 @@ const ogImage = "/courtskroea_ogimg.png?v=20260323-1";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "한국 테니스장 예약 정보 | Courts Korea",
-  description: "한국에 있는 모든 테니스장의 예약 정보를 제공합니다.",
+  title: "전국 스포츠 시설 예약 정보 | Courts Korea",
+  description: "전국 테니스장과 배드민턴장의 위치, 예약 방법과 오픈 시간, 이용 정보를 한곳에서 확인하세요.",
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -23,8 +23,8 @@ export const metadata: Metadata = {
     apple: "/courtskorea_favicon.png",
   },
   openGraph: {
-    title: "한국 테니스장 예약 정보 | Courts Korea",
-    description: "한국에 있는 모든 테니스장의 예약 정보를 제공합니다.",
+    title: "전국 스포츠 시설 예약 정보 | Courts Korea",
+    description: "전국 테니스장과 배드민턴장의 위치, 예약 방법과 오픈 시간, 이용 정보를 한곳에서 확인하세요.",
     url: "https://courtskorea.com",
     type: "website",
     siteName: "Courts Korea",
@@ -33,8 +33,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "한국 테니스장 예약 정보 | Courts Korea",
-    description: "한국에 있는 모든 테니스장의 예약 정보를 제공합니다.",
+    title: "전국 스포츠 시설 예약 정보 | Courts Korea",
+    description: "전국 테니스장과 배드민턴장의 위치, 예약 방법과 오픈 시간, 이용 정보를 한곳에서 확인하세요.",
     images: [ogImage],
     site: "@courtskorea",
     creator: "@courtskorea",
@@ -58,10 +58,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* ✅ GTM - head 영역 */}
         <Script id="gtm-head" strategy="beforeInteractive">
           {`
+            if (!/CourtsKoreaApp/i.test(window.navigator.userAgent)) {
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
             new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
             j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
             })(window,document,'script','dataLayer','GTM-KWD6528D');
+            }
           `}
         </Script>
       </head>

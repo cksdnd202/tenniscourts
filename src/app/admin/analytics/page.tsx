@@ -1,5 +1,4 @@
 import { getAnalyticsSummary } from "@/lib/ga4";
-import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -65,10 +64,6 @@ function Table({
 }
 
 export default async function AnalyticsAdminPage() {
-  if (process.env.NODE_ENV === "production") {
-    notFound();
-  }
-
   let summary;
   let errorMessage: string | null = null;
 
@@ -79,7 +74,7 @@ export default async function AnalyticsAdminPage() {
   }
 
   return (
-    <main className="min-h-screen bg-black px-5 py-8 text-white md:px-8">
+    <main className="admin-legacy min-h-screen bg-black px-5 py-8 text-white md:px-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header>
           <p className="text-sm text-[#a7a7a7]">최근 7일 GA4 데이터</p>

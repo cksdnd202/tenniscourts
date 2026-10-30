@@ -1,11 +1,16 @@
 import type { Court, CourtBookingRuleFee } from "../types";
+import {
+  detailDividerSectionStyle,
+  detailSectionTitle,
+  detailSectionTitleStyle,
+} from "./detailLayoutStyles";
 
 function feeEligibilityLabel(eligibility: string | null) {
   if (eligibility === "resident") return "구민";
   if (eligibility === "citizen") return "시민";
   if (eligibility === "inhabitant") return "주민";
   if (eligibility === "non_resident") return "타지역";
-  if (eligibility === "normal") return "전체";
+  if (eligibility === "normal") return "누구나";
   if (eligibility === "none") return "없음";
   return eligibility || "자격 없음";
 }
@@ -57,8 +62,17 @@ export function CourtFeesSection({ court }: { court: Court }) {
   if (feeRows.length === 0) return null;
 
   return (
-    <section aria-label="이용요금 정보" className="space-y-3">
-      <h2 className="font-semibold text-white">이용요금 정보</h2>
+    <section
+      aria-label="이용요금 정보"
+      data-detail-fees="true"
+      style={detailDividerSectionStyle}
+    >
+      <h2
+        className={detailSectionTitle}
+        style={{ ...detailSectionTitleStyle, marginBottom: "24px" }}
+      >
+        이용요금 정보
+      </h2>
       <div className="grid gap-3">
         {feeRows.map(({ rule, fee }) => {
           const priceRows = feePriceRows(fee);

@@ -3,6 +3,22 @@ export const detailCard =
   "rounded-xl border border-[#2C2C2C] bg-[#1A1A1B] px-4 py-4 text-sm min-h-[72px] flex flex-col justify-center";
 export const detailAccentGreen = "text-[#4ADE80] font-semibold";
 export const detailMuted = "text-[#B0B0B0]";
+export const detailSectionTitle =
+  "text-[22px] font-medium leading-[1.35] text-white";
+export const detailSectionTitleStyle = {
+  color: "#FFFFFF",
+  fontFamily: "Pretendard, Arial, sans-serif",
+  fontSize: "22px",
+  fontWeight: 500,
+  lineHeight: 1.35,
+} as const;
+
+/** 상세 콘텐츠 사이 공통 구분선: 앞 콘텐츠 40px / 선 / 다음 콘텐츠 40px */
+export const detailDividerSectionStyle = {
+  borderTop: "1px solid #565656",
+  marginTop: "40px",
+  paddingTop: "40px",
+} as const;
 
 /** 구민/시민 우선 예약 정보가 없을 때 왼쪽 카드 문구 */
 export const detailNoPriorityClass =
@@ -24,12 +40,22 @@ export type BookingOpenLabelTone =
 
 export const bookingOpenLabelTextClass: Record<BookingOpenLabelTone, string> = {
   priority: "text-[#FD844C]",
-  general: "text-[#3896FB]",
-  normal: "text-[#3896FB]",
+  general: "text-white",
+  normal: "text-white",
   citizen: "text-[#FD844C]",
-  resident: "text-[#6FCF97]",
+  resident: "sport-card-accent-text",
   inhabitant: "text-[#B58CFF]",
   none: "text-[#9CA3AF]",
+};
+
+export const bookingOpenLabelTextColor: Record<BookingOpenLabelTone, string> = {
+  priority: "#FD844C",
+  general: "#FFFFFF",
+  normal: "#FFFFFF",
+  citizen: "#FD844C",
+  resident: "#6FCF97",
+  inhabitant: "#B58CFF",
+  none: "#9CA3AF",
 };
 
 export function getBookingOpenLabelTextClass(
@@ -45,4 +71,19 @@ export function getBookingOpenLabelTextClass(
   if (tone === "general") return bookingOpenLabelTextClass.normal;
 
   return bookingOpenLabelTextClass[tone];
+}
+
+export function getBookingOpenLabelTextColor(
+  tone: BookingOpenLabelTone,
+  label?: string | null
+) {
+  if (tone === "priority") {
+    if (label === "시민") return bookingOpenLabelTextColor.citizen;
+    if (label === "구민") return bookingOpenLabelTextColor.resident;
+    if (label === "주민") return bookingOpenLabelTextColor.inhabitant;
+  }
+
+  if (tone === "general") return bookingOpenLabelTextColor.normal;
+
+  return bookingOpenLabelTextColor[tone];
 }

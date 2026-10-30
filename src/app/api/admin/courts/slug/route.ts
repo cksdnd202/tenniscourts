@@ -4,6 +4,8 @@ import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 const romanMap: Array<[RegExp, string]> = [
   [/물재생/g, "muljaesaeng"],
+  [/배드민턴장/g, "badminton-court"],
+  [/배드민턴/g, "badminton"],
   [/테니스장/g, "tennis-court"],
   [/테니스/g, "tennis"],
   [/공원/g, "park"],
@@ -148,7 +150,8 @@ function toSlugBase(name: string) {
 }
 
 async function slugExists(slug: string) {
-  const { data, error } = await getSupabaseAdmin()
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
     .from("courtinfo")
     .select("id")
     .eq("slug", slug)
@@ -158,7 +161,19 @@ async function slugExists(slug: string) {
     throw new Error(error.message);
   }
 
-  return Boolean(data?.length);
+  if (data?.length) return true;
+
+  const { data: aliasData, error: aliasError } = await admin
+    .from("court_slug_aliases")
+    .select("slug")
+    .eq("slug", slug)
+    .limit(1);
+
+  if (aliasError) {
+    throw new Error(aliasError.message);
+  }
+
+  return Boolean(aliasData?.length);
 }
 
 export async function POST(req: NextRequest) {
@@ -169,7 +184,7 @@ export async function POST(req: NextRequest) {
   const name = typeof body.name === "string" ? body.name.trim() : "";
 
   if (!name) {
-    return NextResponse.json({ error: "테니스장명이 필요합니다." }, { status: 400 });
+    return NextResponse.json({ error: "시설명이 필요합니다." }, { status: 400 });
   }
 
   try {

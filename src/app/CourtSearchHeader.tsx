@@ -1,25 +1,241 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getCourtDetailPath } from "@/lib/courtPath";
 import { capturePostHogEvent } from "@/lib/posthogClient";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
-import type { Court } from "./types";
+import type { Court, SportType } from "./types";
+import { SPORT_LABELS, SPORT_VENUE_LABELS } from "@/lib/sports";
+
+const SELECTED_SPORT_STORAGE_KEY = "courtskorea:selected-sport";
+const SEARCH_SPORTS: SportType[] = ["tennis", "badminton"];
+const SEARCH_SPORT_ICONS: Record<SportType, string> = {
+  tennis: "/tennis-ball-icon.svg",
+  badminton: "/icon/loading_Badminton.svg",
+};
+const SEARCH_SPORT_COLORS: Record<SportType, string> = {
+  tennis: "#30C27C",
+  badminton: "#375AE6",
+};
 
 /** 헤더 검색에 실제로 쓰이는 필드만 있으면 됨 */
 export type CourtSearchListItem = Pick<
   Court,
-  "id" | "slug" | "basic_court_name" | "basic_region" | "basic_city" | "basic_address"
+  | "id"
+  | "sport_type"
+  | "slug"
+  | "basic_court_name"
+  | "basic_region"
+  | "basic_city"
+  | "basic_address"
 >;
 
 type Props = {
   courts: CourtSearchListItem[];
+  sportType?: SportType;
 };
 
-export function CourtSearchHeader({ courts }: Props) {
+type SportSearchResultsProps = {
+  activeSport: SportType;
+  fillHeight?: boolean;
+  groupedResults: Record<SportType, CourtSearchListItem[]>;
+  onSelectCourt: (court: CourtSearchListItem) => void;
+  sportOrder: SportType[];
+};
+
+function SportSearchResults({
+  activeSport,
+  fillHeight = false,
+  groupedResults,
+  onSelectCourt,
+  sportOrder,
+}: SportSearchResultsProps) {
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const sectionRefs = useRef<Partial<Record<SportType, HTMLElement | null>>>({});
+  const pendingAnchorRef = useRef<{ sport: SportType; top: number } | null>(null);
+  const anchorReleaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [highlightedSport, setHighlightedSport] = useState(activeSport);
+
+  useEffect(() => {
+    setHighlightedSport(activeSport);
+  }, [activeSport]);
+
+  useEffect(() => {
+    return () => {
+      if (anchorReleaseTimerRef.current) {
+        clearTimeout(anchorReleaseTimerRef.current);
+      }
+    };
+  }, []);
+
+  const getSectionScrollTop = (section: HTMLElement, container: HTMLDivElement) =>
+    container.scrollTop +
+    section.getBoundingClientRect().top -
+    container.getBoundingClientRect().top;
+
+  const syncHighlightedSport = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const pendingAnchor = pendingAnchorRef.current;
+    if (pendingAnchor) {
+      if (Math.abs(container.scrollTop - pendingAnchor.top) <= 2) {
+        pendingAnchorRef.current = null;
+      } else {
+        return;
+      }
+    }
+
+    const detectionLine = container.scrollTop + 24;
+    let nextSport = sportOrder[0] ?? activeSport;
+
+    for (const resultSport of sportOrder) {
+      const section = sectionRefs.current[resultSport];
+      if (section && getSectionScrollTop(section, container) <= detectionLine) {
+        nextSport = resultSport;
+      }
+    }
+
+    setHighlightedSport((current) => (current === nextSport ? current : nextSport));
+  };
+
+  const scrollToSport = (targetSport: SportType) => {
+    const container = scrollContainerRef.current;
+    const target = sectionRefs.current[targetSport];
+    if (!container || !target) return;
+
+    const sectionTop = getSectionScrollTop(target, container);
+    const targetTop = Math.max(
+      0,
+      Math.min(sectionTop, container.scrollHeight - container.clientHeight)
+    );
+
+    if (anchorReleaseTimerRef.current) {
+      clearTimeout(anchorReleaseTimerRef.current);
+    }
+    pendingAnchorRef.current = { sport: targetSport, top: targetTop };
+    setHighlightedSport(targetSport);
+    container.scrollTo({
+      top: targetTop,
+      behavior: "smooth",
+    });
+    anchorReleaseTimerRef.current = setTimeout(() => {
+      pendingAnchorRef.current = null;
+      syncHighlightedSport();
+    }, 700);
+  };
+
+  return (
+    <div
+      className={`flex min-h-0 flex-col overflow-hidden bg-[#2C2C2C] ${
+        fillHeight ? "h-full" : "max-h-[320px]"
+      }`}
+    >
+      <div
+        className="scrollbar-hide flex w-full shrink-0 gap-2 overflow-x-auto border-b border-[#3C3C3C] bg-[#242424] px-3 py-5"
+        aria-label="검색 결과 종목 바로가기"
+      >
+        {sportOrder.map((resultSport) => {
+          const isActive = resultSport === highlightedSport;
+          return (
+            <button
+              key={resultSport}
+              type="button"
+              onClick={() => scrollToSport(resultSport)}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-[15px] font-semibold leading-none shadow-sm"
+              style={{
+                backgroundColor: isActive ? SEARCH_SPORT_COLORS[resultSport] : "#FFFFFF",
+                color: isActive ? "#FFFFFF" : "#1A1A1A",
+              }}
+              aria-label={`${SPORT_VENUE_LABELS[resultSport]} 검색 결과로 이동`}
+            >
+              <Image
+                src={SEARCH_SPORT_ICONS[resultSport]}
+                alt=""
+                width={22}
+                height={22}
+                className="h-[22px] w-[22px] shrink-0"
+              />
+              <span>{SPORT_VENUE_LABELS[resultSport]}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        ref={scrollContainerRef}
+        onScroll={syncHighlightedSport}
+        className={`min-h-0 overflow-y-auto overscroll-contain bg-[#2C2C2C] ${
+          fillHeight ? "flex-1" : "max-h-[244px]"
+        }`}
+      >
+        <div className="px-3">
+          {sportOrder.map((resultSport, index) => {
+            const sportResults = groupedResults[resultSport];
+            return (
+              <section
+                key={resultSport}
+                ref={(node) => {
+                  sectionRefs.current[resultSport] = node;
+                }}
+                className="py-5"
+                style={
+                  index < sportOrder.length - 1
+                    ? { borderBottom: "1px solid #565656" }
+                    : undefined
+                }
+              >
+                <h3
+                  className="mb-2.5 text-sm font-semibold"
+                  style={{ color: "#ADADAD" }}
+                >
+                  {SPORT_VENUE_LABELS[resultSport]}
+                </h3>
+                {sportResults.length > 0 ? (
+                  <ul className="space-y-0.5">
+                    {sportResults.map((court) => (
+                      <li key={court.id}>
+                        <button
+                          type="button"
+                          onClick={() => onSelectCourt(court)}
+                          className="-mx-2 flex w-[calc(100%+1rem)] flex-col items-start gap-1 rounded-md px-2 py-2.5 text-left transition-colors hover:bg-[#3C3C3C] focus-visible:bg-[#3C3C3C] focus-visible:outline-none"
+                        >
+                          <span className="text-sm font-medium leading-snug text-white">
+                            {court.basic_court_name ?? SPORT_VENUE_LABELS[resultSport]}
+                          </span>
+                          <span className="text-xs leading-snug text-[#B0B0B0]">
+                            {[court.basic_region, court.basic_city].filter(Boolean).join(" ") ||
+                              court.basic_address ||
+                              "지역 정보 없음"}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="py-2 text-xs text-[#8F8F8F]">검색 결과가 없습니다.</p>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function CourtSearchHeader({ courts, sportType = "tennis" }: Props) {
+  const venueLabel = SPORT_VENUE_LABELS[sportType];
+  const isBadminton = sportType === "badminton";
+  const accentHoverClass = isBadminton ? "hover:text-[#337DFF]" : "hover:text-[#6FCF97]";
+  const searchAccentColor = isBadminton ? "#375AE6" : "#2C8B56";
+  const primaryActionClass = isBadminton
+    ? "bg-[#375AE6] text-white hover:bg-[#2F4ECC]"
+    : "bg-[#2C8B56] text-white hover:bg-[#53A978]";
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -38,6 +254,10 @@ export function CourtSearchHeader({ courts }: Props) {
   const lastCapturedSearchRef = useRef("");
   const mobileSearchCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mobileMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sportOrder = useMemo(
+    () => [sportType, ...SEARCH_SPORTS.filter((candidate) => candidate !== sportType)],
+    [sportType]
+  );
 
   useEffect(() => {
     return () => {
@@ -132,9 +352,25 @@ export function CourtSearchHeader({ courts }: Props) {
         if (priorityComparison !== 0) return priorityComparison;
 
         return (a.basic_court_name ?? "").localeCompare(b.basic_court_name ?? "", "ko");
-      })
-      .slice(0, 10); // 최대 10개까지만 노출
+      });
   }, [courts, query]);
+
+  const groupedResults = useMemo(
+    () =>
+      Object.fromEntries(
+        SEARCH_SPORTS.map((resultSport) => [
+          resultSport,
+          results
+            .filter((court) =>
+              resultSport === "badminton"
+                ? court.sport_type === "badminton"
+                : court.sport_type !== "badminton"
+            )
+            .slice(0, 10),
+        ])
+      ) as Record<SportType, CourtSearchListItem[]>,
+    [results]
+  );
 
   useEffect(() => {
     const trimmedQuery = query.trim();
@@ -299,16 +535,23 @@ export function CourtSearchHeader({ courts }: Props) {
     router.push(path);
   };
 
+  const goToSportHome = (nextSport: SportType) => {
+    window.localStorage.setItem(SELECTED_SPORT_STORAGE_KEY, nextSport);
+    closeMobileMenu();
+
+  };
+
   return (
     <header
+      data-courts-korea-header="true"
       className={`fixed top-0 left-0 right-0 bg-[#000000] border-b border-[#2C2C2C] ${
         isMobileMenuOpen || isMobileSearchOpen ? "z-[240]" : "z-30"
       }`}
     >
-      <div className="px-5 py-4 min-[1032px]:px-10 min-[1032px]:py-5.5">
+      <div className="px-5 py-4 min-[1032px]:h-20 min-[1032px]:px-10 min-[1032px]:py-0">
         {/* 데스크탑: 검색창을 헤더 정중앙에 고정 */}
-        <div className="hidden min-[1032px]:flex items-center relative">
-          <div className="w-full max-w-xs">
+        <div className="relative hidden h-full items-center min-[1032px]:flex">
+          <div className="flex min-w-0 items-center gap-16" style={{ gap: 64 }}>
             <button
               type="button"
               onClick={() => {
@@ -327,13 +570,32 @@ export function CourtSearchHeader({ courts }: Props) {
                 priority
               />
             </button>
+            <nav className="flex items-center gap-6" aria-label="종목 선택">
+              {(["tennis", "badminton"] as const).map((value) => {
+                const selected = value === sportType;
+                return (
+                  <Link
+                    key={value}
+                    href={`/${value}`}
+                    onClick={() => goToSportHome(value)}
+                    aria-current={selected ? "page" : undefined}
+                    className={`text-sm font-semibold transition-colors ${
+                      selected ? "text-white" : "text-[#5F646D] hover:text-[#B7BBC2]"
+                    }`}
+                  >
+                    {SPORT_LABELS[value]}
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
               onClick={goToLoginPage}
-              className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
+              className="inline-flex min-w-[88px] items-center justify-center rounded-full bg-white px-6 py-2.5 text-sm font-bold text-[#191B1E] transition-colors hover:bg-[#E8E9EB]"
+              style={{ minWidth: 88, color: "#191B1E" }}
             >
               {isLoggedIn ? "마이페이지" : "로그인"}
             </button>
@@ -360,16 +622,17 @@ export function CourtSearchHeader({ courts }: Props) {
           <div
             ref={containerRef}
             data-coachmark="search-area"
-            className="absolute left-1/2 -translate-x-1/2 w-[300px]"
+            className="absolute left-1/2 w-[280px] -translate-x-1/2"
           >
-            <div className="flex items-center rounded-full bg-[#191B1E] px-4 py-3 focus-within:border-[#2C8B56] focus-within:ring-1 focus-within:ring-[#2C8B56]">
+            <div className="flex items-center rounded-full bg-[#191B1E] px-4 py-3">
               <svg
                 width="18"
                 height="18"
                 viewBox="0 0 18 18"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
-                className="mr-2 text-[#2C8B56]"
+                className="mr-2"
+                style={{ color: searchAccentColor }}
               >
                 <path
                   d="M8.25 13.5C11.1495 13.5 13.5 11.1495 13.5 8.25C13.5 5.35051 11.1495 3 8.25 3C5.35051 3 3 5.35051 3 8.25C3 11.1495 5.35051 13.5 8.25 13.5Z"
@@ -406,25 +669,13 @@ export function CourtSearchHeader({ courts }: Props) {
 
             {/* 검색 결과 레이어 (데스크탑) */}
             {isOpen && results.length > 0 && (
-              <div className="absolute left-0 right-0 mt-2 max-h-80 overflow-y-auto rounded-xl border border-[#3C3C3C] bg-[#2C2C2C] shadow-[0_6px_20px_rgba(0,0,0,0.5)]">
-                <ul className="py-2">
-                  {results.map((court) => (
-                    <li key={court.id}>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectCourt(court)}
-                        className="flex w-full flex-col items-start gap-0.5 px-4 py-2 text-left hover:bg-[#3C3C3C]"
-                      >
-                        <span className="text-sm font-medium text-white">
-                          {court.basic_court_name}
-                        </span>
-                        <span className="text-xs text-[#B0B0B0]">
-                          {court.basic_region} {court.basic_city}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+              <div className="absolute left-0 right-0 mt-3 max-h-80 overflow-hidden rounded-xl border border-[#3C3C3C] bg-[#2C2C2C] shadow-[0_8px_24px_rgba(0,0,0,0.55)]">
+                <SportSearchResults
+                  activeSport={sportType}
+                  groupedResults={groupedResults}
+                  onSelectCourt={handleSelectCourt}
+                  sportOrder={sportOrder}
+                />
               </div>
             )}
           </div>
@@ -548,7 +799,7 @@ export function CourtSearchHeader({ courts }: Props) {
               <button
                 type="button"
                 onClick={() => goToMobileMenuPath("/mypage?tab=profile")}
-                className="mt-10 flex w-full items-center gap-3 border-b border-white/10 pb-6 text-left transition-colors hover:text-[#6FCF97]"
+                className={`${accentHoverClass} mt-10 flex w-full items-center gap-3 border-b border-white/10 pb-6 text-left transition-colors`}
               >
                 {profileImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -558,7 +809,10 @@ export function CourtSearchHeader({ courts }: Props) {
                     className="h-12 w-12 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#2C8B56] text-lg font-bold text-white">
+                  <div
+                    className={`${primaryActionClass} flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold`}
+                    style={{ backgroundColor: isBadminton ? "#375AE6" : "#2C8B56", color: "#FFFFFF" }}
+                  >
                     {profileName.slice(0, 1)}
                   </div>
                 )}
@@ -572,19 +826,41 @@ export function CourtSearchHeader({ courts }: Props) {
             ) : null}
 
             <nav className={isLoggedIn ? "mt-8 flex flex-col gap-7" : "mt-24 flex flex-col gap-7"}>
-              <button
-                type="button"
-                onClick={() => goToMobileMenuPath("/")}
-                className="text-left text-xl font-semibold text-white transition-colors hover:text-[#6FCF97]"
-              >
-                홈
-              </button>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => goToMobileMenuPath("/")}
+                  className={`${accentHoverClass} text-left text-xl font-semibold text-white transition-colors`}
+                >
+                  홈
+                </button>
+                <div className="ml-1 mt-4 flex flex-col gap-3 border-l border-white/10 pl-4">
+                  {(["tennis", "badminton"] as const).map((value) => {
+                    const selected = value === sportType;
+                    const selectedColor = value === "badminton" ? "text-[#337DFF]" : "text-[#6FCF97]";
+                    return (
+                      <Link
+                    key={value}
+                    href={`/${value}`}
+                    onClick={() => goToSportHome(value)}
+                    aria-current={selected ? "page" : undefined}
+                        className={`w-fit text-left text-base font-semibold transition-colors hover:text-white ${
+                          selected ? selectedColor : "text-[#9A9EA6]"
+                        }`}
+                      >
+                        {SPORT_LABELS[value]}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+
               <button
                 type="button"
                 onClick={openMobileSearch}
-                className="text-left text-xl font-semibold text-white transition-colors hover:text-[#6FCF97]"
+                className={`${accentHoverClass} text-left text-xl font-semibold text-white transition-colors`}
               >
-                테니스장 검색하기
+                {venueLabel} 검색하기
               </button>
 
               {isLoggedIn ? (
@@ -592,21 +868,21 @@ export function CourtSearchHeader({ courts }: Props) {
                   <button
                     type="button"
                     onClick={() => goToMobileMenuPath("/mypage?tab=favorites")}
-                    className="text-left text-xl font-semibold text-white transition-colors hover:text-[#6FCF97]"
+                    className={`${accentHoverClass} text-left text-xl font-semibold text-white transition-colors`}
                   >
-                    찜한 테니스장
+                    찜한 {venueLabel}
                   </button>
                   <button
                     type="button"
                     onClick={() => goToMobileMenuPath("/mypage?tab=recent")}
-                    className="text-left text-xl font-semibold text-white transition-colors hover:text-[#6FCF97]"
+                    className={`${accentHoverClass} text-left text-xl font-semibold text-white transition-colors`}
                   >
-                    최근 본 테니스장
+                    최근 본 {venueLabel}
                   </button>
                   <button
                     type="button"
                     onClick={() => goToMobileMenuPath("/mypage?tab=profile")}
-                    className="text-left text-xl font-semibold text-white transition-colors hover:text-[#6FCF97]"
+                    className={`${accentHoverClass} text-left text-xl font-semibold text-white transition-colors`}
                   >
                     내 프로필
                   </button>
@@ -618,7 +894,8 @@ export function CourtSearchHeader({ courts }: Props) {
                     closeMobileMenu();
                     goToLoginPage();
                   }}
-                  className="mt-3 inline-flex w-fit items-center rounded-full bg-[#2C8B56] px-7 py-3 text-lg font-bold text-white transition-colors hover:bg-[#35A667]"
+                  className={`${primaryActionClass} mt-3 inline-flex w-fit items-center rounded-full px-7 py-3 text-lg font-bold transition-colors`}
+                  style={{ backgroundColor: isBadminton ? "#375AE6" : "#2C8B56", color: "#FFFFFF" }}
                 >
                   로그인
                 </button>
@@ -674,15 +951,16 @@ export function CourtSearchHeader({ courts }: Props) {
             </div>
 
             {/* 검색 입력 + 결과 */}
-            <div className="px-5 py-4 flex flex-col gap-4">
-              <div className="flex items-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] px-4 py-2 focus-within:border-[#2C8B56] focus-within:ring-1 focus-within:ring-[#2C8B56]">
+            <div className="flex min-h-0 flex-1 flex-col px-5 py-4">
+              <div className="flex items-center rounded-full border border-[#3C3C3C] bg-[#2C2C2C] px-4 py-2">
                 <svg
                   width="18"
                   height="18"
                   viewBox="0 0 18 18"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
-                  className="mr-2 text-[#B0B0B0]"
+                  className="mr-2"
+                  style={{ color: searchAccentColor }}
                 >
                   <path
                     d="M8.25 13.5C11.1495 13.5 13.5 11.1495 13.5 8.25C13.5 5.35051 11.1495 3 8.25 3C5.35051 3 3 5.35051 3 8.25C3 11.1495 5.35051 13.5 8.25 13.5Z"
@@ -707,35 +985,28 @@ export function CourtSearchHeader({ courts }: Props) {
                   }}
                   onKeyDown={handleKeyDown}
                   className="w-full bg-transparent text-sm outline-none text-white placeholder:text-[#888888]"
-                  placeholder="테니스장을 검색해주세요"
+                  placeholder={`${venueLabel}을 검색해주세요`}
                   autoFocus
                 />
               </div>
 
-              <div className="flex-1 -mx-5 px-5 overflow-y-auto">
+              <div className="mt-4 min-h-0 flex-1">
                 {results.length === 0 ? (
                   <p className="text-sm text-[#B0B0B0] mt-4">
-                    검색어를 입력하면 코트 목록이 표시됩니다.
+                    {query.trim()
+                      ? "검색 결과가 없습니다."
+                      : "검색어를 입력하면 코트 목록이 표시됩니다."}
                   </p>
                 ) : (
-                  <ul className="divide-y divide-[#3C3C3C]">
-                    {results.map((court) => (
-                      <li key={court.id}>
-                        <button
-                          type="button"
-                          onClick={() => handleSelectCourt(court)}
-                          className="flex w-full flex-col items-start gap-0.5 px-1 py-3 text-left hover:bg-[#2C2C2C]"
-                        >
-                          <span className="text-sm font-medium text-white">
-                            {court.basic_court_name}
-                          </span>
-                          <span className="text-xs text-[#B0B0B0]">
-                            {court.basic_region} {court.basic_city}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="h-full min-h-0 overflow-hidden rounded-xl border border-[#3C3C3C] bg-[#2C2C2C]">
+                    <SportSearchResults
+                      activeSport={sportType}
+                      fillHeight
+                      groupedResults={groupedResults}
+                      onSelectCourt={handleSelectCourt}
+                      sportOrder={sportOrder}
+                    />
+                  </div>
                 )}
               </div>
             </div>

@@ -3,8 +3,12 @@ import type { Court, CourtBookingRule } from "./types";
 import { getCourtDetailPath } from "@/lib/courtPath";
 import { formatTime } from "./styles";
 import { HorizontalScrollArea } from "./detail/HorizontalScrollArea";
-import { type BookingOpenLabelTone } from "./detail/detailLayoutStyles";
-import { getBookingRuleTargetText, getBookingRuleDisplayContext } from "@/lib/bookingRuleDisplay";
+import {
+  getBookingOpenLabelTextClass,
+  getBookingOpenLabelTextColor,
+  type BookingOpenLabelTone,
+} from "./detail/detailLayoutStyles";
+import { getBookingRuleTargetText } from "@/lib/bookingRuleDisplay";
 
 function sortActiveBookingRules(rules: CourtBookingRule[] | null | undefined) {
   return (rules ?? [])
@@ -18,7 +22,7 @@ function sortActiveBookingRules(rules: CourtBookingRule[] | null | undefined) {
 }
 
 export function hasActiveBookingRules(court: Court) {
-  return sortActiveBookingRules(court.court_booking_rules).length > 0;
+  return court.booking_rule_type !== "outdoor_open" && sortActiveBookingRules(court.court_booking_rules).length > 0;
 }
 
 export function formatBookingRuleEligibility(value: string | null | undefined) {
@@ -27,11 +31,11 @@ export function formatBookingRuleEligibility(value: string | null | undefined) {
     citizen: "시민",
     inhabitant: "주민",
     non_resident: "타지역",
-    normal: "전체",
+    normal: "누구나",
     none: "없음",
   };
   const key = value?.trim();
-  return key ? map[key] ?? key : "전체";
+  return key ? map[key] ?? key : "누구나";
 }
 
 function getBookingRuleLabelTone(value: string | null | undefined): BookingOpenLabelTone {
@@ -96,6 +100,7 @@ function appendOpenDateAdjustment(text: string, rule: CourtBookingRule) {
 
 export function formatBookingRuleCardText(rule: CourtBookingRule) {
   if (rule.rule_type === "phone") return "전화 예약";
+  if (rule.rule_type === "outdoor_open") return "실외 개방";
   if (rule.rule_type === "on_site") return "현장 예약";
   if (rule.rule_type === "irregular") return "비정기 예약";
   if (rule.rule_type === "checking") return "예약 정보 확인 중";
@@ -167,7 +172,10 @@ export function BookingRulesCompactContent({ court }: { court: Court }) {
       <p className="text-xs font-semibold text-[#a7a7a7]">예약 오픈 정보 {rules.length}개</p>
       {visibleRules.map((rule) => (
         <div key={rule.id} className="flex min-w-0 items-baseline gap-2">
-          <span className="max-w-full shrink-0 break-keep text-sm font-bold text-[#6FCF97]">
+          <span
+            className="sport-card-accent-text max-w-full shrink-0 break-keep text-sm font-bold"
+            style={{ color: "var(--sport-accent, #6FCF97)" }}
+          >
             {getBookingRuleTargetText(rule)} :
           </span>
           <span className="min-w-0 truncate text-sm font-semibold text-white">
@@ -191,22 +199,26 @@ export function BookingRulesDetailBlock({ court }: { court: Court }) {
   const rules = sortActiveBookingRules(court.court_booking_rules);
   if (!rules.length) return null;
   return (
-    <div className="space-y-3">
-      <h2 className="font-semibold text-white">예약 오픈 정보</h2>
-      <HorizontalScrollArea className="flex snap-x snap-proximity items-stretch gap-3 overflow-x-auto pb-2">
-        {rules.map((rule) => (
-          <div key={rule.id} className={`flex min-w-0 snap-start flex-col gap-5 rounded-xl border border-[#35383D] bg-[#111214] px-5 py-5 ${rules.length === 1 ? "w-full" : "w-[280px] max-w-[85%] shrink-0 sm:max-w-none sm:flex-[1_0_280px]"}`}>
-            <div className="min-w-0">
-              <p className={getBookingRuleLabelTone(rule.eligibility) === "normal" ? "break-keep text-base font-semibold text-white" : "break-keep text-base font-semibold text-[#6FCF97]"}>
-                {getBookingRuleTargetText(rule)}
-              </p>
-              {getBookingRuleDisplayContext(rule).length > 0 ? (
-                <p className="mt-2 break-keep text-sm leading-relaxed text-[#A7A7A7]">{getBookingRuleDisplayContext(rule).join(" · ")}</p>
-              ) : null}
+    <div className="space-y-3" data-detail-booking-rules="true">
+      <HorizontalScrollArea className="scrollbar-hide flex snap-x snap-proximity items-stretch gap-3 overflow-x-auto">
+        {rules.map((rule) => {
+          const label = getBookingRuleTargetText(rule);
+          const tone = getBookingRuleLabelTone(rule.eligibility);
+          return (
+            <div data-detail-booking-rule-card="true" key={rule.id} className={`flex min-w-0 snap-start flex-col gap-5 rounded-xl border border-[#35383D] bg-[#111214] px-5 py-5 ${rules.length === 1 ? "w-full" : "w-[280px] max-w-[85%] shrink-0 sm:max-w-none sm:flex-[1_0_280px]"}`}>
+              <div className="min-w-0">
+                <p
+                  data-detail-auth-label="true"
+                  className={`${getBookingOpenLabelTextClass(tone, label)} break-keep text-base font-semibold`}
+                  style={{ color: getBookingOpenLabelTextColor(tone, label) }}
+                >
+                  {label}
+                </p>
+              </div>
+              <p className="mt-auto break-keep text-base font-bold leading-relaxed text-white">{formatBookingRuleCardText(rule)}</p>
             </div>
-            <p className="mt-auto break-keep text-base font-bold leading-relaxed text-white">{formatBookingRuleCardText(rule)}</p>
-          </div>
-        ))}
+          );
+        })}
       </HorizontalScrollArea>
     </div>
   );

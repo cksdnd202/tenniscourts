@@ -18,6 +18,7 @@ async function fetchActiveCourts(): Promise<SitemapCourtRow[]> {
     const { data, error } = await supabase
       .from("courtinfo")
       .select("slug, updated_at")
+      .in("sport_type", ["tennis", "badminton"])
       .eq("use_or_not", true)
       .order("slug", { ascending: true })
       .range(from, from + pageSize - 1);
@@ -43,14 +44,47 @@ async function fetchActiveCourts(): Promise<SitemapCourtRow[]> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const courts = await fetchActiveCourts();
-  const lastModified = new Date();
+  const latestCourtUpdate = courts.reduce<Date | undefined>((latest, court) => {
+    if (!court.updated_at) return latest;
+    const updatedAt = new Date(court.updated_at);
+    if (Number.isNaN(updatedAt.getTime())) return latest;
+    return !latest || updatedAt > latest ? updatedAt : latest;
+  }, undefined);
 
   const homeEntry: MetadataRoute.Sitemap[number] = {
     url: siteUrl,
-    lastModified,
+    ...(latestCourtUpdate ? { lastModified: latestCourtUpdate } : {}),
     changeFrequency: "daily",
     priority: 1,
   };
+
+  const policyEntries: MetadataRoute.Sitemap = [
+    {
+      url: `${siteUrl}/privacy`,
+      changeFrequency: "monthly",
+      priority: 0.4,
+    },
+    {
+      url: `${siteUrl}/terms`,
+      changeFrequency: "monthly",
+      priority: 0.4,
+    },
+    {
+      url: `${siteUrl}/account-deletion`,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
+      url: `${siteUrl}/notices`,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
+    {
+      url: `${siteUrl}/support`,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+  ];
 
   const seenCourtUrls = new Set<string>();
   const courtEntries: MetadataRoute.Sitemap = courts.flatMap((court) => {
@@ -62,14 +96,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return [{
       url,
-      lastModified: court.updated_at ? new Date(court.updated_at) : lastModified,
+      ...(court.updated_at ? { lastModified: new Date(court.updated_at) } : {}),
       changeFrequency: "weekly",
       priority: 0.8,
     }];
   });
 
-  return [homeEntry, ...courtEntries];
+  return [
+    homeEntry,
+    { ...homeEntry, url: `${siteUrl}/tennis`, priority: 0.9 },
+    { ...homeEntry, url: `${siteUrl}/badminton`, priority: 0.9 },
+    ...policyEntries,
+    ...courtEntries,
+  ];
 }
 
 /** 사이트맵을 하루에 한 번 갱신 */
-export const revalidate = 86400;
+export const revalidate = 3600;

@@ -1,0 +1,12 @@
+"use client";
+import { useEffect, useState } from "react";
+import type { Notice } from "@/lib/support";
+
+function date(value: string | null) { return value ? new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric" }).format(new Date(value)) : ""; }
+export function WebNoticesClient() {
+  const [items, setItems] = useState<Notice[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [open, setOpen] = useState<string | null>(null);
+  useEffect(() => { fetch("/api/notices?channel=web", { cache: "no-store" }).then(async (r) => { const data = await r.json(); if (!r.ok) throw new Error(data.error); setItems(data.notices ?? []); }).catch((e) => setError(e.message)).finally(() => setLoading(false)); }, []);
+  return <div className="mx-auto max-w-3xl"><p className="text-sm font-semibold text-[#4ADE80]">NOTICE</p><h1 className="mt-3 text-3xl font-bold">공지사항</h1><p className="mt-3 text-sm text-[#8A8F98]">Courts Korea의 새로운 소식과 중요한 안내를 확인하세요.</p>
+    <div className="mt-9 overflow-hidden rounded-2xl border border-[#2C2C2C] bg-[#151515]">{loading ? <p className="p-12 text-center text-sm text-[#8A8F98]">공지사항을 불러오는 중...</p> : error ? <p className="p-12 text-center text-sm text-[#FF9898]">{error}</p> : items.length ? <div className="divide-y divide-[#2C2C2C]">{items.map((item) => <article key={item.id}><button onClick={() => setOpen(open === item.id ? null : item.id)} className="flex w-full items-center gap-4 px-5 py-5 text-left hover:bg-[#1D1D1D]"><div className="min-w-0 flex-1"><div className="flex items-center gap-2">{item.is_pinned ? <span className="rounded-md bg-[#173728] px-2 py-1 text-[11px] font-bold text-[#4ADE80]">중요</span> : null}<h2 className="truncate font-semibold text-white">{item.title}</h2></div><p className="mt-2 text-xs text-[#777]">{date(item.published_at ?? item.created_at)}</p></div><span className={`text-xl text-[#777] transition ${open === item.id ? "rotate-180" : ""}`}>⌄</span></button>{open === item.id ? <div className="border-t border-[#262626] bg-[#111] px-5 py-6"><p className="whitespace-pre-wrap text-sm leading-7 text-[#C4C7CC]">{item.body}</p>{item.action_url && item.action_label ? <a href={item.action_url} className="mt-5 inline-flex rounded-lg border border-[#3A3A3A] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#222]">{item.action_label}</a> : null}</div> : null}</article>)}</div> : <p className="p-12 text-center text-sm text-[#8A8F98]">등록된 공지사항이 없습니다.</p>}</div>
+  </div>;
+}

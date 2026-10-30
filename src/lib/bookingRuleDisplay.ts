@@ -2,7 +2,7 @@ import type { CourtBookingRule } from "@/app/types";
 
 const eligibilityLabels: Record<string, string> = {
   resident: "구민", citizen: "시민", inhabitant: "주민",
-  normal: "전체", non_resident: "타지역", none: "없음",
+  normal: "누구나", non_resident: "타지역", none: "없음",
 };
 
 export function getBookingRuleCondition(rule: CourtBookingRule): string {

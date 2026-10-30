@@ -6,5 +6,5 @@ type PageProps = {
 
 export default async function AdminCourtDetailPreviewPage({ params }: PageProps) {
   const { id } = await params;
-  return <AdminCourtDetailPreview courtId={id} />;
+  return <div className="admin-legacy"><AdminCourtDetailPreview courtId={id} /></div>;
 }

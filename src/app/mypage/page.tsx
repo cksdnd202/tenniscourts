@@ -1,19 +1,11 @@
-import { supabase } from "@/lib/supabase";
+import { getAllSportCourtSearchIndex } from "@/lib/homeCourtData.server";
 import { CourtSearchHeader } from "../CourtSearchHeader";
-import type { Court } from "../types";
 import { MyPageContent } from "./MyPageContent";
 
 export const revalidate = 60;
 
 export default async function MyPage() {
-  const { data } = await supabase
-    .from("courtinfo")
-    .select("id, slug, basic_court_name, basic_region, basic_city")
-    .eq("use_or_not", true)
-    .order("basic_court_name", { ascending: true })
-    .limit(50);
-
-  const courts = (data ?? []) as Court[];
+  const courts = await getAllSportCourtSearchIndex();
 
   return (
     <>

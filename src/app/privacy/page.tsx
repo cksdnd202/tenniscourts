@@ -26,7 +26,7 @@ export default function PrivacyPage() {
       <main className="min-h-screen bg-black px-5 py-16 text-white">
         <div className="mx-auto max-w-3xl">
           <h1 className="text-3xl font-bold">개인정보처리방침</h1>
-          <p className="mt-3 text-sm text-[#8A8F98]">시행일: 2026년 7월 12일</p>
+          <p className="mt-3 text-sm text-[#8A8F98]">시행일: 2026년 10월 21일</p>
 
           <div className="mt-8 space-y-10 rounded-lg border border-[#2C2C2C] bg-[#191B1E] p-6 text-sm leading-7 text-[#B0B0B0]">
           <section>
@@ -45,6 +45,8 @@ export default function PrivacyPage() {
               <li>마이페이지, 내 프로필, 찜한 테니스장, 최근 본 테니스장 기능 제공</li>
               <li>서비스 이용 기록 확인, 오류 대응, 부정 이용 방지</li>
               <li>서비스 이용 통계 분석 및 기능 개선</li>
+              <li>예약 오픈 푸시 알림 신청, 발송 및 수신 기기 관리</li>
+              <li>현재 위치로 지도 이동 및 주변 테니스장 확인</li>
               <li>이용자 문의 및 요청사항 처리</li>
             </ul>
           </section>
@@ -66,11 +68,23 @@ export default function PrivacyPage() {
                   </tr>
                   <tr>
                     <td className="border-b border-[#33363B] px-4 py-3 text-white">서비스 이용 정보</td>
-                    <td className="border-b border-[#33363B] px-4 py-3">찜한 테니스장, 최근 본 테니스장, 이용자가 수정한 닉네임, 가입일, 로그인 방식</td>
+                    <td className="border-b border-[#33363B] px-4 py-3">찜한 테니스장, 최근 본 테니스장, 이용자가 수정한 닉네임과 내 지역, 가입일, 로그인 방식, 앱 내 검색어</td>
                   </tr>
                   <tr>
-                    <td className="px-4 py-3 text-white">자동 생성 정보</td>
-                    <td className="px-4 py-3">접속 기록, 브라우저 및 기기 정보, IP 주소, 쿠키, 서비스 이용 통계 정보</td>
+                    <td className="border-b border-[#33363B] px-4 py-3 text-white">푸시 알림 정보</td>
+                    <td className="border-b border-[#33363B] px-4 py-3">Expo 푸시 토큰, 운영체제, 앱 버전, 알림 신청 대상과 알림 시점, 발송·열람 상태</td>
+                  </tr>
+                  <tr>
+                    <td className="border-b border-[#33363B] px-4 py-3 text-white">고객문의</td>
+                    <td className="border-b border-[#33363B] px-4 py-3">이름 또는 닉네임, 답변 이메일, 문의 제목·내용, 접수 채널, 앱 버전·운영체제·기기 모델 또는 접수 페이지·브라우저 정보</td>
+                  </tr>
+                  <tr>
+                    <td className="border-b border-[#33363B] px-4 py-3 text-white">현재 위치 기능</td>
+                    <td className="border-b border-[#33363B] px-4 py-3">이용자가 위치 권한을 허용하고 내 주변 목록 또는 현재 위치 기능을 이용한 경우 기기에서 확인한 대략적 또는 정확한 위치. 가까운 테니스장 정렬과 지도 이동을 위해 일회성으로 처리하며 Courts Korea 서버와 Supabase에는 저장하지 않습니다.</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-3 text-white">자동 생성 및 분석 정보</td>
+                    <td className="px-4 py-3">접속 기록, IP 주소를 기반으로 한 대략적 지역, 브라우저·기기 모델·운영체제·언어·앱 버전, 앱 인스턴스 식별자, 앱 실행·세션·화면 조회·버튼 선택 등 서비스 이용 기록</td>
                   </tr>
                 </tbody>
               </table>
@@ -82,7 +96,10 @@ export default function PrivacyPage() {
             <ul className="mt-3 list-disc space-y-2 pl-5">
               <li>이용자가 카카오 로그인을 진행할 때 카카오로부터 동의받은 정보를 제공받습니다.</li>
               <li>이용자가 마이페이지에서 닉네임을 수정하거나 찜하기, 최근 본 테니스장 기능을 이용할 때 생성됩니다.</li>
-              <li>서비스 이용 과정에서 접속 기록, 쿠키, 이용 통계 정보가 자동으로 생성될 수 있습니다.</li>
+              <li>이용자가 예약 오픈 알림을 신청하고 휴대폰 알림을 허용할 때 푸시 토큰과 알림 설정이 생성됩니다.</li>
+              <li>이용자가 앱 또는 웹 고객문의 화면에서 문의를 접수할 때 문의 내용과 답변 연락처가 수집됩니다.</li>
+              <li>이용자가 내 주변 목록 또는 지도에서 현재 위치 기능을 선택한 경우에만 휴대폰 운영체제의 위치 권한을 통해 현재 위치를 확인합니다. 백그라운드에서는 위치를 확인하지 않습니다.</li>
+              <li>웹사이트 또는 앱 이용 과정에서 접속 기록, 쿠키·유사 기술, 앱 인스턴스 식별자와 이용 통계 정보가 자동으로 생성될 수 있습니다.</li>
             </ul>
           </section>
 
@@ -91,6 +108,13 @@ export default function PrivacyPage() {
             <p className="mt-3">
               서비스는 개인정보의 처리 목적이 달성되거나 이용자가 회원 탈퇴를 요청한 경우 지체 없이 해당 개인정보를 파기합니다. 다만, 관련 법령에 따라 보관이 필요한 경우에는 해당 법령에서 정한 기간 동안 보관할 수 있습니다.
             </p>
+            <ul className="mt-3 list-disc space-y-2 pl-5">
+              <li>회원 및 프로필 정보, 찜·최근 본 테니스장, 알림 신청 정보: 회원 탈퇴 또는 이용 목적 달성 시까지</li>
+              <li>비활성화된 푸시 토큰과 알림 발송 기록: 장애 대응 및 중복 발송 방지 목적 달성 시까지</li>
+              <li>Firebase Analytics 분석 정보: Google Analytics 속성에 설정된 보유 기간 동안 보관 후 삭제 또는 집계 처리</li>
+              <li>고객문의와 답변 기록: 문의 처리 완료 후 3년 또는 이용자의 삭제 요청 시까지</li>
+              <li>현재 위치: 가까운 테니스장 정렬 또는 지도 이동에 사용한 직후 별도로 저장하지 않음</li>
+            </ul>
           </section>
 
           <section>
@@ -116,7 +140,7 @@ export default function PrivacyPage() {
                 <tbody>
                   <tr>
                     <td className="border-b border-[#33363B] px-4 py-3 text-white">Kakao</td>
-                    <td className="border-b border-[#33363B] px-4 py-3">카카오 로그인 인증 및 이용자 식별</td>
+                    <td className="border-b border-[#33363B] px-4 py-3">카카오 로그인 인증 및 이용자 식별, 카카오맵 지도 표시</td>
                   </tr>
                   <tr>
                     <td className="border-b border-[#33363B] px-4 py-3 text-white">Supabase</td>
@@ -127,8 +151,16 @@ export default function PrivacyPage() {
                     <td className="border-b border-[#33363B] px-4 py-3">웹사이트 배포 및 호스팅</td>
                   </tr>
                   <tr>
-                    <td className="px-4 py-3 text-white">Google Analytics</td>
-                    <td className="px-4 py-3">서비스 방문 및 이용 통계 분석</td>
+                    <td className="border-b border-[#33363B] px-4 py-3 text-white">Google Firebase Analytics</td>
+                    <td className="border-b border-[#33363B] px-4 py-3">앱 실행·세션·화면 조회·기능 이용 현황 분석 및 서비스 개선</td>
+                  </tr>
+                  <tr>
+                    <td className="border-b border-[#33363B] px-4 py-3 text-white">Expo</td>
+                    <td className="border-b border-[#33363B] px-4 py-3">모바일 앱 푸시 토큰 발급 및 알림 전송</td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-3 text-white">PostHog</td>
+                    <td className="px-4 py-3">웹사이트 이용 행태 분석 및 기능 개선(앱 내 웹뷰에서는 별도 수집하지 않음)</td>
                   </tr>
                 </tbody>
               </table>
@@ -147,6 +179,9 @@ export default function PrivacyPage() {
             <p className="mt-3">
               이용자는 언제든지 자신의 개인정보에 대해 열람, 정정, 삭제, 처리정지를 요청할 수 있습니다. 서비스 내 마이페이지에서 닉네임 수정, 로그아웃, 회원 탈퇴를 할 수 있으며, 추가 요청은 개인정보 보호책임자에게 문의할 수 있습니다.
             </p>
+            <p className="mt-3">
+              앱에 로그인할 수 없는 경우에는 <Link href="/account-deletion" className="font-semibold text-white underline">계정 및 데이터 삭제 안내</Link>를 통해 삭제를 요청할 수 있습니다.
+            </p>
           </section>
 
           <section>
@@ -154,10 +189,23 @@ export default function PrivacyPage() {
             <p className="mt-3">
               서비스는 로그인 상태 유지, 서비스 이용 편의 제공, 방문 통계 분석을 위해 쿠키 또는 유사 기술을 사용할 수 있습니다. 이용자는 브라우저 설정을 통해 쿠키 저장을 거부하거나 삭제할 수 있으며, 이 경우 일부 기능 이용이 제한될 수 있습니다.
             </p>
+            <p className="mt-3">
+              모바일 앱은 Google Firebase Analytics를 사용합니다. Firebase Analytics는 앱 인스턴스 식별자, 기기 및 앱 정보, IP 주소를 기반으로 한 대략적 지역, 앱 실행·세션·화면 및 기능 이용 이벤트를 처리할 수 있습니다. 로그인한 이용자의 여러 앱 이용 기록을 연결하기 위해 개인을 직접 식별하지 않는 내부 회원 식별값을 사용자 ID로 전송합니다.
+            </p>
+            <p className="mt-3">
+              서비스는 Firebase Analytics로 이메일, 휴대전화번호, 닉네임, 검색어 원문 또는 방문 URL을 전송하지 않으며, Android 광고 ID 수집과 광고 개인화 기능을 비활성화합니다. 분석 정보는 광고 목적이 아니라 서비스 이용 통계와 기능 개선 목적으로만 사용합니다.
+            </p>
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-white">10. 개인정보 보호책임자</h2>
+            <h2 className="text-lg font-semibold text-white">10. 개인정보의 안전성 확보 조치</h2>
+            <p className="mt-3">
+              서비스는 전송 구간 암호화, 접근 권한 제한, 인증 정보의 안전한 관리, 데이터베이스 행 단위 접근 통제 등 개인정보를 안전하게 처리하기 위한 기술적·관리적 조치를 적용합니다.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-white">11. 개인정보 보호책임자</h2>
             <p className="mt-3">
               서비스는 개인정보 처리와 관련한 문의, 불만 처리, 피해 구제 요청을 위해 아래와 같이 개인정보 보호책임자를 지정하고 있습니다.
             </p>
@@ -168,7 +216,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-white">11. 개인정보처리방침의 변경</h2>
+            <h2 className="text-lg font-semibold text-white">12. 개인정보처리방침의 변경</h2>
             <p className="mt-3">
               이 개인정보처리방침은 시행일로부터 적용됩니다. 서비스는 개인정보처리방침을 변경하는 경우 웹사이트를 통해 변경 내용을 공지합니다.
             </p>

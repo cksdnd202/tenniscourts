@@ -1,3 +1,4 @@
+import { invalidateMapCourtsCache } from "@/lib/homeCourtsCache.server";
 import { NextRequest, NextResponse } from "next/server";
 import { denyUnlessAdmin } from "@/lib/adminAuth";
 import { fetchBlogPreview } from "@/lib/blogPreview";
@@ -119,6 +120,7 @@ export async function PUT(req: NextRequest) {
     }
 
     if (enrichedLinks.length === 0) {
+      invalidateMapCourtsCache();
       return NextResponse.json({ links: [] });
     }
 
@@ -132,6 +134,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    invalidateMapCourtsCache();
     return NextResponse.json({ links: data ?? [] });
   } catch (error) {
     return NextResponse.json(

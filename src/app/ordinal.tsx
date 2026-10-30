@@ -1,18 +1,17 @@
 import Image from "next/image";
+import { CheckingContent } from "./CheckingContent";
+import { hasActiveBookingRules } from "./BookingRulesContent";
 import { Court } from "./types";
 import { getCourtDetailPath } from "@/lib/courtPath";
 import { getReservationHref } from "@/lib/reservationLink";
 import { getPriorityEligibilityLabel } from "@/lib/bookingEligibility";
 import { FavoriteButton } from "./FavoriteButton";
+import { CourtSurfaceTable } from "./CourtSurfaceTable";
 import {
   courtitem_courtname,
   courtitem_courtopentime,
   courtitem_courtaddress,
   courtitem_courtmaplink,
-  th,
-  td,
-  tdIcon,
-  fmt,
   formatTime,
 } from "./styles";
 
@@ -50,6 +49,11 @@ export function OrdinalContent({ court }: { court: Court }) {
   const priorityLabel = getPriorityEligibilityLabel(court.booking_eligibility_first);
   const reservationHref = getReservationHref(court);
 
+  // Incomplete legacy schedules still need a visible explanation on the card.
+  if (!hasActiveBookingRules(court) && !(priorityLabel && court.booking_open_time_owner?.trim()) && !court.booking_open_time_normal?.trim()) {
+    return <CheckingContent court={{ ...court, booking_rule_type: "checking" }} />;
+  }
+
   return (
     <>
       {/* 코트 이름, 찜하기 */}
@@ -66,7 +70,7 @@ export function OrdinalContent({ court }: { court: Court }) {
             {priorityLabel && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#6FCF97]">
+                  <span className="sport-card-accent-text" style={{ color: "var(--sport-accent, #6FCF97)" }}>
                     {priorityLabel} :{" "}
                   </span>
                   {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
@@ -89,7 +93,7 @@ export function OrdinalContent({ court }: { court: Court }) {
             {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#6FCF97]">전체 : </span>
+                  <span className="sport-card-accent-text" style={{ color: "var(--sport-accent, #6FCF97)" }}>누구나 : </span>
                   {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
                   <span className="text-white font-semibold">
                     {(() => {
@@ -116,7 +120,7 @@ export function OrdinalContent({ court }: { court: Court }) {
             {priorityLabel && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#6FCF97]">
+                  <span className="sport-card-accent-text" style={{ color: "var(--sport-accent, #6FCF97)" }}>
                     {priorityLabel} :{" "}
                   </span>
                   {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
@@ -139,7 +143,7 @@ export function OrdinalContent({ court }: { court: Court }) {
             {court.booking_open_time_normal != null && court.booking_open_time_normal.trim() !== "" && (
               <div className="">
                 <p className={`${courtitem_courtopentime} break-words`}>
-                  <span className="text-[#6FCF97]">전체 : </span>
+                  <span className="sport-card-accent-text" style={{ color: "var(--sport-accent, #6FCF97)" }}>누구나 : </span>
                   {/* 여기가 찐 week 타입용 내용 넣을 곳 - */}
                   <span className="text-white] font-semibold">
                     {(() => {
@@ -183,63 +187,7 @@ export function OrdinalContent({ court }: { court: Court }) {
           </a>
         </div>
       )}
-
-      <table className="w-full table-fixed">
-        <thead>
-          <tr>
-            <th className={th}>구분</th>
-            <th className={th}>실내</th>
-            <th className={th}>실외</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td className={tdIcon}>
-              <div className="flex justify-center">
-                <Image
-                  src="/icon/icon_hard_court.svg"
-                  alt="하드코트"
-                  title="하드코트"
-                  width={20}
-                  height={36}
-                />
-              </div>
-            </td>
-            <td className={td}>{fmt(court.court_count_hard_indoor)}</td>
-            <td className={td}>{fmt(court.court_count_hard_outdoor)}</td>
-          </tr>
-          <tr>
-            <td className={tdIcon}>
-              <div className="flex justify-center">
-                <Image
-                  src="/icon/icon_grass_court.svg"
-                  alt="잔디코트"
-                  title="잔디코트"
-                  width={20}
-                  height={36}
-                />
-              </div>
-            </td>
-            <td className={td}>{fmt(court.court_count_grass_indoor)}</td>
-            <td className={td}>{fmt(court.court_count_grass_outdoor)}</td>
-          </tr>
-          <tr>
-            <td className={tdIcon}>
-              <div className="flex justify-center">
-                <Image
-                  src="/icon/icon_clay_court.svg"
-                  alt="클레이코트"
-                  title="클레이코트"
-                  width={20}
-                  height={36}
-                />
-              </div>
-            </td>
-            <td className={td}>{fmt(court.court_count_clay_indoor)}</td>
-            <td className={td}>{fmt(court.court_count_clay_outdoor)}</td>
-          </tr>
-        </tbody>
-      </table>
+      <CourtSurfaceTable court={court} />
 
       <div className="mt-3 flex gap-2 text-sm">
         {/* 상세보기 버튼 - 코트 상세 페이지로 이동 */}
@@ -263,7 +211,8 @@ export function OrdinalContent({ court }: { court: Court }) {
             data-gtm="reserve_click"
             data-court-id={court.id}
             data-court-name={court.basic_court_name}
-            className="flex-1 flex items-center justify-center px-3 py-2.5 rounded bg-[#2C8B56] text-white font-normal hover:bg-[#53A978] transition"
+            className="sport-card-primary-action flex-1 flex items-center justify-center px-3 py-2.5 rounded text-white font-normal transition"
+            style={{ backgroundColor: "var(--sport-primary, #2C8B56)" }}
           >
             예약하러가기
           </a>

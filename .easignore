@@ -1,0 +1,26 @@
+# Repository dependencies and generated output
+node_modules/
+.next/
+.next.backup-*/
+out/
+coverage/
+tmp/
+
+# Mobile dependencies, caches, previous builds, and generated native projects
+apps/mobile/node_modules/
+apps/mobile/node_modules.icloud-backup/
+apps/mobile/.expo/
+apps/mobile/.kotlin/
+apps/mobile/android/
+apps/mobile/ios/
+apps/mobile/dist/
+apps/mobile/dist-*/
+apps/mobile/web-build/
+apps/mobile/builds/
+
+# Local-only files
+.env*
+apps/mobile/.env*
+*.tsbuildinfo
+*.log
+.DS_Store

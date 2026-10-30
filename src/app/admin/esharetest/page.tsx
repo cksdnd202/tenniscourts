@@ -1,5 +1,5 @@
 import { EshareApiTestClient } from "../EshareApiTestClient";
 
 export default function EshareApiTestPage() {
-  return <EshareApiTestClient />;
+  return <div className="admin-legacy"><EshareApiTestClient /></div>;
 }

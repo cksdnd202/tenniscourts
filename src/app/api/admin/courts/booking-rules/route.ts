@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { denyUnlessAdmin } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { invalidateHomeCourtsCache } from "@/lib/homeCourtsCache.server";
 
 const editableFields = [
   "court_id",
@@ -150,6 +151,7 @@ export async function POST(req: NextRequest) {
     }
 
     await touchCourtUpdatedAt(courtId, updatedAt);
+    invalidateHomeCourtsCache();
 
     return NextResponse.json({ rule: data }, { status: 201 });
   } catch (error) {
@@ -187,6 +189,7 @@ export async function PUT(req: NextRequest) {
 
     const courtId = typeof data?.court_id === "string" ? data.court_id : "";
     await touchCourtUpdatedAt(courtId, updatedAt);
+    invalidateHomeCourtsCache();
 
     return NextResponse.json({ rule: data });
   } catch (error) {
@@ -219,6 +222,7 @@ export async function DELETE(req: NextRequest) {
 
     const courtId = typeof data?.court_id === "string" ? data.court_id : "";
     await touchCourtUpdatedAt(courtId, updatedAt);
+    invalidateHomeCourtsCache();
 
     return NextResponse.json({ ok: true });
   } catch (error) {

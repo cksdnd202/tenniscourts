@@ -5,17 +5,19 @@ import { createPortal } from "react-dom";
 import { capturePostHogEvent } from "@/lib/posthogClient";
 import { supabase } from "@/lib/supabase";
 
-const FAVORITE_COLOR = "#6FCF97";
+const FAVORITE_COLOR = "var(--sport-accent, #6FCF97)";
 const EMPTY_COLOR = "#D8D8D8";
 
 export function FavoriteButton({
   courtId,
   variant = "dark",
   source = "unknown",
+  accentColor,
 }: {
   courtId: string;
   variant?: "dark" | "light";
   source?: string;
+  accentColor?: string;
 }) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -117,16 +119,20 @@ export function FavoriteButton({
   };
 
   const isLightVariant = variant === "light";
+  const isBlueAccent = accentColor?.toUpperCase() === "#337DFF";
   const buttonClassName = isLightVariant
     ? `inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2C8B56] disabled:cursor-not-allowed disabled:opacity-60 ${
         isFavorite ? "bg-[#2C8B56] text-white" : "bg-[#f3f4f6] text-[#4b5563] hover:bg-[#e5e7eb]"
       }`
-    : "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#2C2C2C] transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6FCF97] disabled:cursor-not-allowed disabled:opacity-60";
-  const iconFill = isFavorite ? (isLightVariant ? "currentColor" : FAVORITE_COLOR) : "none";
+    : `inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#2C2C2C] transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+        isBlueAccent ? "focus-visible:outline-[#337DFF]" : "focus-visible:outline-[#6FCF97]"
+      }`;
+  const favoriteColor = accentColor ?? FAVORITE_COLOR;
+  const iconFill = isFavorite ? (isLightVariant ? "currentColor" : favoriteColor) : "none";
   const iconStroke = isFavorite
     ? isLightVariant
       ? "currentColor"
-      : FAVORITE_COLOR
+      : favoriteColor
     : isLightVariant
       ? "currentColor"
       : EMPTY_COLOR;
@@ -172,7 +178,11 @@ export function FavoriteButton({
               <button
                 type="button"
                 onClick={handleLogin}
-                className="rounded-lg bg-[#2C8B56] px-4 py-2 text-sm font-medium text-white hover:bg-[#53A978]"
+                className={`rounded-lg px-4 py-2 text-sm font-medium text-white ${
+                  isBlueAccent
+                    ? "bg-[#375AE6] hover:bg-[#2F4ECC]"
+                    : "bg-[#2C8B56] hover:bg-[#53A978]"
+                }`}
               >
                 로그인하기
               </button>

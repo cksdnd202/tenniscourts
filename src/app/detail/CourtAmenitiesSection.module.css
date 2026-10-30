@@ -1,0 +1,474 @@
+.section {
+  margin-top: 40px;
+  padding-top: 40px;
+  border-top: 1px solid #565656;
+  background: transparent;
+}
+
+.headingRow {
+  position: relative;
+  margin-bottom: 32px;
+  padding-right: 116px;
+}
+
+.headingBlock {
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.title {
+  margin: 0;
+}
+
+.tooltipAnchor {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.helpButton {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 2px solid #727982;
+  border-radius: 999px;
+  background: transparent;
+  color: #8b929b;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
+.helpButton:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 30;
+  bottom: calc(100% + 14px);
+  left: -20px;
+  width: min(280px, calc(100vw - 96px));
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #2c2c2e;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: center;
+  white-space: normal;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.tooltip::after {
+  position: absolute;
+  top: 100%;
+  left: 31px;
+  width: 0;
+  height: 0;
+  border: 8px solid transparent;
+  border-top-color: #2c2c2e;
+  content: "";
+  transform: translateX(-50%);
+}
+
+@media (min-width: 640px) {
+  .tooltip {
+    left: -21px;
+    width: max-content;
+    max-width: min(420px, calc(100vw - 32px));
+    transform: none;
+    white-space: nowrap;
+  }
+
+  .tooltip::after {
+    left: 32px;
+  }
+}
+
+:global(html[data-courts-korea-app="true"]) .section {
+  border-top: 0;
+}
+
+:global(html[data-courts-korea-app="true"]) .modalBackdrop {
+  background: rgba(24, 24, 24, 0.42);
+  backdrop-filter: blur(1px);
+}
+
+:global(html[data-courts-korea-app="true"]) .modal {
+  border-color: #e0e0e0;
+  background: #ffffff;
+  color: #303030;
+  box-shadow: 0 18px 56px rgba(0, 0, 0, 0.2);
+}
+
+:global(html[data-courts-korea-app="true"]) .modalTitle {
+  color: #303030;
+}
+
+:global(html[data-courts-korea-app="true"]) .closeButton {
+  background: #f2f2f2;
+  color: #303030;
+}
+
+:global(html[data-courts-korea-app="true"]) .fieldLabel {
+  color: #4a4a4a;
+}
+
+:global(html[data-courts-korea-app="true"]) .fieldControl {
+  border-color: #d7d7d7;
+  background: #ffffff;
+  color: #303030;
+}
+
+:global(html[data-courts-korea-app="true"]) .fieldControl::placeholder {
+  color: #969696;
+}
+
+:global(html[data-courts-korea-app="true"]) .selectArrow {
+  color: #5d5d5d;
+}
+
+:global(html[data-courts-korea-app="true"]) .characterCount {
+  color: #8b8b8b;
+}
+
+:global(html[data-courts-korea-app="true"]) .secondaryButton {
+  border-color: #d7d7d7;
+  background: #f5f5f5;
+  color: #4a4a4a;
+}
+
+:global(html[data-courts-korea-app="true"]) .successDescription {
+  color: #6f6f6f;
+}
+
+.reportTrigger {
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  background: transparent;
+  color: #8f8f95;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.reportTrigger:hover,
+.reportTrigger:focus-visible {
+  color: #ffffff;
+}
+
+.checkedDate {
+  position: absolute;
+  top: 4px;
+  right: 0;
+  color: #a5a5aa;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  row-gap: 32px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.iconFrame {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon {
+  display: block;
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.label {
+  color: #ffffff;
+  font-family: Pretendard, Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 26px;
+  white-space: nowrap;
+}
+
+.modalLayer {
+  position: fixed;
+  z-index: 300;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+}
+
+.modalBackdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(2px);
+}
+
+.modal {
+  position: relative;
+  width: min(100%, 520px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  border: 1px solid #343438;
+  border-radius: 20px;
+  background: #1a1a1b;
+  padding: 24px;
+  color: #ffffff;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.modalEyebrow {
+  margin: 0 0 8px;
+  color: #6fcf97;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.modalTitle {
+  margin: 0;
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.closeButton {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: #29292c;
+  color: #ffffff;
+  font-size: 26px;
+  font-weight: 300;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fieldGroup {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 20px;
+}
+
+.fieldLabel {
+  color: #d9d9dc;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.fieldControl {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #3d3d41;
+  border-radius: 10px;
+  background: #111113;
+  padding: 0 14px;
+  color: #ffffff;
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+}
+
+.fieldControl:focus {
+  border-color: #6fcf97;
+  box-shadow: 0 0 0 2px rgba(111, 207, 151, 0.14);
+}
+
+.selectWrap {
+  position: relative;
+  display: block;
+}
+
+.selectControl {
+  appearance: none;
+  padding-right: 56px;
+}
+
+.selectArrow {
+  position: absolute;
+  top: 50%;
+  right: 24px;
+  color: #d9d9dc;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.textarea {
+  min-height: 140px;
+  resize: vertical;
+  padding-top: 13px;
+  padding-bottom: 32px;
+  line-height: 1.6;
+}
+
+.characterCount {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  color: #77777e;
+  font-size: 11px;
+}
+
+.honeypot {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.errorMessage {
+  margin: 14px 0 0;
+  color: #ff8b8b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.modalActions {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 0 18px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 1px solid #6fcf97;
+  background: #6fcf97;
+  color: #102319;
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.secondaryButton {
+  border: 1px solid #3d3d41;
+  background: #242426;
+  color: #d9d9dc;
+}
+
+.successPanel {
+  display: flex;
+  min-height: 320px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.successIcon {
+  display: inline-flex;
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+  border-radius: 999px;
+  background: #6fcf97;
+  color: #102319;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.successDescription {
+  margin: 12px 0 28px;
+  color: #b6b6bb;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.successPanel .primaryButton {
+  width: min(100%, 240px);
+}
+
+@media (min-width: 1032px) {
+  .headingRow {
+    margin-bottom: 40px;
+    padding-right: 148px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 8px;
+    row-gap: 12px;
+  }
+
+  .item {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+  }
+}

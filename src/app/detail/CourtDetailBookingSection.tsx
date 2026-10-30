@@ -31,6 +31,7 @@ export function CourtDetailBookingSection({ court }: { court: Court }) {
       return <OnSiteBookingBlock court={court} />;
     case "irregular":
       return <IrregularBookingBlock court={court} />;
+    case "outdoor_open":
     case "checking":
       return <CheckingBookingBlock court={court} />;
     default:

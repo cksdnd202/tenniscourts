@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 import {
   getBookingOpenLabelTextClass,
+  getBookingOpenLabelTextColor,
   type BookingOpenLabelTone,
 } from "./detailLayoutStyles";
 
 type Props = {
-  /** 구민 · 시민 · 주민 · 일반 */
+  /** 구민 · 시민 · 주민 · 누구나 */
   label: string;
-  /** 구민·시민·주민: priority, 일반: general */
+  /** 구민·시민·주민: priority, 누구나: general */
   labelTone: BookingOpenLabelTone;
   children: ReactNode;
   compact?: boolean;
@@ -16,12 +17,15 @@ type Props = {
 /** 라벨은 좌측 고정(톤별 배지), 예약 오픈 문구는 박스 가로 중앙 */
 export function BookingOpenCardRow({ label, labelTone, children, compact = false }: Props) {
   const labelColorClass = getBookingOpenLabelTextClass(labelTone, label);
+  const labelColor = getBookingOpenLabelTextColor(labelTone, label);
   const rowHeightClass = compact ? "min-h-[38px]" : "min-h-[48px]";
 
   return (
     <div className={`relative w-full ${rowHeightClass}`}>
       <span
+        data-detail-auth-label="true"
         className={`absolute left-0 top-1/2 z-10 -translate-y-1/2 rounded-md bg-[#0D0D0F] px-2.5 py-1 text-xs font-medium leading-none ring-1 ring-white/5 ${labelColorClass}`}
+        style={{ color: labelColor }}
       >
         {label}
       </span>

@@ -1,0 +1,33 @@
+{
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ANALYTICS_ENV": "development",
+        "EXPO_PUBLIC_FIREBASE_ANALYTICS_ENABLED": "false"
+      },
+      "ios": {
+        "simulator": false
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_ANALYTICS_ENV": "preview",
+        "EXPO_PUBLIC_FIREBASE_ANALYTICS_ENABLED": "false"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_ANALYTICS_ENV": "production",
+        "EXPO_PUBLIC_FIREBASE_ANALYTICS_ENABLED": "true"
+      }
+    },
+    "production-local": {
+      "extends": "production",
+      "autoIncrement": false
+    }
+  }
+}

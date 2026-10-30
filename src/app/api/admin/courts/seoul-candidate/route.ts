@@ -1,3 +1,4 @@
+import { normalizeCourtDescription } from "@/lib/normalizeCourtDescription";
 import { NextRequest, NextResponse } from "next/server";
 import { denyUnlessAdmin } from "@/lib/adminAuth";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
@@ -205,7 +206,7 @@ async function toCourtCandidate(row: string) {
     booking_today_booking_possible: null,
     booking_booking_provide: "public_site",
     use_or_not: false,
-    etc_desc: extractTag(row, "DTLCONT"),
+    etc_desc: normalizeCourtDescription(extractTag(row, "DTLCONT")),
     ...getSeoulReservationSource(seoulRow),
   };
 }

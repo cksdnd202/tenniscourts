@@ -36,6 +36,159 @@ body {
   font-family: pretendard, Arial, Helvetica, sans-serif;
 }
 
+/* Keep the public site dark, but make the browser's overscroll surface light
+   whenever an admin route is mounted. */
+html:has(.admin-document-surface),
+body:has(.admin-document-surface) {
+  background-color: #f6f8f9;
+  color-scheme: light;
+}
+
+/* Admin is an operational workspace, intentionally independent from the
+   public website's dark visual system. Existing tools are kept functional
+   while their legacy hard-coded dark utility classes are normalized here. */
+.admin-theme {
+  color-scheme: light;
+}
+
+.admin-sidebar-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.admin-sidebar-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-legacy {
+  background-color: #ffffff !important;
+  color: #202428;
+}
+
+.admin-legacy.admin-legacy-transparent {
+  background-color: transparent !important;
+}
+
+.admin-legacy [class~="bg-black"],
+.admin-legacy [class~="bg-[#101010]"],
+.admin-legacy [class~="bg-[#111]"],
+.admin-legacy [class~="bg-[#151515]"],
+.admin-legacy [class~="bg-[#171717]"],
+.admin-legacy [class~="bg-[#191B1E]"],
+.admin-legacy [class~="bg-[#1A1A1B]"],
+.admin-legacy [class~="bg-[#1c1c1c]"],
+.admin-legacy [class~="bg-[#1f1f1f]"] {
+  background-color: #ffffff !important;
+}
+
+.admin-legacy [class~="bg-[#202020]"],
+.admin-legacy [class~="bg-[#222222]"],
+.admin-legacy [class~="bg-[#242424]"],
+.admin-legacy [class~="bg-[#2a2a2a]"],
+.admin-legacy [class~="bg-[#2C2C2C]"],
+.admin-legacy [class~="bg-[#303030]"],
+.admin-legacy [class~="bg-[#333]"] {
+  background-color: #f3f6f7 !important;
+}
+
+.admin-legacy [class~="bg-[#07140c]"],
+.admin-legacy [class~="bg-[#0f2217]"],
+.admin-legacy [class~="bg-[#102118]"],
+.admin-legacy [class~="bg-[#102217]"],
+.admin-legacy [class~="bg-[#12351f]"],
+.admin-legacy [class~="bg-[#14301f]"],
+.admin-legacy [class~="bg-[#173522]"],
+.admin-legacy [class~="bg-[#20281f]"],
+.admin-legacy [class~="bg-[#23412f]"] {
+  background-color: #eaf8f1 !important;
+}
+
+.admin-legacy [class~="bg-[#211]"],
+.admin-legacy [class~="bg-[#261313]"],
+.admin-legacy [class~="bg-[#341818]"] {
+  background-color: #fff2f2 !important;
+}
+
+.admin-legacy [class~="border-[#242426]"],
+.admin-legacy [class~="border-[#252525]"],
+.admin-legacy [class~="border-[#2C2C2C]"],
+.admin-legacy [class~="border-[#2c2c2c]"],
+.admin-legacy [class~="border-[#2f2f2f]"],
+.admin-legacy [class~="border-[#333]"],
+.admin-legacy [class~="border-[#3C3C3C]"],
+.admin-legacy [class~="border-[#3c3c3c]"] {
+  border-color: #e2e5e9 !important;
+}
+
+.admin-legacy [class~="border-[#23543a]"],
+.admin-legacy [class~="border-[#24452f]"],
+.admin-legacy [class~="border-[#28543a]"],
+.admin-legacy [class~="border-[#31543c]"],
+.admin-legacy [class~="border-[#335c43]"],
+.admin-legacy [class~="border-[#3f6f4c]"] {
+  border-color: #bfe6d2 !important;
+}
+
+.admin-legacy [class~="border-[#533]"],
+.admin-legacy [class~="border-[#4a2a2a]"],
+.admin-legacy [class~="border-[#4a2f2f]"],
+.admin-legacy [class~="border-[#5a2d2d]"],
+.admin-legacy [class~="border-[#6b2d2d]"],
+.admin-legacy [class~="border-[#7f3d3d]"] {
+  border-color: #f0caca !important;
+}
+
+.admin-legacy [class~="text-white"] {
+  color: #202428 !important;
+}
+
+.admin-legacy [class~="text-[#d8d8d8]"],
+.admin-legacy [class~="text-[#b8b8b8]"],
+.admin-legacy [class~="text-[#B0B0B0]"],
+.admin-legacy [class~="text-[#a7a7a7]"],
+.admin-legacy [class~="text-[#8A8F98]"],
+.admin-legacy [class~="text-[#8c8c8c]"] {
+  color: #68727c !important;
+}
+
+.admin-legacy [class~="text-[#86efac]"],
+.admin-legacy [class~="text-[#7ff0a6]"],
+.admin-legacy [class~="text-[#65f093]"] {
+  color: #16875a !important;
+}
+
+.admin-legacy [class~="text-[#ffd6d6]"] {
+  color: #b42318 !important;
+}
+
+.admin-legacy [class*="hover:bg-[#2"]:hover,
+.admin-legacy [class*="hover:bg-[#1"]:hover {
+  background-color: #eef3f1 !important;
+}
+
+.admin-legacy [class*="hover:text-white"]:hover {
+  color: #158158 !important;
+}
+
+.admin-legacy input,
+.admin-legacy select,
+.admin-legacy textarea {
+  background-color: #ffffff !important;
+  border-color: #dce2e6 !important;
+  color: #202428 !important;
+}
+
+.admin-legacy pre,
+.admin-legacy code {
+  color: #33413a;
+}
+
+.admin-theme input,
+.admin-theme select,
+.admin-theme textarea {
+  color-scheme: light;
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -67,6 +220,53 @@ body {
 
 .mobile-slide-out-bottom {
   animation: mobileSlideOutBottom 200ms ease-in both;
+}
+
+.sport-card-accent-text {
+  color: var(--sport-accent, #6fcf97);
+}
+
+.sport-card-accent-focus:focus-visible {
+  outline-color: var(--sport-accent, #6fcf97);
+}
+
+.sport-card-primary-action {
+  background-color: var(--sport-primary, #2c8b56);
+}
+
+.sport-card-primary-action:hover {
+  background-color: var(--sport-primary-hover, #53a978);
+}
+
+.sport-detail-accent-text {
+  color: var(--sport-detail-accent, #4ade80);
+}
+
+.sport-detail-primary-action {
+  background-color: var(--sport-primary, #2c8b56);
+  color: var(--sport-primary-contrast, #ffffff);
+}
+
+.sport-detail-primary-action:hover {
+  background-color: var(--sport-primary-hover, #53a978);
+}
+
+.sport-detail-strong-action {
+  background-color: var(--sport-detail-primary, #4ade80);
+  color: var(--sport-detail-primary-contrast, #000000);
+}
+
+.sport-detail-strong-action:hover {
+  background-color: var(--sport-detail-primary-hover, #3fcf6f);
+}
+
+.sport-themed-focus-within:focus-within {
+  border-color: var(--sport-primary, #2c8b56);
+  box-shadow: 0 0 0 1px var(--sport-primary, #2c8b56);
+}
+
+.sport-accent-hover:hover {
+  color: var(--sport-accent, #6fcf97);
 }
 
 .onboarding-booking-card {
@@ -626,6 +826,11 @@ body {
   outline-width: 4px;
 }
 
+.map-test-marker-badminton:hover,
+.map-test-marker-badminton.map-test-marker-selected {
+  outline-color: rgba(55, 90, 230, 0.24);
+}
+
 .map-test-marker-selected {
   z-index: 1;
 }
@@ -745,65 +950,36 @@ body {
   white-space: nowrap;
 }
 
-/* 커스텀 체크박스 스타일 */
-.custom-checkbox {
+/* 메인 필터 체크박스 - 첨부 디자인 SVG를 상태별로 그대로 사용 */
+.filter-checkbox {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  width: 16px;
-  height: 16px;
-  border: 1.5px solid #ffffff;
-  border-radius: 2px;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 0;
+  border-radius: 4px;
   background-color: transparent;
+  background-image: url("/icon/icon_check_square_unchecked.svg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 20px 20px;
   cursor: pointer;
   position: relative;
   flex-shrink: 0;
-  transition: all 0.2s ease;
+  transition: opacity 0.15s ease;
 }
 
-.custom-checkbox:checked {
-  background-color: #ffffff;
-  border-color: #ffffff;
+.filter-checkbox:checked {
+  background-image: url("/icon/icon_check_square_checked.svg");
 }
 
-.custom-checkbox:checked::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 10px;
-  height: 10px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='black'%3E%3Cpath d='M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z'/%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
+.filter-checkbox:hover {
+  opacity: 0.86;
 }
 
-.custom-checkbox:hover {
-  border-color: #ffffff;
-}
-
-.custom-checkbox:checked:hover {
-  background-color: #ffffff;
-  border-color: #ffffff;
-}
-
-/* 다크 테마용 체크박스 스타일 */
-.dark-theme .custom-checkbox {
-  border-color: #52525b;
-}
-
-.dark-theme .custom-checkbox:checked {
-  background-color: #ffffff;
-  border-color: #ffffff;
-}
-
-.dark-theme .custom-checkbox:hover {
-  border-color: #71717a;
-}
-
-.dark-theme .custom-checkbox:checked:hover {
-  background-color: #e4e4e7;
-  border-color: #e4e4e7;
+.filter-checkbox:focus-visible {
+  outline: 2px solid #6fcf97;
+  outline-offset: 3px;
 }

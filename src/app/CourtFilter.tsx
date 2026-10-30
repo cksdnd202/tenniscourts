@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import type { Court, CourtBookingRule } from "./types";
+import type { Court, CourtBookingRule, SportType } from "./types";
+import { SPORT_CARD_THEMES, SPORT_SURFACES, SPORT_VENUE_LABELS } from "@/lib/sports";
 import { FixedScheduleContent } from "./FixedScheduleContent";
 import { OrdinalContent } from "./ordinal";
 import { RollingContent } from "./RollingContent";
@@ -18,6 +19,10 @@ import { supabase } from "@/lib/supabase";
 import { getCourtDetailPath } from "@/lib/courtPath";
 import { capturePostHogEvent } from "@/lib/posthogClient";
 import {
+  matchesCourtEnvironment,
+  type CourtEnvironment,
+} from "@/lib/courtEnvironment";
+import {
   getNextBookingRuleOpen,
   getNextNormalBookingOpen,
   getNextOwnerBookingOpen,
@@ -26,19 +31,44 @@ import {
 
 type Props = {
   courts: Court[];
+  sportType?: SportType;
   showViewToggle?: boolean;
 };
 
 type CourtListSort = "recent" | "upcoming" | "name";
 type CourtListViewMode = "card" | "list";
+type CourtFeeFilter = "free" | "paid";
+type PriceRange = [number, number];
 type MyRegionProfile = {
   home_region?: string | null;
   home_city?: string | null;
 };
 
-const courtitemstyle = 
-"grid w-full min-h-[380px] content-start rounded-xl border border-[#191B1E] p-5 bg-[#191B1E] gap-2 transition-[background-color,transform] duration-300 ease-in-out hover:-translate-y-1 hover:border-[#2C2C2C] hover:bg-[#2C2C2C] overflow-hidden min-w-0";
+const courtitemstyle =
+  "grid w-full content-start rounded-xl border border-[#191B1E] p-5 bg-[#191B1E] gap-2 transition-[background-color,transform] duration-300 ease-in-out hover:-translate-y-1 hover:border-[#2C2C2C] hover:bg-[#2C2C2C] overflow-hidden min-w-0";
 const COURTS_PER_PAGE = 30;
+const PRICE_RANGE_MIN = 0;
+const PRICE_RANGE_MAX = 500_000;
+const PRICE_RANGE_STEP = 1_000;
+const PRICE_RANGE_MARKS = [
+  { value: 0, label: "0" },
+  { value: 10_000, label: "1만" },
+  { value: 30_000, label: "3만" },
+  { value: 50_000, label: "5만" },
+  { value: 500_000, label: "최대" },
+] as const;
+const DEFAULT_PRICE_RANGE: PriceRange = [PRICE_RANGE_MIN, PRICE_RANGE_MAX];
+const FILTER_TOOLTIP_STYLE: CSSProperties = {
+  borderRadius: "12px",
+  boxShadow: "0 8px 24px rgba(0, 0, 0, 0.28)",
+  color: "#FFFFFF",
+  fontSize: "12px",
+  fontWeight: 600,
+  lineHeight: "16px",
+  padding: "8px",
+  textAlign: "center",
+  whiteSpace: "nowrap",
+};
 
 const getDateTime = (value?: string | null) => {
   if (!value) return 0;
@@ -82,18 +112,324 @@ function getNearestBookingOpenTime(court: Court, from: Date) {
   return times.length > 0 ? Math.min(...times) : Number.POSITIVE_INFINITY;
 }
 
-export function CourtFilter({ courts, showViewToggle = false }: Props) {
+function formatKoreanPrice(value: number) {
+  if (value === 0) return "0";
+  const tenThousands = Math.floor(value / 10_000);
+  const thousands = Math.floor((value % 10_000) / 1_000);
+
+  if (tenThousands > 0 && thousands > 0) return `${tenThousands}만 ${thousands}천원`;
+  if (tenThousands > 0) return `${tenThousands}만원`;
+  return `${thousands}천원`;
+}
+
+function formatPriceRange([minimum, maximum]: PriceRange) {
+  if (minimum === 0) {
+    if (maximum === 0) return "0";
+    return `~${formatKoreanPrice(maximum)}`;
+  }
+
+  return `${formatKoreanPrice(minimum)} ~ ${formatKoreanPrice(maximum)}`;
+}
+
+function PriceFilterInfoTooltip({ tooltipId }: { tooltipId: string }) {
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState({
+    buttonCenterX: 0,
+    tooltipCenterX: 0,
+    top: 0,
+  });
+
+  const showTooltip = () => {
+    const button = buttonRef.current;
+    if (!button) return;
+
+    const bounds = button.getBoundingClientRect();
+    const buttonCenterX = bounds.left + bounds.width / 2;
+    const tooltipHalfWidth = 140;
+    const viewportPadding = 12;
+    const tooltipCenterX = Math.min(
+      window.innerWidth - tooltipHalfWidth - viewportPadding,
+      Math.max(tooltipHalfWidth + viewportPadding, buttonCenterX)
+    );
+
+    setPosition({
+      buttonCenterX,
+      tooltipCenterX,
+      top: bounds.top - 6,
+    });
+    setIsOpen(true);
+  };
+
+  const tooltip =
+    isOpen && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            id={tooltipId}
+            role="tooltip"
+            style={{
+              ...FILTER_TOOLTIP_STYLE,
+              backgroundColor: "#2C2C2C",
+              left: `${position.tooltipCenterX}px`,
+              maxWidth: "calc(100vw - 24px)",
+              position: "fixed",
+              top: `${position.top}px`,
+              transform: "translate(-50%, -100%)",
+              width: "max-content",
+              zIndex: 100,
+            }}
+          >
+            이용금액은 1시간 기준으로 필터링 됩니다
+            <span
+              aria-hidden="true"
+              style={{
+                borderLeft: "7px solid transparent",
+                borderRight: "7px solid transparent",
+                borderTop: "7px solid #2C2C2C",
+                bottom: "-6px",
+                height: 0,
+                left: `calc(50% + ${position.buttonCenterX - position.tooltipCenterX}px)`,
+                position: "absolute",
+                transform: "translateX(-50%)",
+                width: 0,
+              }}
+            />
+          </div>,
+          document.body
+        )
+      : null;
+
+  return (
+    <span
+      className="inline-flex"
+      onMouseEnter={showTooltip}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-label="이용금액 필터 기준 안내"
+        aria-describedby={isOpen ? tooltipId : undefined}
+        onFocus={showTooltip}
+        onBlur={() => setIsOpen(false)}
+        className="flex h-4 w-4 items-center justify-center rounded-full border border-[#6B7078] text-[10px] font-bold leading-none text-[#8A8F98] outline-none focus-visible:ring-2 focus-visible:ring-[#8A8F98]"
+      >
+        ?
+      </button>
+      {tooltip}
+    </span>
+  );
+}
+
+function priceToPercentage(value: number) {
+  const clamped = Math.min(PRICE_RANGE_MAX, Math.max(PRICE_RANGE_MIN, value));
+  const lastMarkIndex = PRICE_RANGE_MARKS.length - 1;
+
+  for (let index = 0; index < lastMarkIndex; index += 1) {
+    const start = PRICE_RANGE_MARKS[index].value;
+    const end = PRICE_RANGE_MARKS[index + 1].value;
+    if (clamped <= end) {
+      const segmentRatio = (clamped - start) / (end - start);
+      return ((index + segmentRatio) / lastMarkIndex) * 100;
+    }
+  }
+
+  return 100;
+}
+
+function percentageToPrice(percentage: number) {
+  const clamped = Math.min(100, Math.max(0, percentage));
+  const lastMarkIndex = PRICE_RANGE_MARKS.length - 1;
+  if (clamped === 100) return PRICE_RANGE_MAX;
+
+  const scaled = (clamped / 100) * lastMarkIndex;
+  const segmentIndex = Math.min(lastMarkIndex - 1, Math.floor(scaled));
+  const segmentRatio = scaled - segmentIndex;
+  const start = PRICE_RANGE_MARKS[segmentIndex].value;
+  const end = PRICE_RANGE_MARKS[segmentIndex + 1].value;
+  const rawValue = start + (end - start) * segmentRatio;
+  return Math.round(rawValue / PRICE_RANGE_STEP) * PRICE_RANGE_STEP;
+}
+
+function PriceRangeSlider({
+  value,
+  onChange,
+  onReset,
+  isMobile = false,
+}: {
+  value: PriceRange;
+  onChange: (value: PriceRange) => void;
+  onReset: () => void;
+  isMobile?: boolean;
+}) {
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const [minimum, maximum] = value;
+  const start = priceToPercentage(minimum);
+  const end = priceToPercentage(maximum);
+  const trackInset = isMobile ? 24 : 12;
+
+  const updateFromPointer = (clientX: number, handle: "minimum" | "maximum") => {
+    const track = trackRef.current;
+    if (!track) return;
+
+    const bounds = track.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - bounds.left) / bounds.width));
+    const nextPrice = percentageToPrice(ratio * 100);
+
+    if (handle === "minimum") {
+      onChange([Math.min(nextPrice, maximum), maximum]);
+      return;
+    }
+
+    onChange([minimum, Math.max(nextPrice, minimum)]);
+  };
+
+  const updateFromKeyboard = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    handle: "minimum" | "maximum"
+  ) => {
+    const currentPrice = handle === "minimum" ? minimum : maximum;
+    let nextPrice = currentPrice;
+
+    if (event.key === "ArrowLeft" || event.key === "ArrowDown") nextPrice -= PRICE_RANGE_STEP;
+    else if (event.key === "ArrowRight" || event.key === "ArrowUp") nextPrice += PRICE_RANGE_STEP;
+    else if (event.key === "Home") nextPrice = PRICE_RANGE_MIN;
+    else if (event.key === "End") nextPrice = PRICE_RANGE_MAX;
+    else return;
+
+    event.preventDefault();
+    nextPrice = Math.min(PRICE_RANGE_MAX, Math.max(PRICE_RANGE_MIN, nextPrice));
+    if (handle === "minimum") {
+      onChange([Math.min(nextPrice, maximum), maximum]);
+    } else {
+      onChange([minimum, Math.max(nextPrice, minimum)]);
+    }
+  };
+
+  const handleTrackPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const bounds = track.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
+    const nextPrice = percentageToPrice(ratio * 100);
+    const handle =
+      Math.abs(nextPrice - minimum) <= Math.abs(nextPrice - maximum)
+        ? "minimum"
+        : "maximum";
+    updateFromPointer(event.clientX, handle);
+  };
+
+  const renderHandle = (handle: "minimum" | "maximum", price: number) => (
+    <button
+      type="button"
+      role="slider"
+      aria-label={handle === "minimum" ? "최소 이용요금" : "최대 이용요금"}
+      aria-valuemin={PRICE_RANGE_MIN}
+      aria-valuemax={PRICE_RANGE_MAX}
+      aria-valuenow={price}
+      aria-valuetext={formatKoreanPrice(price)}
+      onKeyDown={(event) => updateFromKeyboard(event, handle)}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        updateFromPointer(event.clientX, handle);
+      }}
+      onPointerMove={(event) => {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          updateFromPointer(event.clientX, handle);
+        }
+      }}
+      className="absolute top-1/2 z-10 h-6 w-6 -translate-x-1/2 -translate-y-1/2 touch-none rounded-full border border-white bg-[#18181A] shadow-[0_2px_8px_rgba(0,0,0,0.35)] outline-none focus-visible:ring-2 focus-visible:ring-[#31C887] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+      style={{ left: `${priceToPercentage(price)}%` }}
+    />
+  );
+
+  return (
+    <div className="mt-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="min-w-0 whitespace-nowrap text-sm font-semibold text-white">
+          {formatPriceRange(value)}
+        </p>
+        <button
+          type="button"
+          onClick={onReset}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white text-white transition-colors hover:bg-white/10"
+          aria-label="가격 범위 초기화"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon/icon_reset.svg" alt="" width="12" height="12" />
+        </button>
+      </div>
+
+      <div
+        ref={trackRef}
+        className="relative mt-4 h-7 touch-none cursor-pointer"
+        style={{ marginLeft: `${trackInset}px`, marginRight: `${trackInset}px` }}
+        onPointerDown={handleTrackPointerDown}
+      >
+        <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-[#505154]">
+          <div
+            className="absolute inset-y-0 rounded-full bg-white"
+            style={{ left: `${start}%`, width: `${Math.max(0, end - start)}%` }}
+          />
+        </div>
+        {renderHandle("minimum", minimum)}
+        {renderHandle("maximum", maximum)}
+      </div>
+
+      <div
+        className="relative mt-1 h-5 text-[11px] font-medium text-white"
+        style={{ marginLeft: `${trackInset}px`, marginRight: `${trackInset}px` }}
+      >
+        {PRICE_RANGE_MARKS.map((mark, index) => (
+          <span
+            key={mark.value}
+            className="absolute top-0 whitespace-nowrap"
+            style={{
+              left: `${(index / (PRICE_RANGE_MARKS.length - 1)) * 100}%`,
+              transform:
+                index === 0
+                  ? "none"
+                  : index === PRICE_RANGE_MARKS.length - 1
+                    ? "translateX(-100%)"
+                    : "translateX(-50%)",
+            }}
+          >
+            {mark.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function CourtFilter({ courts, sportType = "tennis", showViewToggle = false }: Props) {
+  const venueLabel = SPORT_VENUE_LABELS[sportType];
+  const surfaceOptions = SPORT_SURFACES[sportType];
+  const cardTheme = SPORT_CARD_THEMES[sportType];
+  const cardThemeStyle = {
+    "--sport-accent": cardTheme.accent,
+    "--sport-bookmark": cardTheme.bookmark,
+    "--sport-primary": cardTheme.primary,
+    "--sport-primary-hover": cardTheme.primaryHover,
+  } as CSSProperties;
   // 실제 필터 상태 (필터링에 사용)
   const [selectedRegion, setSelectedRegion] = useState<string>("");
   const [selectedCity, setSelectedCity] = useState<string>("");
   const [selectedCourtTypes, setSelectedCourtTypes] = useState<string[]>([]);
+  const [selectedCourtEnvironments, setSelectedCourtEnvironments] = useState<CourtEnvironment[]>([]);
   const [selectedOwnerTypes, setSelectedOwnerTypes] = useState<string[]>([]);
+  const [selectedFeeTypes, setSelectedFeeTypes] = useState<CourtFeeFilter[]>([]);
+  const [selectedPriceRange, setSelectedPriceRange] = useState<PriceRange>(DEFAULT_PRICE_RANGE);
   
   // 팝업에서 사용할 임시 필터 상태
   const [tempRegion, setTempRegion] = useState<string>("");
   const [tempCity, setTempCity] = useState<string>("");
   const [tempCourtTypes, setTempCourtTypes] = useState<string[]>([]);
+  const [tempCourtEnvironments, setTempCourtEnvironments] = useState<CourtEnvironment[]>([]);
   const [tempOwnerTypes, setTempOwnerTypes] = useState<string[]>([]);
+  const [tempFeeTypes, setTempFeeTypes] = useState<CourtFeeFilter[]>([]);
+  const [tempPriceRange, setTempPriceRange] = useState<PriceRange>(DEFAULT_PRICE_RANGE);
   
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [isFilterClosing, setIsFilterClosing] = useState<boolean>(false);
@@ -105,6 +441,7 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
   const [isMounted, setIsMounted] = useState(false);
   const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
   const [isRegionSetupPromptOpen, setIsRegionSetupPromptOpen] = useState(false);
+  const [isBadmintonPriceTooltipOpen, setIsBadmintonPriceTooltipOpen] = useState(false);
   const asideRef = useRef<HTMLElement | null>(null);
   const resultsRef = useRef<HTMLElement | null>(null);
   const filterCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -219,10 +556,10 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
     return citiesByRegion[selectedRegion] ?? [];
   }, [selectedRegion, citiesByRegion]);
 
-  const toggleInArray = (arr: string[], value: string) =>
+  const toggleInArray = <T extends string,>(arr: T[], value: T) =>
     arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
 
-  // 지역/도시 + 코트 종류 + 운영 구분 필터링
+  // 지역/도시 + 코트 종류 + 실내/실외 + 운영 구분 필터링
   const filteredCourts = useMemo(() => {
     return courts.filter((c) => {
       const owner = (c.basic_owner_type ?? "").trim();
@@ -262,11 +599,39 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
           matchesType = true;
         if (selectedCourtTypes.includes("clay") && hasClay) matchesType = true;
 
+        if (
+          (c.court_surface_counts ?? []).some(
+            (surface) =>
+              selectedCourtTypes.includes(surface.surface_type) &&
+              Number(surface.indoor_count ?? 0) + Number(surface.outdoor_count ?? 0) > 0
+          )
+        ) {
+          matchesType = true;
+        }
+
         if (!matchesType) return false;
+      }
+
+      if (!matchesCourtEnvironment(c, selectedCourtEnvironments)) {
+        return false;
       }
 
       if (selectedOwnerTypes.length > 0) {
         if (!selectedOwnerTypes.includes(owner)) return false;
+      }
+
+      if (selectedFeeTypes.length > 0) {
+        const feeSummary = c.court_fee_summary;
+        const matchesFree =
+          selectedFeeTypes.includes("free") && feeSummary?.has_free === true;
+        const matchesPaid =
+          selectedFeeTypes.includes("paid") &&
+          feeSummary?.has_paid === true &&
+          feeSummary.price_values.some(
+            (price) => price >= selectedPriceRange[0] && price <= selectedPriceRange[1]
+          );
+
+        if (!matchesFree && !matchesPaid) return false;
       }
 
       return true;
@@ -276,7 +641,10 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
     selectedRegion,
     selectedCity,
     selectedCourtTypes,
+    selectedCourtEnvironments,
     selectedOwnerTypes,
+    selectedFeeTypes,
+    selectedPriceRange,
   ]);
   const sortedCourts = useMemo(() => {
     const list = [...filteredCourts];
@@ -309,7 +677,16 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
   useEffect(() => {
     setVisibleCount(COURTS_PER_PAGE);
     resultsRef.current?.scrollTo({ top: 0 });
-  }, [selectedRegion, selectedCity, selectedCourtTypes, selectedOwnerTypes, sortMode]);
+  }, [
+    selectedRegion,
+    selectedCity,
+    selectedCourtTypes,
+    selectedCourtEnvironments,
+    selectedOwnerTypes,
+    selectedFeeTypes,
+    selectedPriceRange,
+    sortMode,
+  ]);
 
   const handleResultsScroll = () => {
     const el = resultsRef.current;
@@ -411,7 +788,10 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
     setTempRegion(selectedRegion);
     setTempCity(selectedCity);
     setTempCourtTypes([...selectedCourtTypes]);
+    setTempCourtEnvironments([...selectedCourtEnvironments]);
     setTempOwnerTypes([...selectedOwnerTypes]);
+    setTempFeeTypes([...selectedFeeTypes]);
+    setTempPriceRange([...selectedPriceRange] as PriceRange);
     setIsFilterClosing(false);
     setIsFilterOpen(true);
   };
@@ -421,13 +801,19 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
     setSelectedRegion(tempRegion);
     setSelectedCity(tempCity);
     setSelectedCourtTypes([...tempCourtTypes]);
+    setSelectedCourtEnvironments([...tempCourtEnvironments]);
     setSelectedOwnerTypes([...tempOwnerTypes]);
+    setSelectedFeeTypes([...tempFeeTypes]);
+    setSelectedPriceRange([...tempPriceRange] as PriceRange);
     capturePostHogEvent("main_filter_clicked", {
       filterType: "mobile_filter_apply",
       region: tempRegion,
       city: tempCity,
       courtTypes: tempCourtTypes,
+      courtEnvironments: tempCourtEnvironments,
       ownerTypes: tempOwnerTypes,
+      feeTypes: tempFeeTypes,
+      priceRange: tempPriceRange,
     });
     handleCloseFilter();
   };
@@ -447,12 +833,18 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
     setSelectedRegion("");
     setSelectedCity("");
     setSelectedCourtTypes([]);
+    setSelectedCourtEnvironments([]);
     setSelectedOwnerTypes([]);
+    setSelectedFeeTypes([]);
+    setSelectedPriceRange(DEFAULT_PRICE_RANGE);
     if (isFilterOpen) {
       setTempRegion("");
       setTempCity("");
       setTempCourtTypes([]);
+      setTempCourtEnvironments([]);
       setTempOwnerTypes([]);
+      setTempFeeTypes([]);
+      setTempPriceRange(DEFAULT_PRICE_RANGE);
     }
     capturePostHogEvent("main_filter_clicked", {
       filterType: "reset",
@@ -489,6 +881,7 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
         return <OnSiteContent court={c} />;
       case "irregular":
         return <IrregularContent court={c} />;
+      case "outdoor_open":
       case "checking":
         return <CheckingContent court={c} />;
       default:
@@ -507,7 +900,7 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
         >
           <span className="min-w-0">
             <span className="block truncate text-base font-bold text-white">
-              {court.basic_court_name ?? "이름 없는 테니스장"}
+              {court.basic_court_name ?? `이름 없는 ${venueLabel}`}
             </span>
             <span className="mt-1 block truncate text-sm font-medium text-[#8A8F98]">
               {region || "지역 미입력"}
@@ -536,13 +929,48 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
     );
   };
 
-  // 필터 콘텐츠 컴포넌트 (재사용을 위해 분리)
-  const FilterContent = ({ isMobile = false, useTemp = false }: { isMobile?: boolean; useTemp?: boolean }) => {
+  // 상태 변경 시 DOM을 재생성하지 않도록 렌더 함수로 유지한다.
+  const renderFilterContent = ({ isMobile = false, useTemp = false }: { isMobile?: boolean; useTemp?: boolean }) => {
     const currentRegion = useTemp ? tempRegion : selectedRegion;
     const currentCity = useTemp ? tempCity : selectedCity;
     const currentCourtTypes = useTemp ? tempCourtTypes : selectedCourtTypes;
+    const currentCourtEnvironments = useTemp
+      ? tempCourtEnvironments
+      : selectedCourtEnvironments;
     const currentOwnerTypes = useTemp ? tempOwnerTypes : selectedOwnerTypes;
+    const currentFeeTypes = useTemp ? tempFeeTypes : selectedFeeTypes;
+    const currentPriceRange = useTemp ? tempPriceRange : selectedPriceRange;
     const currentCities = useTemp ? tempCities : cities;
+    const badmintonPriceTooltipId = useTemp
+      ? "badminton-price-tooltip-mobile"
+      : "badminton-price-tooltip-desktop";
+    const priceInfoTooltipId = useTemp
+      ? "price-filter-info-tooltip-mobile"
+      : "price-filter-info-tooltip-desktop";
+
+    const updateFeeTypes = (value: CourtFeeFilter) => {
+      const nextFeeTypes = toggleInArray(currentFeeTypes, value);
+      if (useTemp) {
+        setTempFeeTypes(nextFeeTypes);
+      } else {
+        setSelectedFeeTypes(nextFeeTypes);
+      }
+      capturePostHogEvent("main_filter_clicked", {
+        filterType: "fee_type",
+        value,
+        sportType,
+        action: currentFeeTypes.includes(value) ? "remove" : "add",
+        source: useTemp ? "mobile_filter" : "desktop_filter",
+      });
+    };
+
+    const updatePriceRange = (value: PriceRange) => {
+      if (useTemp) {
+        setTempPriceRange(value);
+      } else {
+        setSelectedPriceRange(value);
+      }
+    };
 
     const handleRegionChange = (value: string) => {
       if (useTemp) {
@@ -576,7 +1004,7 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
     return (
       <>
         {/* 지역 필터 */}
-        <section className="mb-6">
+        <section className="mb-8">
           <div className="mb-2 flex items-center justify-between gap-3">
             <h3 className="text-lg font-bold text-white">지역</h3>
             <button
@@ -637,87 +1065,214 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
         </section>
 
         {/* 코트 종류 필터 */}
-        <section className="mb-6">
+        <section className="mb-8">
           <h3 className={`mb-2 text-lg font-bold text-white`}>
             코트 종류
           </h3>
-          <div className={`flex flex-col gap-1 text-sm text-white`}>
-            <label className="inline-flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="custom-checkbox"
-                checked={currentCourtTypes.includes("hard")}
-                onChange={() => {
-                  capturePostHogEvent("main_filter_clicked", {
-                    filterType: "court_type",
-                    value: "hard",
-                    action: currentCourtTypes.includes("hard") ? "remove" : "add",
-                    source: useTemp ? "mobile_filter" : "desktop_filter",
-                  });
-                  if (useTemp) {
-                    setTempCourtTypes((prev) => toggleInArray(prev, "hard"));
-                  } else {
-                    setSelectedCourtTypes((prev) => toggleInArray(prev, "hard"));
-                  }
-                }}
-              />
-              <span className="text-sm">하드</span>
-            </label>
-            <label className="inline-flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="custom-checkbox"
-                checked={currentCourtTypes.includes("grass")}
-                onChange={() => {
-                  capturePostHogEvent("main_filter_clicked", {
-                    filterType: "court_type",
-                    value: "grass",
-                    action: currentCourtTypes.includes("grass") ? "remove" : "add",
-                    source: useTemp ? "mobile_filter" : "desktop_filter",
-                  });
-                  if (useTemp) {
-                    setTempCourtTypes((prev) => toggleInArray(prev, "grass"));
-                  } else {
-                    setSelectedCourtTypes((prev) => toggleInArray(prev, "grass"));
-                  }
-                }}
-              />
-              <span className="text-sm">잔디</span>
-            </label>
-            <label className="inline-flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="custom-checkbox"
-                checked={currentCourtTypes.includes("clay")}
-                onChange={() => {
-                  capturePostHogEvent("main_filter_clicked", {
-                    filterType: "court_type",
-                    value: "clay",
-                    action: currentCourtTypes.includes("clay") ? "remove" : "add",
-                    source: useTemp ? "mobile_filter" : "desktop_filter",
-                  });
-                  if (useTemp) {
-                    setTempCourtTypes((prev) => toggleInArray(prev, "clay"));
-                  } else {
-                    setSelectedCourtTypes((prev) => toggleInArray(prev, "clay"));
-                  }
-                }}
-              />
-              <span className="text-sm">클레이</span>
-            </label>
+          <div className="flex flex-col gap-2.5 text-white">
+            {surfaceOptions.map((surface) => (
+              <label key={surface.value} className="inline-flex min-h-5 cursor-pointer items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  className="filter-checkbox"
+                  checked={currentCourtTypes.includes(surface.value)}
+                  onChange={() => {
+                    capturePostHogEvent("main_filter_clicked", {
+                      filterType: "court_type",
+                      value: surface.value,
+                      sportType,
+                      action: currentCourtTypes.includes(surface.value) ? "remove" : "add",
+                      source: useTemp ? "mobile_filter" : "desktop_filter",
+                    });
+                    if (useTemp) {
+                      setTempCourtTypes((prev) => toggleInArray(prev, surface.value));
+                    } else {
+                      setSelectedCourtTypes((prev) => toggleInArray(prev, surface.value));
+                    }
+                  }}
+                />
+                <span className="text-base font-normal leading-5">{surface.label}</span>
+              </label>
+            ))}
           </div>
         </section>
 
+        {/* 실내/실외 필터 */}
+        <section className="mb-8">
+          <h3 className="mb-2 text-lg font-bold text-white">실내/실외</h3>
+          <div className="flex flex-col gap-2.5 text-white">
+            {([
+              { value: "indoor", label: "실내" },
+              { value: "outdoor", label: "실외" },
+            ] as const).map((environment) => (
+              <label
+                key={environment.value}
+                className="inline-flex min-h-5 cursor-pointer items-center gap-2.5"
+              >
+                <input
+                  type="checkbox"
+                  className="filter-checkbox"
+                  checked={currentCourtEnvironments.includes(environment.value)}
+                  onChange={() => {
+                    capturePostHogEvent("main_filter_clicked", {
+                      filterType: "court_environment",
+                      value: environment.value,
+                      sportType,
+                      action: currentCourtEnvironments.includes(environment.value)
+                        ? "remove"
+                        : "add",
+                      source: useTemp ? "mobile_filter" : "desktop_filter",
+                    });
+                    if (useTemp) {
+                      setTempCourtEnvironments((prev) =>
+                        toggleInArray(prev, environment.value)
+                      );
+                    } else {
+                      setSelectedCourtEnvironments((prev) =>
+                        toggleInArray(prev, environment.value)
+                      );
+                    }
+                  }}
+                />
+                <span className="text-base font-normal leading-5">{environment.label}</span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        {/* 이용 요금 필터 */}
+        <section className="mb-8">
+          <div className="mb-2 flex items-center gap-1.5">
+            <h3 className="text-lg font-bold text-white">이용금액</h3>
+            <PriceFilterInfoTooltip tooltipId={priceInfoTooltipId} />
+          </div>
+          {sportType === "tennis" ? (
+            <>
+              <div className="flex flex-col gap-2.5 text-white">
+                {([
+                  { value: "free", label: "무료" },
+                  { value: "paid", label: "유료" },
+                ] as const).map((feeType) => (
+                  <label
+                    key={feeType.value}
+                    className="inline-flex min-h-5 cursor-pointer items-center gap-2.5"
+                  >
+                    <input
+                      type="checkbox"
+                      className="filter-checkbox"
+                      checked={currentFeeTypes.includes(feeType.value)}
+                      onChange={() => updateFeeTypes(feeType.value)}
+                    />
+                    <span className="text-base font-normal leading-5">{feeType.label}</span>
+                  </label>
+                ))}
+              </div>
+              {currentFeeTypes.includes("paid") ? (
+                <PriceRangeSlider
+                  value={currentPriceRange}
+                  onChange={updatePriceRange}
+                  onReset={() => updatePriceRange(DEFAULT_PRICE_RANGE)}
+                  isMobile={isMobile}
+                />
+              ) : null}
+            </>
+          ) : (
+            <div className="min-h-[112px]">
+              <div className="relative">
+                <div
+                  className="pointer-events-none flex select-none flex-col gap-2.5 text-white"
+                  aria-hidden="true"
+                >
+                  <span
+                    className="inline-flex min-h-5 items-center gap-2.5"
+                    style={{ opacity: 0.3 }}
+                  >
+                    <span className="filter-checkbox" />
+                    <span className="text-base">무료</span>
+                  </span>
+                  <span
+                    className="inline-flex min-h-5 items-center gap-2.5"
+                    style={{ opacity: 0.3 }}
+                  >
+                    <span className="filter-checkbox" />
+                    <span className="text-base">유료</span>
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    left: "50%",
+                    position: "absolute",
+                    top: "50%",
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 30,
+                  }}
+                >
+                  {isBadmintonPriceTooltipOpen ? (
+                    <div
+                      id={badmintonPriceTooltipId}
+                      role="tooltip"
+                      style={{
+                        ...FILTER_TOOLTIP_STYLE,
+                        backgroundColor: "#337DFF",
+                        bottom: "calc(100% + 6px)",
+                        left: "50%",
+                        position: "absolute",
+                        transform: "translateX(-50%)",
+                        width: "128px",
+                        zIndex: 31,
+                      }}
+                    >
+                      배드민턴장 요금 정보를
+                      <br />
+                      수집하고 있어요
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          borderLeft: "7px solid transparent",
+                          borderRight: "7px solid transparent",
+                          borderTop: "7px solid #337DFF",
+                          bottom: "-6px",
+                          height: 0,
+                          left: "50%",
+                          position: "absolute",
+                          transform: "translateX(-50%)",
+                          width: 0,
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    aria-label="배드민턴장 이용금액 필터 안내"
+                    aria-expanded={isBadmintonPriceTooltipOpen}
+                    aria-describedby={isBadmintonPriceTooltipOpen ? badmintonPriceTooltipId : undefined}
+                    onClick={() => setIsBadmintonPriceTooltipOpen((open) => !open)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") setIsBadmintonPriceTooltipOpen(false);
+                    }}
+                    className="flex items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[#337DFF] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                    style={{ height: "32px", width: "32px" }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/icon/icon_lock.svg" alt="" width="32" height="32" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
         {/* 운영 구분 필터 */}
-        <section className="mb-6">
+        <section className="mb-8">
           <h3 className={`mb-2 text-lg font-bold text-white`}>
             운영 구분
           </h3>
-          <div className={`flex flex-col gap-1 text-sm text-white`}>
-            <label className="inline-flex items-center gap-2 cursor-pointer">
+          <div className="flex flex-col gap-2.5 text-white">
+            <label className="inline-flex min-h-5 cursor-pointer items-center gap-2.5">
               <input
                 type="checkbox"
-                className="custom-checkbox"
+                className="filter-checkbox"
                 checked={currentOwnerTypes.includes("시립")}
                 onChange={() => {
                   capturePostHogEvent("main_filter_clicked", {
@@ -733,12 +1288,12 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
                   }
                 }}
               />
-              <span className="text-sm">시립</span>
+              <span className="text-base font-normal leading-5">시립</span>
             </label>
-            <label className="inline-flex items-center gap-2 cursor-pointer">
+            <label className="inline-flex min-h-5 cursor-pointer items-center gap-2.5">
               <input
                 type="checkbox"
-                className="custom-checkbox"
+                className="filter-checkbox"
                 checked={currentOwnerTypes.includes("구립")}
                 onChange={() => {
                   capturePostHogEvent("main_filter_clicked", {
@@ -754,12 +1309,12 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
                   }
                 }}
               />
-              <span className="text-sm">구립</span>
+              <span className="text-base font-normal leading-5">구립</span>
             </label>
-            <label className="inline-flex items-center gap-2 cursor-pointer">
+            <label className="inline-flex min-h-5 cursor-pointer items-center gap-2.5">
               <input
                 type="checkbox"
-                className="custom-checkbox"
+                className="filter-checkbox"
                 checked={currentOwnerTypes.includes("사설")}
                 onChange={() => {
                   capturePostHogEvent("main_filter_clicked", {
@@ -775,7 +1330,7 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
                   }
                 }}
               />
-              <span className="text-sm">사설</span>
+              <span className="text-base font-normal leading-5">사설</span>
             </label>
           </div>
         </section>
@@ -797,9 +1352,10 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
         {/*<h2 className="mb-6 text-2xl font-black text-zinc-900">
           GROUND KOREA
         </h2>*/}
-        <FilterContent isMobile={false} useTemp={false} />
+        {renderFilterContent({ isMobile: false, useTemp: false })}
         {/* 초기화 버튼 */}
         <button
+          type="button"
           onClick={handleResetFilter}
           className="mt-6 w-full px-4 py-2.5 text-sm font-medium text-white border border-[#3C3C3C] rounded hover:bg-[#2C2C2C] transition-colors"
         >
@@ -874,9 +1430,10 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
             </div>
             {/* 필터 콘텐츠 */}
             <div className="flex-1 overflow-y-auto px-6 py-6">
-              <FilterContent isMobile={true} useTemp={true} />
+              {renderFilterContent({ isMobile: true, useTemp: true })}
               {/* 초기화 버튼 */}
               <button
+                type="button"
                 onClick={handleResetFilter}
                 className="mt-4 w-full px-4 py-2.5 text-sm font-medium text-white border border-[#3C3C3C] rounded hover:bg-[#2C2C2C] transition-colors"
               >
@@ -1060,23 +1617,33 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
             </button>
           </div>
           <p className="text-lg font-semibold text-white">
-            {sortedCourts.length}개의 코트
+            {sortedCourts.length}개의 {venueLabel}
           </p>
         </div>
 
         {sortedCourts.length === 0 ? (
-          <p className="text-[#B0B0B0]">조건에 맞는 코트가 없습니다.</p>
+          <div className="w-full rounded-2xl border border-[#2A2D33] bg-[#191B1E] px-6 py-12 text-center">
+            <p className="text-base font-semibold text-white">
+              {sportType === "badminton" && courts.length === 0
+                ? "등록된 배드민턴장이 아직 없습니다."
+                : `조건에 맞는 ${venueLabel}이 없습니다.`}
+            </p>
+            {sportType === "badminton" && courts.length === 0 ? (
+              <p className="mt-2 text-sm text-[#8A8F98]">어드민에서 배드민턴장 정보를 추가하면 이곳에 바로 표시됩니다.</p>
+            ) : null}
+          </div>
         ) : viewMode === "list" ? (
           <ul className="grid grid-cols-1 gap-3">
             {visibleCourts.map((court, index) => renderListCourtItem(court, index))}
           </ul>
         ) : (
-          <ul className="grid grid-cols-1 gap-4 max-[768px]:grid-cols-1 min-[769px]:max-[1275px]:grid-cols-2 min-[1276px]:sm:grid-cols-2 min-[1276px]:lg:grid-cols-3 min-[1276px]:2xl:grid-cols-4">
+          <ul className="grid grid-cols-1 items-start gap-4 max-[768px]:grid-cols-1 min-[769px]:max-[1275px]:grid-cols-2 min-[1276px]:sm:grid-cols-2 min-[1276px]:lg:grid-cols-3 min-[1276px]:2xl:grid-cols-4">
             {visibleCourts.map((c, index) => (
               <li
                 key={c.id}
                 data-coachmark={index === 0 ? "first-court-card" : undefined}
-                className={courtitemstyle}
+                className={`${courtitemstyle} ${sportType === "badminton" ? "h-fit self-start" : "min-h-[380px]"}`}
+                style={cardThemeStyle}
               >
                 {renderCourtContent(c)}
               </li>
@@ -1090,15 +1657,21 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
           </div>
         ) : null}
 
-        <footer className="mt-40 min-h-[220px] border-t border-[#2C2C2C] px-1 py-12 text-[#8A8F98]">
+        <footer data-nosnippet="" className="mt-40 min-h-[220px] border-t border-[#2C2C2C] px-1 py-12 text-[#8A8F98]">
           <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-lg font-semibold text-white">courtskorea</p>
+              <p className="text-lg font-semibold text-white">Courts Korea</p>
               <p className="mt-3 text-sm leading-6">
-                서울과 수도권 테니스장 예약 정보를 더 쉽게 확인할 수 있도록 정리합니다.
+                전국 테니스장과 배드민턴장 예약 정보를 더 쉽게 확인할 수 있도록 정리합니다.
               </p>
             </div>
             <nav className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm font-medium">
+              <Link href="/notices" className="transition-colors hover:text-white">
+                공지사항
+              </Link>
+              <Link href="/support" className="transition-colors hover:text-white">
+                고객문의
+              </Link>
               <Link
                 href="/privacy"
                 target="_blank"
@@ -1114,6 +1687,14 @@ export function CourtFilter({ courts, showViewToggle = false }: Props) {
                 className="transition-colors hover:text-white"
               >
                 이용약관
+              </Link>
+              <Link
+                href="/account-deletion"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-colors hover:text-white"
+              >
+                계정 및 데이터 삭제
               </Link>
             </nav>
           </div>

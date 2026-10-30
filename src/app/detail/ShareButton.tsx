@@ -52,7 +52,7 @@ export function ShareButton({ title }: ShareButtonProps) {
         type="button"
         aria-label="공유하기"
         onClick={handleShare}
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#2C2C2C] text-[#D8D8D8] transition-transform hover:scale-105 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6FCF97]"
+        className="sport-card-accent-focus inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#2C2C2C] text-[#D8D8D8] transition-transform hover:scale-105 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
       >
         <svg
           aria-hidden="true"

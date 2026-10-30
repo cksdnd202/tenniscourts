@@ -95,10 +95,10 @@ export async function GET(req: NextRequest) {
     .from("courtinfo")
     .select("*")
     .eq("id", courtId)
-    .single();
+    .maybeSingle();
 
   if (error || !court) {
-    return NextResponse.json({ error: error?.message ?? "테니스장 정보를 찾지 못했습니다." }, { status: 404 });
+    return NextResponse.json({ error: error ? "시설 정보를 불러오지 못했습니다." : "시설 정보를 찾지 못했습니다." }, { status: 404 });
   }
 
   const typedCourt = court as Court;
@@ -109,8 +109,10 @@ export async function GET(req: NextRequest) {
   }
 
   const shouldResolveSeoul =
-    typedCourt.source_provider === SEOUL_RESERVATION_PROVIDER ||
-    (typedCourt.basic_region === "서울" && typedCourt.booking_booking_provide === "public_site");
+    typedCourt.sport_type !== "badminton" && (
+      typedCourt.source_provider === SEOUL_RESERVATION_PROVIDER ||
+      (typedCourt.basic_region === "서울" && typedCourt.booking_booking_provide === "public_site")
+    );
 
   if (!shouldResolveSeoul) {
     return redirectTo(fallbackUrl);

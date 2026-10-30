@@ -1,0 +1,20 @@
+# Dependencies and local caches
+node_modules/
+node_modules.icloud-backup/
+node_modules.reinstalled-*/
+.expo/
+.kotlin/
+
+# Local native and export outputs; EAS regenerates native projects from app.json
+android/
+ios/
+dist/
+dist-*/
+web-build/
+builds/
+
+# Local-only files
+.env*
+*.tsbuildinfo
+*.log
+.DS_Store

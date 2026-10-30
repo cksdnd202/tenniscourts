@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "796850012030",
+    "project_id": "courts-korea",
+    "storage_bucket": "courts-korea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:796850012030:android:11dfddcb7fee4d37cf3d2f",
+        "android_client_info": {
+          "package_name": "com.courtskorea.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBj2R4UfDjxGMxa7fEOx_zdGF5hZECqWgA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

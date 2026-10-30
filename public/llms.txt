@@ -1,12 +1,13 @@
 # Courts Korea
 
-> Courts Korea is a Korean tennis court reservation information service. It helps users find tennis courts and understand when reservation openings begin, who can reserve first, and where to make reservations.
+> Courts Korea is a Korean tennis and badminton court reservation information service. It helps users find tennis and badminton courts and understand when reservation openings begin, who can reserve first, and where to make reservations.
 
 Official site: https://courtskorea.com
 
 ## Core pages
 
-- Home: https://courtskorea.com/
+- Tennis: https://courtskorea.com/tennis
+- Badminton: https://courtskorea.com/badminton
 - Map: https://courtskorea.com/map
 - Sitemap: https://courtskorea.com/sitemap.xml
 - Privacy Policy: https://courtskorea.com/privacy
@@ -14,7 +15,7 @@ Official site: https://courtskorea.com
 
 ## Main content
 
-Courts Korea maintains tennis court detail pages under:
+Courts Korea maintains tennis and badminton court detail pages under:
 
 - https://courtskorea.com/courts/
 
