@@ -1347,6 +1347,7 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
       <aside 
         ref={asideRef}
         data-coachmark="filter-area"
+        style={{ maxHeight: "calc(100% - 40px)" }}
         className="filter-scrollbar hidden min-[1032px]:block w-full max-w-2xs h-[calc(100vh-73px-40px)] overflow-y-auto p-7.5 pr-6 bg-[#000000] overscroll-y-none ml-5 mt-5"
       >
         {/*<h2 className="mb-6 text-2xl font-black text-zinc-900">

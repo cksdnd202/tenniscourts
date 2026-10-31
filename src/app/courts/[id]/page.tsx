@@ -9,6 +9,7 @@ import type { CSSProperties } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Court, CourtBlogLink } from "../../types";
 import { CourtSearchHeader } from "../../CourtSearchHeader";
+import { AppDownloadBanner } from "../../AppDownloadBanner";
 import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSection";
 import { AppReminderCard } from "../../detail/AppReminderCard";
 import { getNextBookingRuleOpen } from "@/lib/nextBookingOpen";
@@ -448,6 +449,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
 
       {/* 헤더 검색창과 동일하게 1032px 이상에서만 2열 + 우측 사이드 표시 (lg=1024만 쓰면 사이드바가 비는 구간 발생) */}
       <main data-detail-page="true" className="min-h-screen overflow-x-hidden bg-black pb-44 pt-[73px] min-[1032px]:pb-10">
+        <AppDownloadBanner />
         <div className="mx-auto max-w-7xl px-4 sm:px-6 min-[1032px]:px-8 py-6 min-[1032px]:py-8">
           <div className="min-[1032px]:grid min-[1032px]:grid-cols-12 min-[1032px]:gap-8 min-[1032px]:items-stretch">
             {/* 좌측 메인 (~70–75%) */}
