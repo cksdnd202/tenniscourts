@@ -1,7 +1,7 @@
 # Detail app reminder card
 
 - Located immediately after the booking information, before the location section.
-- Uses existing detail card colors, border, radius, and sport accent.
+- Uses a dark green surface with a mint smartphone illustration, layered notification, and bell badge. Mouse hover, pointer press, and keyboard focus trigger a short, non-looping notification animation. Reduced-motion preferences disable the animation. The layout adapts to narrow mobile screens.
 - Only shown for tennis courts with an active rule whose next booking opening can be calculated, matching the current tennis-only notification delivery scope. Outdoor-open courts are excluded.
 - Hidden until browser hydration, and hidden in native WebViews, the app user agent, `?app=1` previews, and `html[data-courts-korea-app="true"]`. CSS also hides the card if the native attribute is applied after hydration.
 
