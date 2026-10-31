@@ -10,6 +10,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 import type { Court, CourtBlogLink } from "../../types";
 import { CourtSearchHeader } from "../../CourtSearchHeader";
 import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSection";
+import { AppReminderCard } from "../../detail/AppReminderCard";
+import { getNextBookingRuleOpen } from "@/lib/nextBookingOpen";
 import { CourtDetailAddress, CourtDetailTable, CourtDetailMap } from "../../detail/CourtDetailCommon";
 import { CourtDetailAside, CourtDetailMobileBookBar } from "../../detail/CourtDetailAside";
 import { CourtFeesSection } from "../../detail/CourtFeesSection";
@@ -487,6 +489,10 @@ export default async function CourtDetailPage({ params }: PageProps) {
                   예약 오픈 정보
                 </h2>
                 <CourtDetailBookingSection court={court} />
+                {sportType === "tennis" && court.booking_rule_type !== "outdoor_open"
+                  && court.court_booking_rules?.some((rule) =>
+                    rule.is_active && getNextBookingRuleOpen(court, rule) !== null
+                  ) ? <AppReminderCard /> : null}
               </section>
 
               <section
