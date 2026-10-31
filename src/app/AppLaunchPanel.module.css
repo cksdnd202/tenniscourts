@@ -1,0 +1,19 @@
+.panel { color: #fff; padding: 28px; }
+.panel h1 { font-size: 21px; font-weight: 650; line-height: 1.4; padding-right: 24px; }
+.panel p { margin-top: 10px; color: #aaa; font-size: 14px; line-height: 1.6; word-break: keep-all; }
+.primary, .secondary { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 46px; padding: 10px 16px; margin-top: 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.primary { background: #7ed58c; color: #111; }
+.secondary { background: #2c2c2c; color: #fff; border: 1px solid #444; }
+.panel .hint { font-size: 12px; }
+.notice { margin-top: 20px; padding: 16px; background: #252525; border-radius: 8px; font-size: 14px; }
+.notice p { font-size: 13px; }
+.copy { margin-top: 20px; font-size: 13px; color: #bbb; }
+.copy summary { cursor: pointer; }
+.url { display: block; margin-top: 12px; overflow-wrap: anywhere; font-size: 12px; text-decoration: underline; }
+.continue { display: block; width: 100%; text-align: center; margin-top: 24px; padding: 10px; font-size: 14px; color: #ccc; text-decoration: underline; cursor: pointer; }
+.panel :is(a, button, summary):focus-visible { outline: 2px solid #7ed58c; outline-offset: 4px; }
+.dialog { margin: auto; padding: 0; width: min(460px, calc(100% - 32px)); max-height: calc(100dvh - 40px); overflow-y: auto; border: 1px solid #444; border-radius: 16px; background: #1a1a1b; color: white; }
+.dialog::backdrop { background: #000a; }
+.close { position: absolute; right: 10px; top: 10px; width: 40px; height: 40px; font-size: 24px; cursor: pointer; }
+.page { width: min(480px, calc(100% - 32px)); margin: 48px auto; background: #1a1a1b; border: 1px solid #333; border-radius: 16px; }
+@media (max-width: 380px) { .panel { padding: 22px 18px; } }

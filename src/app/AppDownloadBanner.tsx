@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useSyncExternalStore } from "react";
 import { capturePostHogEvent, isAppWebView } from "@/lib/posthogClient";
 import styles from "./AppDownloadBanner.module.css";
+import { AppLaunchButton } from "./AppLaunchButton";
 
 const DISMISSED_UNTIL_KEY = "courtskorea:app-banner-dismissed-until";
 const CHANGE_EVENT = "courtskorea:app-banner-change";
@@ -57,12 +58,6 @@ function subscribe(onChange: () => void) {
 }
 
 const getServerSnapshot = () => false;
-const configuredStoreUrl = process.env.NEXT_PUBLIC_ANDROID_APP_STORE_URL?.trim();
-const storeUrl = configuredStoreUrl
-  && /^https:\/\/play\.google\.com\/store\/apps\/details\?id=com\.courtskorea\.app(?:&[^\s]*)?$/.test(configuredStoreUrl)
-  ? configuredStoreUrl
-  : "https://play.google.com/store/apps/details?id=com.courtskorea.app";
-
 export function AppDownloadBanner() {
   const visible = useSyncExternalStore(subscribe, getVisibleSnapshot, getServerSnapshot);
 
@@ -89,9 +84,7 @@ export function AppDownloadBanner() {
           <p className={styles.title}>예약 오픈 알림은 앱에서</p>
           <p className={styles.description}>테니스장 예약 오픈 알림 · Android 앱</p>
         </div>
-        <a className={styles.download} href={storeUrl} target="_blank" rel="noopener noreferrer" data-ph-event="app_download_banner_clicked">
-          앱 다운로드
-        </a>
+        <AppLaunchButton className={styles.download} source="header_banner" />
         <button className={styles.close} type="button" aria-label="앱 다운로드 안내 7일간 닫기" title="7일간 보지 않기" onClick={dismiss}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
         </button>

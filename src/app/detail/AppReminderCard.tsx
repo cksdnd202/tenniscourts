@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { isAppWebView } from "@/lib/posthogClient";
 import styles from "./AppReminderCard.module.css";
+import { AppLaunchButton } from "../AppLaunchButton";
 
 const subscribe = () => () => undefined;
 const getServerSnapshot = () => true;
@@ -11,13 +12,6 @@ function getHiddenSnapshot() {
     || document.documentElement.dataset.courtsKoreaApp === "true"
     || new URLSearchParams(window.location.search).get("app") === "1";
 }
-
-/** Public listing for the launch release; never use a closed-test URL. */
-const playStoreUrl = process.env.NEXT_PUBLIC_ANDROID_APP_STORE_URL?.trim();
-const publicPlayUrl = playStoreUrl
-  && /^https:\/\/play\.google\.com\/store\/apps\/details\?id=com\.courtskorea\.app(?:&[^\s]*)?$/.test(playStoreUrl)
-  ? playStoreUrl
-  : "https://play.google.com/store/apps/details?id=com.courtskorea.app";
 
 export function AppReminderCard() {
   const [motionKey, setMotionKey] = useState(0);
@@ -45,9 +39,7 @@ export function AppReminderCard() {
           <h3>예약 오픈 알림, 이제 앱에서</h3>
           <p>이 테니스장 예약 오픈 1일 전·10분 전,<br className={styles.mobileBreak} /> 앱에서 미리 알려드려요.</p>
         </div>
-        <a href={publicPlayUrl} target="_blank" rel="noopener noreferrer" data-ph-event="detail_app_reminder_store_clicked" className={styles.install}>
-          앱 다운로드하기
-        </a>
+        <AppLaunchButton className={styles.install} source="detail_card" />
       </div>
     </aside>
   );
