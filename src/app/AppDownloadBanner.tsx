@@ -20,9 +20,12 @@ function getDismissedUntil() {
 }
 
 function getVisibleSnapshot() {
+  // Only the embedded browsers that identify themselves explicitly qualify.
+  // Referrers alone do not distinguish an in-app browser from external Chrome/Safari.
+  const isSupportedInAppBrowser = /\b(?:KAKAOTALK|Instagram)\b/i.test(navigator.userAgent);
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
     || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  return !isIOS && !isAppWebView()
+  return isSupportedInAppBrowser && !isIOS && !isAppWebView()
     && document.documentElement.dataset.courtsKoreaApp !== "true"
     && new URLSearchParams(window.location.search).get("app") !== "1"
     && Date.now() >= getDismissedUntil();

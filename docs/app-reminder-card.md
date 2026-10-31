@@ -18,6 +18,7 @@ The install link uses the existing `data-ph-event` convention with event `detail
 `AppDownloadBanner` appears below the header in the normal page flow on the brand home, tennis/badminton home, and facility detail pages. It does not overlay search or booking content. The home filter sidebar is capped to the remaining available height.
 
 - Uses the existing logo mark, dark surface, and green action button.
+- Only shown when the browser User-Agent explicitly includes the `KAKAOTALK` or `Instagram` token (case-insensitive). Ordinary browsers and other in-app browsers are excluded, even when referred from a social app. Unidentified browser versions are hidden by default.
 - Closing hides the strip for seven days across these pages and browser tabs. The expiry is stored in `courtskorea:app-banner-dismissed-until`. If storage is blocked, dismissal lasts for the current page session.
 - Hidden on iPhone/iPad, native WebViews, and `?app=1` previews. Admin, account, support, and map screens do not include this banner.
 - Store URL follows the same public Android listing configuration as the detail card.
