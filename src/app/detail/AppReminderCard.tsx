@@ -42,8 +42,7 @@ export function AppReminderCard() {
           </div>
         </div>
         <div className={styles.copy}>
-          <span className={styles.eyebrow}>COURTS KOREA APP</span>
-          <h3>예약 오픈, 이제 알림으로</h3>
+          <h3>예약 오픈 알림, 이제 앱에서</h3>
           <p>이 테니스장 예약 오픈 1일 전·10분 전,<br className={styles.mobileBreak} /> 앱에서 미리 알려드려요.</p>
         </div>
         <a href={publicPlayUrl} target="_blank" rel="noopener noreferrer" data-ph-event="detail_app_reminder_store_clicked" className={styles.install}>
