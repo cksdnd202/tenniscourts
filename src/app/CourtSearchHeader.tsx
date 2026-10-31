@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { HeaderAppDownload } from "./HeaderAppDownload";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -243,7 +244,6 @@ export function CourtSearchHeader({ courts, sportType = "tennis" }: Props) {
   const [isMobileSearchClosing, setIsMobileSearchClosing] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileMenuClosing, setIsMobileMenuClosing] = useState(false);
-  const [isLocalhost, setIsLocalhost] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<{ display_name?: string; avatar_url?: string | null } | null>(
@@ -268,14 +268,6 @@ export function CourtSearchHeader({ courts, sportType = "tennis" }: Props) {
         clearTimeout(mobileMenuCloseTimerRef.current);
       }
     };
-  }, []);
-
-  useEffect(() => {
-    setIsLocalhost(
-      window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1" ||
-        window.location.hostname === "::1"
-    );
   }, []);
 
   useEffect(() => {
@@ -426,14 +418,6 @@ export function CourtSearchHeader({ courts, sportType = "tennis" }: Props) {
     closeMobileSearch();
   };
 
-  const goToTestPage = () => {
-    router.push("/test-lab");
-  };
-
-  const goToAdminPage = () => {
-    router.push("/admin/courtslist");
-  };
-
   const goToLoginPage = async () => {
     if (isLoggedIn) {
       router.push("/mypage");
@@ -453,8 +437,6 @@ export function CourtSearchHeader({ courts, sportType = "tennis" }: Props) {
     }
   };
 
-  const showTestPageButton = process.env.NODE_ENV !== "production";
-  const showAdminButton = isLocalhost;
   const metadata = user?.user_metadata ?? {};
   const profileImageUrl =
     profile?.avatar_url ??
@@ -591,6 +573,7 @@ export function CourtSearchHeader({ courts, sportType = "tennis" }: Props) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <HeaderAppDownload />
             <button
               type="button"
               onClick={goToLoginPage}
@@ -599,24 +582,6 @@ export function CourtSearchHeader({ courts, sportType = "tennis" }: Props) {
             >
               {isLoggedIn ? "마이페이지" : "로그인"}
             </button>
-            {showAdminButton ? (
-              <button
-                type="button"
-                onClick={goToAdminPage}
-                className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
-              >
-                어드민
-              </button>
-            ) : null}
-            {showTestPageButton ? (
-              <button
-                type="button"
-                onClick={goToTestPage}
-                className="inline-flex items-center rounded-lg border border-[#3C3C3C] bg-[#1A1A1B] px-3 py-2 text-xs font-medium text-white hover:bg-[#252528] transition"
-              >
-                테스트 페이지
-              </button>
-            ) : null}
           </div>
           {/* 데스크탑용 검색 입력창 (1032px 이상) */}
           <div
@@ -700,11 +665,12 @@ export function CourtSearchHeader({ courts, sportType = "tennis" }: Props) {
               priority
             />
           </button>
+          <HeaderAppDownload mobile />
           <button
             type="button"
             onClick={openMobileSearch}
             data-coachmark="search-area-mobile"
-            className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full text-[#E7E7E7] transition-colors hover:text-white"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#E7E7E7] transition-colors hover:text-white"
             aria-label="코트 검색 열기"
           >
             <svg

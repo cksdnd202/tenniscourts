@@ -1,44 +1,40 @@
-# Detail app reminder card
+# 앱 출시 웹 유도 작업
 
-- Located immediately after the booking information, before the location section.
-- Uses a flat light-green surface, dark-green download button, and a single level notification illustration. No English eyebrow or rotated artwork. Hover, touch, and keyboard focus play a short vertical notification-arrival animation without rotation. Reduced-motion preferences disable the animation. The layout adapts to narrow mobile screens.
-- Only shown for tennis courts with an active rule whose next booking opening can be calculated, matching the current tennis-only notification delivery scope. Outdoor-open courts are excluded.
-- Hidden until browser hydration, and hidden in native WebViews, the app user agent, `?app=1` previews, and `html[data-courts-korea-app="true"]`. CSS also hides the card if the native attribute is applied after hydration.
+## 헤더 다운로드
 
-## Release activation
+- 공통 검색 헤더와 고객지원 헤더에 앱 다운로드 진입점을 제공한다. 검색 헤더에서는 PC 로그인 왼쪽, 모바일 검색 아이콘 왼쪽에 배치한다.
+- 지도와 Courts Korea 앱 내부에서는 숨긴다.
+- Android·iOS는 Google Play로 이동한다. PC는 버튼 아래에 실제 스토어 URL의 QR 레이어를 표시한다.
+- QR 레이어는 다른 UI 조작을 막지 않으며 X, 바깥 클릭, Escape로 닫힌다.
+- 로컬 PC 헤더의 어드민·테스트 페이지 버튼을 제거했다.
 
-This card is intended to ship with the public app launch. **앱에서 열기** opens an accessible app handoff dialog. The Google Play action links to `https://play.google.com/store/apps/details?id=com.courtskorea.app` by default. Verify public installation before deploying the launch release.
+## 출시 안내 팝업
 
-`NEXT_PUBLIC_ANDROID_APP_STORE_URL` can override the public listing URL (for the same package). Closed-test URLs are not accepted. Automatic post-install facility restoration is not implemented.
+- 제공된 PDF 디자인을 바탕으로 앱 화면 이미지, 문구, 배경과 버튼을 구현했다.
+- PC는 앱 화면을 2초 표시하고 450ms 동안 QR 화면으로 전환한 뒤 멈춘다. 동작 줄이기 설정에서는 QR을 바로 표시한다.
+- 모바일은 앱 화면과 웹 계속 보기 사이에 Google Play 버튼을 표시한다. 버튼은 #30C27C 배경과 흰 글자를 사용한다.
+- 운영에서는 닫기, Escape, 바깥 클릭, 웹 계속 보기, 다운로드 선택 후 같은 브라우저에서 24시간 숨긴다. 경로 이동·새로고침·다른 탭에도 적용하며 저장소 차단 시 메모리로 대체한다.
+- 개발에서는 저장된 숨김 기록을 무시하고 새로고침·경로 이동 때마다 표시한다. 현재 화면에서 닫으면 즉시 다시 뜨지는 않는다.
+- 앱 내부, 지도, 로그인, 관리자, 테스트, 계정 삭제 경로에서는 제외한다.
+- 기존 웹 4단계 서비스 온보딩을 제거했다. 네이티브 앱 초기 설정은 유지한다.
 
-Opening the dialog captures `app_handoff_opened` with `source: detail_card` and the validated destination.
+## 상세 예약 알림 배너
 
-## Dismissible download banner
+- 예약 오픈 정보 아래에 배치하며, 기존 테니스 예약 알림 지원 조건과 앱 내부 숨김을 유지한다.
+- 제목: 앱에서 코트 예약 오픈 알림 받기. 설명: 예약 오픈 1일 전, 10분 전에 알림을 받아보세요.
+- 제공된 PC·모바일 PDF 배치와 새 노란 종·빨간 알림 점의 투명 3D 아이콘을 사용한다.
+- PC는 앱에서 열기 버튼, 모바일은 오른쪽 화살표를 표시한다. 화면 폭 700px 이하에서 모바일 배치로 전환한다.
+- 전체 배너를 클릭할 수 있다. Android는 현재 시설 경로의 앱 실행을 시도하고 미설치 시 Google Play로 이동한다. PC·iOS는 Google Play로 이동한다.
+- 중간 앱 연결 팝업과 헤더 아래 인앱 브라우저 배너를 제거했다.
 
-`AppDownloadBanner` appears below the header in the normal page flow on the brand home, tennis/badminton home, and facility detail pages. It does not overlay search or booking content. The home filter sidebar is capped to the remaining available height.
+## 설치 후 시설 복원
 
-- Uses the existing logo mark, dark surface, and green action button.
-- Only shown when the browser User-Agent explicitly includes the `KAKAOTALK` or `Instagram` token (case-insensitive). Ordinary browsers and other in-app browsers are excluded, even when referred from a social app. Unidentified browser versions are hidden by default.
-- Closing hides the strip for seven days across these pages and browser tabs. The expiry is stored in `courtskorea:app-banner-dismissed-until`. If storage is blocked, dismissal lasts for the current page session.
-- Hidden on iPhone/iPad, native WebViews, and `?app=1` previews. Admin, account, support, and map screens do not include this banner.
-- Store URL follows the same public Android listing configuration as the detail card.
-- Dialog and dismiss events: `app_handoff_opened` (`source: header_banner`), `app_download_banner_dismissed`.
-- The detail reminder card remains independent of the strip's dismissal.
+- 스토어 URL의 Install Referrer에 검증된 시설 경로를 전달한다.
+- Android 앱은 최초 성공한 referrer 조회에서 시설을 기존 pending deep-link 저장소에 넣고 로그인·초기 설정 후 한 번 소비한다. 이미 저장된 링크와 직접 진입한 시설이 우선한다.
+- Android 1.0.1, versionCode 35에 포함해 로컬 production 서명 AAB를 빌드했다. 바이너리·서명 자료·환경 파일은 커밋하지 않는다.
 
-## App handoff
+## 검증 및 출시 상태
 
-- Both entry points use `AppLaunchButton` and `AppLaunchPanel`. A native dialog supports Escape, close, backdrop click, focus trapping and focus restoration. Web continue dismisses it without leaving the facility.
-- Android users explicitly select an intent link targeting `com.courtskorea.app` and the existing `courtskorea` scheme. Facility paths remain `/courts/<slug>`; sport home pages open the app home.
-- Supported browsers can fall back to `/app/open?path=...&attempted=1`. This noindex route preserves the facility, offers retry, download and web continue, and never redirects on a timer. It is a handoff utility, not the future `/app` marketing page.
-- KakaoTalk/Instagram users see external-browser guidance and a copyable production handoff link. Browser detection is best effort; no private app schemes are used to force external navigation.
-- Desktop users get the Play listing and a link to open on an Android phone. iOS users get web continue. Arbitrary URLs, query strings and malformed facility paths are rejected before constructing native or web destinations.
-- Events: `app_open_attempted` (destination, browser), `app_handoff_store_clicked` (destination). These measure attempts and store clicks, not successful app opens or installations.
-- After installation, users currently return to the handoff screen and press app open. Public-release Android testing remains necessary for installed/uninstalled cases in Chrome, KakaoTalk and Instagram; desktop browser verification cannot prove native launch success.
-
-## Automatic post-install restoration: reviewed, not implemented
-
-The mobile app already includes `expo-application` with `getInstallReferrerAsync`, and `pendingDeepLink.ts` can retain a facility for 24 hours through login and onboarding. `_layout.tsx` consumes it when the user is ready.
-
-A later mobile change can read a validated Play Install Referrer on first installation, persist the facility before authentication/onboarding, and consume it once when ready. A directly opened link should take precedence over an older referrer; missing, stale or unsupported referrers should use the home screen. Transient read failures need retry handling without repeatedly navigating on later launches. The web store URL must then supply the corresponding encoded referrer. This requires a coordinated app release and real Play-install validation.
-
-References: [Android intents in Chrome](https://developer.chrome.com/docs/android/intents), [Expo Application API](https://docs.expo.dev/versions/latest/sdk/application/).
+- 웹 production 빌드(webpack), 변경 컴포넌트 lint, 모바일 TypeScript 검사 완료.
+- 사용자가 Play 설치 후 시설 복원, 출시 팝업 PC QR 전환·모바일 다운로드, QR 스캔·스토어 연결, 앱 내부 안내 숨김을 확인했다고 보고했다.
+- Google Play 제출·공개 출시·웹 배포는 이 작업에서 실행하지 않았다.

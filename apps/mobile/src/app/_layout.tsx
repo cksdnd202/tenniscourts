@@ -13,6 +13,7 @@ import { getAuthRedirect } from '@/lib/authRouting';
 import {
   clearPendingDeepLink,
   consumePendingDeepLink,
+  restoreInstallDestination,
   getRestorableDeepLinkPath,
   savePendingDeepLink,
 } from '@/lib/pendingDeepLink';
@@ -180,6 +181,7 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
     void (async () => {
       // App Links can arrive before login or the first-run permission flow is
       // complete. Save the destination before auth routing replaces it.
+      await restoreInstallDestination();
       if (incomingDeepLink && target) {
         await savePendingDeepLink(incomingDeepLink);
       }

@@ -1,4 +1,3 @@
-const SITE_ORIGIN = "https://courtskorea.com";
 const PLAY_URL = "https://play.google.com/store/apps/details?id=com.courtskorea.app";
 
 /** Accept public facility paths only; never pass arbitrary URLs to native routing. */
@@ -15,20 +14,10 @@ export function getAppDestination(raw: string | null | undefined) {
   }
 }
 
-export function getAppHandoffPath(raw: string, attempted = false) {
-  const params = new URLSearchParams({ path: getAppDestination(raw) });
-  if (attempted) params.set("attempted", "1");
-  return `/app/open?${params}`;
-}
-
-export function getAppHandoffUrl(raw: string) {
-  return `${SITE_ORIGIN}${getAppHandoffPath(raw)}`;
-}
-
-export function getAndroidAppIntent(raw: string, webOrigin = SITE_ORIGIN) {
+export function getAndroidAppIntent(raw: string) {
   const path = getAppDestination(raw);
   const nativePath = path.startsWith("/courts/") ? path : "/";
-  const fallback = `${webOrigin}${getAppHandoffPath(path, true)}`;
+  const fallback = getFacilityPlayUrl(path);
   return `intent://${nativePath}#Intent;scheme=courtskorea;package=com.courtskorea.app;S.browser_fallback_url=${encodeURIComponent(fallback)};end`;
 }
 
@@ -43,4 +32,10 @@ export function getPublicPlayUrl() {
   } catch {
     return PLAY_URL;
   }
+}
+
+export function getFacilityPlayUrl(raw: string) {
+  const url = new URL(getPublicPlayUrl());
+  url.searchParams.set("referrer", new URLSearchParams({ court_path: getAppDestination(raw) }).toString());
+  return url.toString();
 }

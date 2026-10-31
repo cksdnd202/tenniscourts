@@ -1,0 +1,26 @@
+.dialog { margin: auto; padding: 0; width: min(420px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; border: 1px solid #36383f; border-radius: 26px; background: #1a1a1a; color: #fff; font-family: var(--font-pretendard), sans-serif; }
+.dialog::backdrop { background: #000a; }
+.content { position: relative; padding: 30px 26px 34px; }
+.close { position: absolute; right: 26px; top: 30px; display: flex; align-items: center; justify-content: center; width: 39px; height: 39px; background: #eee; color: #000; border-radius: 50%; cursor: pointer; }
+.content h2 { margin: 0; padding-right: 42px; font-size: 22px; font-weight: 500; line-height: 1.6; letter-spacing: -.7px; white-space: nowrap; }
+.description { margin-top: 17px; color: #909090; font-size: 15px; line-height: 1.55; font-weight: 500; letter-spacing: -.4px; }
+.description span { color: #5bdb88; }
+.media { position: relative; height: 330px; margin-top: 36px; overflow: hidden; }
+.appSlide, .qrSlide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+.appSlide img { display: block; width: 206px; height: auto; max-height: 100%; object-fit: contain; border-radius: 24px; }
+.qrCode { padding: 8px; background: #fff; }
+.qrCode svg { display: block; }
+.qrSlide p { margin-top: 20px; color: #fff; font-size: 15px; font-weight: 500; line-height: 1.6; text-align: center; }
+/* Show the app briefly, then leave the QR still for scanning. */
+.slideshow .appSlide { animation: appSlide 450ms ease-in-out 2s both; }
+.slideshow .qrSlide { animation: qrSlide 450ms ease-in-out 2s both; }
+@keyframes appSlide { from { transform: translateX(0); opacity: 1; } to { transform: translateX(-100%); opacity: 0; } }
+@keyframes qrSlide { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.download { display: flex; align-items: center; justify-content: center; margin-top: 24px; min-height: 46px; padding: 12px; border-radius: 999px; background: #30C27C; color: #fff; font-size: 14px; font-weight: 700; }
+.continue { display: block; margin: 35px auto 0; padding: 4px 8px; font-size: 15px; color: #909090; font-weight: 500; cursor: pointer; }
+.download + .continue { margin-top: 16px; }
+.content :is(a,button):focus-visible { outline: 2px solid #7ed58c; outline-offset: 4px; }
+:global(html[data-courts-korea-app="true"]) .dialog { display: none !important; }
+@media (max-width: 420px) { .content { padding: 26px 22px 26px; } .content h2 { font-size: 20px; letter-spacing: -.8px; } .close { right: 20px; top: 26px; width: 34px; height: 34px; } .description { font-size: 13px; } .media { height: 290px; margin-top: 28px; } .appSlide img { width: 182px; } }
+@media (max-width: 350px) { .content { padding-inline: 18px; } .content h2 { font-size: 18px; } .description { font-size: 12px; } }
+@media (prefers-reduced-motion: reduce) { .slideshow .appSlide { animation: none; visibility: hidden; } .slideshow .qrSlide { animation: none; } }

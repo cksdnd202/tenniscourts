@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import Image from "next/image";
+import { useSyncExternalStore } from "react";
 import { isAppWebView } from "@/lib/posthogClient";
 import styles from "./AppReminderCard.module.css";
 import { AppLaunchButton } from "../AppLaunchButton";
@@ -14,33 +15,21 @@ function getHiddenSnapshot() {
 }
 
 export function AppReminderCard() {
-  const [motionKey, setMotionKey] = useState(0);
-  const ring = () => setMotionKey((value) => value + 1);
   const hidden = useSyncExternalStore(subscribe, getHiddenSnapshot, getServerSnapshot);
   if (hidden) return null;
 
   return (
-    <aside
-      aria-label="앱 예약 오픈 알림 안내"
-      data-detail-app-reminder="true"
-      className={styles.card}
-      onPointerEnter={(event) => { if (event.pointerType === "mouse") ring(); }}
-      onPointerDown={ring}
-      onFocus={ring}
-    >
+    <aside aria-label="앱 예약 오픈 알림 안내" data-detail-app-reminder="true" className={styles.card}>
       <div className={styles.layout}>
-        <div key={motionKey} aria-hidden="true" className={`${styles.art} ${motionKey ? styles.ringing : ""}`}>
-          <div className={styles.notification}>
-            <span className={styles.notificationDot} />
-            <span><strong>예약 오픈 10분 전</strong><i /></span>
-          </div>
-        </div>
+        <Image className={styles.icon} unoptimized src="/images/app-launch/notification-bell-yellow.png" alt="" width={72} height={72} />
         <div className={styles.copy}>
-          <h3>예약 오픈 알림, 이제 앱에서</h3>
-          <p>이 테니스장 예약 오픈 1일 전·10분 전,<br className={styles.mobileBreak} /> 앱에서 미리 알려드려요.</p>
+          <h3>앱에서 코트 예약 오픈 알림 받기</h3>
+          <p>예약 오픈 1일 전, 10분 전에<br className={styles.mobileBreak}/> 알림을 받아보세요</p>
         </div>
-        <AppLaunchButton className={styles.install} source="detail_card" />
+        <span className={styles.button} aria-hidden="true">앱에서 열기</span>
+        <svg className={styles.arrow} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
       </div>
+      <AppLaunchButton className={styles.install} source="detail_card" />
     </aside>
   );
 }

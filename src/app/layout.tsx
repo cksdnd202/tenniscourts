@@ -1,9 +1,9 @@
+import { AppLaunchAnnouncement } from "./AppLaunchAnnouncement";
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { pretendard } from "./fonts";
 import { PostHogProvider } from "./PostHogProvider";
-import { ServiceOnboarding } from "./ServiceOnboarding";
 
 const siteUrl = "https://courtskorea.com";
 const ogImage = "/courtskroea_ogimg.png?v=20260323-1";
@@ -79,7 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </noscript>
         <PostHogProvider>
           {children}
-          <ServiceOnboarding />
+          <AppLaunchAnnouncement />
         </PostHogProvider>
 
       </body>

@@ -6,7 +6,6 @@ import {
 import { SPORT_VENUE_LABELS } from "@/lib/sports";
 import { CourtFilter } from "./CourtFilter";
 import { CourtSearchHeader } from "./CourtSearchHeader";
-import { AppDownloadBanner } from "./AppDownloadBanner";
 import type { Court, SportType } from "./types";
 
 const SITE_URL = "https://courtskorea.com";
@@ -99,7 +98,6 @@ export async function SportHomePage({
       </h1>
       <CourtSearchHeader courts={searchCourts} sportType={sportType} />
       <main className="mx-auto flex h-screen w-auto flex-col overflow-hidden bg-[#000000] pt-[73px]">
-        <AppDownloadBanner />
         <CourtFilter key={sportType} courts={allCourts} sportType={sportType} showViewToggle />
       </main>
     </>

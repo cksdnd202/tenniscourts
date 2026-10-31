@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+import * as Application from 'expo-application';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'courts-korea:pending-deep-link';
@@ -48,4 +50,21 @@ export async function consumePendingDeepLink() {
 
 export async function clearPendingDeepLink() {
   await AsyncStorage.removeItem(STORAGE_KEY);
+}
+
+let referrerRead: Promise<void> | undefined;
+export function restoreInstallDestination() {
+  if (Platform.OS !== 'android') return Promise.resolve();
+  return referrerRead ??= (async () => {
+    const key = 'courts-korea:install-referrer-consumed';
+    if (await AsyncStorage.getItem(key)) return;
+    try {
+      const referrer = await Application.getInstallReferrerAsync();
+      const raw = new URLSearchParams(referrer).get('court_path');
+      if (raw && /^\/courts\/[\p{L}\p{N}_%-]+$/u.test(raw) && !await AsyncStorage.getItem(STORAGE_KEY)) {
+        await savePendingDeepLink(raw);
+      }
+      await AsyncStorage.setItem(key, '1');
+    } catch { referrerRead = undefined; }
+  })();
 }
