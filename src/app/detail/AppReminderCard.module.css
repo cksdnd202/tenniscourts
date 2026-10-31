@@ -12,72 +12,48 @@
   transition: border-color 250ms ease, background-color 250ms ease;
 }
 .layout { display: flex; align-items: center; gap: 22px; }
-.art { position: relative; flex: 0 0 112px; height: 126px; }
-.halo { position: absolute; inset: 14px -4px 0; border-radius: 50%; background: #77e7a31c; filter: blur(16px); }
-.phone {
-  position: absolute; top: 4px; left: 24px; width: 67px; height: 112px;
-  border: 3px solid #d4eadf; border-right-color: #92b4a2; border-bottom-color: #92b4a2;
-  border-radius: 16px; background: linear-gradient(145deg, #fbfffd, #dceee4);
-  box-shadow: 5px 8px 0 #0b211b45, 0 14px 24px #0004;
-  transform: rotate(-12deg); transform-origin: 50% 75%;
-}
-.camera { position: absolute; top: 5px; left: 21px; width: 19px; height: 5px; border-radius: 8px; background: #283e33; }
-.screen { position: absolute; inset: 17px 6px 10px; overflow: hidden; }
-.screenLabel { display: block; color: #40654f; font-size: 6px; font-weight: 800; letter-spacing: 1px; }
-.court { position: relative; height: 42px; margin-top: 5px; border: 3px solid #6dc692; border-radius: 5px; background: #3ba96b; box-shadow: inset 0 0 0 1px #daffe3; }
-.court::before { content: ""; position: absolute; inset: 0 6px; border-inline: 1px solid #daffe3; }
-.court::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid #daffe3; }
-.court i { position: absolute; top: 8px; bottom: 8px; left: 6px; right: 6px; border-block: 1px solid #daffe3; }
-.court i + i { left: 50%; right: auto; border-left: 1px solid #daffe3; }
-.screenLine, .screenLineShort { display: block; height: 3px; border-radius: 3px; margin-top: 5px; background: #abc6b6; }
-.screenLineShort { width: 60%; margin-top: 3px; }
-.homeIndicator { position: absolute; bottom: 4px; left: 22px; width: 18px; height: 2px; background: #93b19f; border-radius: 2px; }
+.art { position: relative; flex: 0 0 140px; height: 82px; }
 .notification {
-  position: absolute; top: 69px; left: 0; display: flex; align-items: center; gap: 6px;
-  width: 112px; padding: 9px 8px; border: 1px solid #fff; border-radius: 10px;
+  position: absolute; top: 14px; left: 0; display: flex; align-items: center; gap: 9px;
+  width: 140px; padding: 13px 11px; border: 1px solid #fff; border-radius: 15px;
   background: linear-gradient(130deg, #fff, #e9f6ef); box-shadow: 0 7px 16px #0003;
   transform: rotate(-5deg);
 }
-.notificationDot { width: 18px; height: 18px; flex-shrink: 0; border-radius: 6px; background: linear-gradient(140deg, #8be7a5, #38ac72); box-shadow: inset 0 1px 0 #ffffff80; }
-.notification strong { display: block; color: #274b37; font-size: 7px; line-height: 10px; white-space: nowrap; }
-.notification i { display: block; width: 42px; height: 3px; margin-top: 4px; border-radius: 3px; background: #bad6c6; }
-.bellBadge { position: absolute; right: -2px; top: 9px; display: grid; place-items: center; width: 37px; height: 37px; border: 1px solid #bcffd4; border-radius: 12px; background: linear-gradient(135deg, #d3ffe3, #6bdca0); color: #1b6942; box-shadow: 0 6px 12px #0003, inset 0 1px 2px #fff; transform: rotate(12deg); }
-.bellBadge svg { width: 22px; height: 22px; }
-.badgeDot { position: absolute; right: -3px; top: -3px; width: 10px; height: 10px; border: 2px solid #183624; border-radius: 50%; background: #f6c975; }
-.sparkle { position: absolute; left: 3px; top: 21px; color: #b6e4c6; font-size: 15px; }
+.notificationDot { width: 25px; height: 25px; flex-shrink: 0; border-radius: 6px; background: linear-gradient(140deg, #8be7a5, #38ac72); box-shadow: inset 0 1px 0 #ffffff80; }
+.notification strong { display: block; color: #274b37; font-size: 9px; line-height: 13px; white-space: nowrap; }
+.notification i { display: block; width: 56px; height: 3px; margin-top: 4px; border-radius: 3px; background: #bad6c6; }
 .copy { flex: 1; min-width: 0; }
 .eyebrow { color: #91b39e; font-size: 10px; letter-spacing: 1.5px; font-weight: 600; }
 .copy h3 { margin: 7px 0 6px; color: #f4f8f5; font-size: 20px; font-weight: 650; line-height: 1.4; letter-spacing: -.5px; word-break: keep-all; }
 .copy p { color: #a8b3ac; font-size: 13px; line-height: 1.7; word-break: keep-all; }
 .mobileBreak { display: none; }
-.comingSoon, .install { flex-shrink: 0; padding: 11px 15px; border: 1px solid #435248; border-radius: 12px; color: #b8c9be; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.install { flex-shrink: 0; padding: 11px 15px; border: 1px solid #435248; border-radius: 12px; color: #b8c9be; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .install { background: #b4efc8; color: #153c25; border-color: transparent; }
 .install:focus-visible { outline: 2px solid #b4efc8; outline-offset: 4px; }
-.ringing .phone { animation: phoneRing 850ms ease-in-out; }
-.ringing .notification { animation: notificationArrives 700ms cubic-bezier(.2,.8,.2,1) both; }
-.ringing .bellBadge { animation: bellRing 850ms ease-in-out; }
-.ringing .sparkle { animation: sparkle 850ms ease-out; }
-@keyframes phoneRing { 0%, 100% { transform: rotate(-12deg); } 20%, 45% { transform: translateY(-3px) rotate(-17deg); } 32%, 58% { transform: translateY(-3px) rotate(-7deg); } 75% { transform: rotate(-14deg); } }
-@keyframes notificationArrives { 0% { opacity: 0; transform: translateY(12px) rotate(-5deg) scale(.9); } 65% { opacity: 1; transform: translateY(-3px) rotate(-5deg) scale(1.04); } 100% { transform: rotate(-5deg); } }
-@keyframes bellRing { 0%, 100% { transform: rotate(12deg); } 25%, 55% { transform: translateY(-3px) rotate(25deg); } 40%, 70% { transform: translateY(-3px) rotate(-2deg); } }
-@keyframes sparkle { 45% { transform: scale(1.4) rotate(30deg); } }
+.ringing .notification { animation: notificationArrives 800ms cubic-bezier(.2,.8,.2,1) both; }
+@keyframes notificationArrives {
+  0% { opacity: 0; transform: translateY(16px) rotate(-5deg) scale(.92); }
+  60% { opacity: 1; transform: translateY(-4px) rotate(-3deg) scale(1.03); }
+  80% { transform: translateY(1px) rotate(-6deg); }
+  100% { opacity: 1; transform: rotate(-5deg); }
+}
 @media (hover: hover) { .card:hover { border-color: #577961; background-color: #1c231f; } }
 @media (max-width: 700px) {
   .card { padding: 20px; }
-  .layout { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 10px 18px; }
-  .art { width: 112px; margin-left: -12px; transform: scale(.85); }
+  .layout { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 10px 18px; }
+  .art { width: 140px; margin-left: -20px; transform: scale(.75); }
   .copy h3 { font-size: 18px; }
-  .comingSoon, .install { grid-column: 2; justify-self: start; margin-top: -10px; }
+  .install { grid-column: 2; justify-self: start; margin-top: -10px; }
   .mobileBreak { display: inline; }
 }
 @media (max-width: 380px) {
   .card { padding: 16px; }
-  .layout { column-gap: 10px; grid-template-columns: 72px minmax(0, 1fr); }
-  .art { margin-left: -21px; transform: scale(.72); }
+  .layout { column-gap: 10px; grid-template-columns: 84px minmax(0, 1fr); }
+  .art { margin-left: -28px; transform: scale(.64); }
   .copy h3 { font-size: 17px; }
   .copy p { font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .card { transition: none; }
-  .ringing .phone, .ringing .notification, .ringing .bellBadge, .ringing .sparkle { animation: none; }
+  .ringing .notification { animation: none; }
 }
