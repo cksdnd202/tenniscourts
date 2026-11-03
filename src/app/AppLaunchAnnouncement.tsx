@@ -1,11 +1,13 @@
 "use client";
 
+import { AppPromotionImpression, AppQrImpression } from "./AppPromotionImpression";
+import { trackAppPromotion } from "@/lib/appPromotionAnalytics";
 import Image from "next/image";
 import { useRef, useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { isAppWebView } from "@/lib/posthogClient";
-import { getPublicPlayUrl } from "@/lib/appLaunch";
+import { getAppQrUrl, getPublicPlayUrl } from "@/lib/appLaunch";
 import styles from "./AppLaunchAnnouncement.module.css";
 
 const DEVELOPMENT = process.env.NODE_ENV === "development";
@@ -62,31 +64,33 @@ function Announcement() {
   const isMobile = useSyncExternalStore(noSubscribe, mobile, serverHidden);
   const dialog = useRef<HTMLDialogElement>(null);
   const [closed, setClosed] = useState(false);
-  const dismiss = () => {
+  const dismiss = (reason: string) => {
+    void trackAppPromotion("app_promo_dismissed", "launch_popup", { reason });
     if (DEVELOPMENT) setClosed(true);
     else persistDismissal();
   };
-  if (closed || !visible || /^\/(?:map|login|admin|test|list-test|account-deletion)(?:\/|-|$)/.test(path)) return null;
+  if (closed || !visible || /^\/(?:map|login|admin|test|list-test|account-deletion|app-download)(?:\/|-|$)/.test(path)) return null;
   return <dialog ref={node => { dialog.current = node; if (node && !node.open) node.showModal(); }}
-    className={styles.dialog} aria-labelledby="app-launch-title" onCancel={event => { event.preventDefault(); dismiss(); }}
-    onClick={event => { if (event.target === event.currentTarget) dismiss(); }}>
+    className={styles.dialog} aria-labelledby="app-launch-title" onCancel={event => { event.preventDefault(); dismiss("escape"); }}
+    onClick={event => { if (event.target === event.currentTarget) dismiss("backdrop"); }}>
     <div className={styles.content}>
-      <button className={styles.close} type="button" aria-label="앱 출시 안내 닫기" onClick={dismiss}>
+      <button className={styles.close} type="button" aria-label="앱 출시 안내 닫기" onClick={() => dismiss("close")}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
       </button>
-      <h2 id="app-launch-title">기다리던 예약 오픈<br/>이제 알림으로 받아보세요</h2>
+      <AppPromotionImpression source="launch_popup"><h2 id="app-launch-title">기다리던 예약 오픈<br/>이제 알림으로 받아보세요</h2>
       <p className={styles.description}>Courts Korea <span>안드로이드 앱이 출시됐어요.</span><br/>예약 오픈 전에 알림을 드릴게요.</p>
+      </AppPromotionImpression>
       <div className={`${styles.media} ${isMobile ? styles.mobileMedia : styles.slideshow}`}>
         <div className={styles.appSlide}>
           <Image unoptimized src="/images/app-launch/app-preview.png" alt="Courts Korea 앱의 코트 검색과 예약 오픈 정보 화면" width={922} height={1474} priority />
         </div>
-        {!isMobile && <div className={styles.qrSlide}>
-          <div className={styles.qrCode}><QRCodeSVG value={getPublicPlayUrl()} size={188} marginSize={2}/></div>
+        {!isMobile && <div className={styles.qrSlide}><AppQrImpression source="launch_popup"/>
+          <div className={styles.qrCode}><QRCodeSVG value={getAppQrUrl("launch_popup", path)} size={188} marginSize={2}/></div>
           <p>QR코드를 스캔하면<br/>앱을 설치할 수 있어요</p>
         </div>}
       </div>
-      {isMobile && <a className={styles.download} href={getPublicPlayUrl()} onClick={dismiss}>Google Play에서 다운로드</a>}
-      <button className={styles.continue} type="button" onClick={dismiss}>웹에서 계속 보기</button>
+      {isMobile && <a className={styles.download} href={getPublicPlayUrl()} onClick={() => { void trackAppPromotion("app_promo_clicked", "launch_popup", { action: "store_open" }); dismiss("download"); }}>Google Play에서 다운로드</a>}
+      <button className={styles.continue} type="button" onClick={() => dismiss("web_continue")}>웹에서 계속 보기</button>
 
     </div>
   </dialog>;

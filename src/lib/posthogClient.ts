@@ -1,5 +1,6 @@
 "use client";
 
+import { webAnalyticsAllowed } from "./webAnalyticsEnvironment";
 import posthog from "posthog-js";
 
 declare global {
@@ -32,7 +33,7 @@ export function capturePostHogEvent(eventName: string, properties: Record<string
     return;
   }
 
-  if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
+  if (!webAnalyticsAllowed() || !process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
 
   posthog.capture(eventName, {
     ...eventProperties,

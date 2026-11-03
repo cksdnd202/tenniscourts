@@ -1,5 +1,6 @@
 "use client";
 
+import { webAnalyticsAllowed } from "@/lib/webAnalyticsEnvironment";
 import { Suspense, useEffect, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import posthog from "posthog-js";
@@ -9,7 +10,7 @@ import { capturePostHogEvent, isAppWebView } from "@/lib/posthogClient";
 let posthogInitialized = false;
 
 function initPostHog() {
-  if (posthogInitialized || typeof window === "undefined" || isAppWebView()) return;
+  if (!webAnalyticsAllowed() || posthogInitialized || typeof window === "undefined" || isAppWebView()) return;
 
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   if (!key) return;
@@ -30,7 +31,7 @@ function PostHogPageView() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (isAppWebView()) return;
+    if (!webAnalyticsAllowed() || isAppWebView()) return;
     initPostHog();
 
     const search = searchParams.toString();

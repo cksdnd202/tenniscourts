@@ -39,3 +39,15 @@ export function getFacilityPlayUrl(raw: string) {
   url.searchParams.set("referrer", new URLSearchParams({ court_path: getAppDestination(raw) }).toString());
   return url.toString();
 }
+
+export type AppQrSource = "launch_popup" | "header_qr";
+export function getAppQrUrl(source: AppQrSource, path = "/") {
+  const origin = typeof window === "undefined" ? "https://courtskorea.com" : window.location.origin;
+  const params = new URLSearchParams({ source, path: getAppDestination(path) });
+  return `${origin}/app-download?${params}`;
+}
+export function getAttributedPlayUrl(source: string) {
+  const url = new URL(getPublicPlayUrl());
+  url.searchParams.set("referrer", new URLSearchParams({ utm_source: "courtskorea_web", utm_medium: "qr", utm_campaign: "app_launch", utm_content: source }).toString());
+  return url.toString();
+}

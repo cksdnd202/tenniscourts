@@ -58,7 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* ✅ GTM - head 영역 */}
         <Script id="gtm-head" strategy="beforeInteractive">
           {`
-            if (!/CourtsKoreaApp/i.test(window.navigator.userAgent)) {
+            if (${JSON.stringify(process.env.NODE_ENV === "production")} && /^(www\\.)?courtskorea\\.com$/.test(window.location.hostname) && !/CourtsKoreaApp/i.test(window.navigator.userAgent)) {
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
             new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
             j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
@@ -71,7 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* ✅ GTM - body 바로 뒤 (noscript) */}
         <noscript>
           <iframe
-            src="https://www.googletagmanager.com/ns.html?id=GTM-KWD6528D"
+            src={process.env.NODE_ENV === "production" ? "https://www.googletagmanager.com/ns.html?id=GTM-KWD6528D" : undefined}
             height="0"
             width="0"
             style={{ display: "none", visibility: "hidden" }}
