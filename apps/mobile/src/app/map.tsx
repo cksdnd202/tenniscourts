@@ -14,7 +14,6 @@ export default function MapScreen() {
       active="map"
       initialPath={`/map/tennis${queryString ? `?${queryString}` : ''}`}
       showBottomNav
-      showBackNavigation
       hideCalendarActions
       lightChrome
       webOrigin="https://courtskorea.com"

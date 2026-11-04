@@ -1132,7 +1132,8 @@ export function WebTabScreen({
         if (showReminderAction || showBackNavigation) {
           navigateBack();
         } else if (active === 'map') {
-          router.replace('/');
+          if (webCanGoBackRef.current) webViewRef.current?.goBack();
+          else navigateBack();
         } else if (initialPath !== '/') {
           if (router.canGoBack()) router.back();
           else router.replace('/');
@@ -1154,7 +1155,8 @@ export function WebTabScreen({
         return true;
       }
 
-      if (webCanGoBackRef.current) {
+      // Map panels own the first back step, before WebView or native history.
+      if (active !== 'map' && webCanGoBackRef.current) {
         webViewRef.current?.goBack();
         return true;
       }
@@ -1173,7 +1175,7 @@ export function WebTabScreen({
     });
 
     return () => subscription.remove();
-  }, [navigateBack, showBackNavigation, showReminderAction]);
+  }, [active, navigateBack, showBackNavigation, showReminderAction]);
 
   useEffect(() => () => {
     if (detailReadyTimeoutRef.current) clearTimeout(detailReadyTimeoutRef.current);
