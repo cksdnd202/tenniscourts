@@ -13,6 +13,7 @@ type BaseStateProps = {
 
 type MessageStateProps = BaseStateProps & {
   actionLabel?: string;
+  action?: ReactNode;
   description?: string;
   icon?: ReactNode;
   onAction?: () => void;
@@ -30,6 +31,7 @@ export function LoadingState({ compact = false, label, style, tone = 'light' }: 
 
 function MessageState({
   actionLabel,
+  action,
   compact = false,
   description,
   icon,
@@ -49,7 +51,7 @@ function MessageState({
       </View>
       <Text style={[styles.title, dark && styles.darkTitle]}>{title}</Text>
       {description ? <Text style={[styles.description, dark && styles.darkDescription]}>{description}</Text> : null}
-      {onAction && actionLabel ? (
+      {action ?? (onAction && actionLabel ? (
         <Pressable
           accessibilityRole="button"
           onPress={onAction}
@@ -57,7 +59,7 @@ function MessageState({
         >
           <Text style={styles.buttonText}>{actionLabel}</Text>
         </Pressable>
-      ) : null}
+      ) : null)}
     </View>
   );
 }

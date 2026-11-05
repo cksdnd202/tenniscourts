@@ -1,3 +1,4 @@
+import { AndroidLocationButton } from '@/components/AndroidLocationButton';
 import { type Href, useFocusEffect, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { Image } from 'expo-image';
@@ -16,6 +17,7 @@ import { LocationPermissionDialog } from '@/components/LocationPermissionDialog'
 import { NavigationArrow } from '@/components/NavigationArrow';
 import { ErrorState, LoadingState } from '@/components/ScreenState';
 import {
+  getForegroundLocationPermissionsAsync,
   getFreshLocationAsync,
   getRecentLocationAsync,
   hasMeaningfulLocationChange,
@@ -90,6 +92,7 @@ export function WebTabScreen({
   const [reminders, setReminders] = useState<Record<string, number[]>>({});
   const [reminderSheetOpen, setReminderSheetOpen] = useState(false);
   const [webOverlayOpen, setWebOverlayOpen] = useState(false);
+  const [mapLocationButtonRect, setMapLocationButtonRect] = useState<{x:number;y:number;width:number;height:number} | null>(null);
   const [locationDialogMode, setLocationDialogMode] = useState<'permission' | 'services'>('permission');
   const [locationDialogOpen, setLocationDialogOpen] = useState(false);
   const [locationBusy, setLocationBusy] = useState(false);
@@ -99,6 +102,31 @@ export function WebTabScreen({
   const resolvedWebOrigin = (webOrigin ?? DEFAULT_WEB_ORIGIN).replace(/\/$/, '');
   const rawPath = initialPath.startsWith('/') ? initialPath : `/${initialPath}`;
   const uri = `${resolvedWebOrigin}${rawPath}${showReminderAction ? `${rawPath.includes('?') ? '&' : '?'}app=1` : ''}`;
+
+  const locationButtonProbeScript = useMemo(() => `
+    (function () {
+      if (window.__courtsLocationButtonProbe) return;
+      window.__courtsLocationButtonProbe = true;
+      var pending = false, last = '';
+      function report() {
+        pending = false;
+        var button = document.querySelector('button[aria-label="내 위치로 이동"]');
+        var rect = button && button.getBoundingClientRect();
+        var visible = rect && rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.bottom <= window.innerHeight;
+        if (button && button.style.visibility !== 'hidden') button.style.visibility = 'hidden';
+        var payload = visible ? {x:rect.x,y:rect.y,width:rect.width,height:rect.height} : null;
+        var value = JSON.stringify(payload);
+        if (value !== last) {
+          last = value;
+          window.ReactNativeWebView.postMessage(JSON.stringify({type:'location-button-layout',rect:payload}));
+        }
+      }
+      function schedule() { if (!pending) { pending = true; requestAnimationFrame(report); } }
+      new MutationObserver(schedule).observe(document.documentElement,{subtree:true,childList:true,attributes:true});
+      window.addEventListener('resize',schedule); window.addEventListener('scroll',schedule,true);
+      schedule();
+    })(); true;
+  `, []);
 
   const navigateBack = useCallback(() => {
     if (router.canGoBack()) router.back();
@@ -891,9 +919,9 @@ export function WebTabScreen({
     setLocationBusy(true);
 
     try {
-      let permission = await Location.getForegroundPermissionsAsync();
+      let permission = await getForegroundLocationPermissionsAsync();
 
-      if (!permission.granted && requestPermission && permission.canAskAgain !== false) {
+      if (!permission.granted && requestPermission && Platform.OS !== 'android' && permission.canAskAgain !== false) {
         trackEvent('location_permission_requested', { source: 'map_current_location' });
         permission = await Location.requestForegroundPermissionsAsync();
         trackEvent(permission.granted ? 'location_permission_granted' : 'location_permission_denied', {
@@ -1046,8 +1074,18 @@ export function WebTabScreen({
         found?: boolean;
         eventName?: string;
         properties?: AnalyticsParameters;
+        rect?: { x:number;y:number;width:number;height:number } | null;
       };
-      if (payload.type === 'analytics' && payload.eventName) {
+      if (payload.type === 'location-button-layout' && active === 'map' && Platform.OS === 'android') {
+        const rect = payload.rect;
+        if (!rect) setMapLocationButtonRect(null);
+        else if ([rect.x,rect.y,rect.width,rect.height].every(Number.isFinite)
+          && rect.x >= 0 && rect.y >= 0 && rect.width >= 40 && rect.width <= 100 && rect.height >= 40 && rect.height <= 100) {
+          setMapLocationButtonRect(rect);
+        }
+        return;
+      }
+      if (payload.type === 'analytics'  && payload.eventName) {
         trackEvent(payload.eventName, {
           ...payload.properties,
           source: 'app_webview',
@@ -1256,6 +1294,11 @@ export function WebTabScreen({
           showBottomNav && !webOverlayOpen && { marginBottom: BOTTOM_NAV_HEIGHT + insets.bottom },
           showBottomNav && webOverlayOpen && { marginBottom: insets.bottom },
         ]}>
+        {active === 'map' && Platform.OS === 'android' && mapLocationButtonRect && !webOverlayOpen && !locationDialogOpen && !loading && !failed ? (
+          <AndroidLocationButton iconOnly style={{ position:'absolute', left:mapLocationButtonRect.x, top:mapLocationButtonRect.y,
+            width:mapLocationButtonRect.width, height:mapLocationButtonRect.height, zIndex:20, elevation:8 }}
+            onResult={() => void requestNativeCurrentLocation({requestPermission:false})} />
+        ) : null}
         {authReady ? (
           <WebView
             ref={webViewRef}
@@ -1279,6 +1322,7 @@ export function WebTabScreen({
             injectedJavaScriptBeforeContentLoaded={bootstrapScript}
             injectedJavaScript={authSyncScript}
             onLoadStart={() => {
+              setMapLocationButtonRect(null);
               if (showReminderAction) {
                 detailReadyRef.current = false;
                 setDetailContentReady(false);
@@ -1289,6 +1333,7 @@ export function WebTabScreen({
               setFailed(false);
             }}
             onLoadEnd={() => {
+              if (active === 'map' && Platform.OS === 'android') webViewRef.current?.injectJavaScript(locationButtonProbeScript);
               syncSessionToWeb(session);
               syncReminderStateToWeb(reminderEnabled);
               if (showReminderAction) {
@@ -1419,6 +1464,8 @@ export function WebTabScreen({
       {active === 'map' ? (
         <LocationPermissionDialog
           busy={locationBusy}
+          action={Platform.OS === 'android' && locationDialogMode === 'permission'
+            ? <AndroidLocationButton style={{flex:1,height:52}} onResult={() => void requestNativeCurrentLocation({requestPermission:false})} /> : undefined}
           mode={locationDialogMode}
           visible={locationDialogOpen}
           onCancel={() => {

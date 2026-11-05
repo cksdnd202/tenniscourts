@@ -10,7 +10,6 @@ function authenticatedStartRoute(state: AuthRouteState) {
   if (!state.legalConsentCompleted) return '/terms-consent';
   if (!state.onboardingCompleted) return '/onboarding';
   if (!state.notificationIntroCompleted) return '/notification-permission';
-  if (!state.locationIntroCompleted) return '/location-permission';
   return '/';
 }
 
@@ -38,10 +37,6 @@ export function getAuthRedirect(pathname: string, state: AuthRouteState) {
 
   if (!state.notificationIntroCompleted) {
     return pathname === '/notification-permission' ? null : '/notification-permission';
-  }
-
-  if (!state.locationIntroCompleted) {
-    return pathname === '/location-permission' ? null : '/location-permission';
   }
 
   if (
