@@ -6,15 +6,15 @@ Sources:
 - https://support.google.com/googleplay/android-developer/answer/17594752
 - https://support.google.com/googleplay/android-developer/answer/17492799
 
-## Location: source change ready, release validation pending
+## Location: precise foreground access restored for nearby distance ordering
 
-The uploaded version 36 (1.0.1) targets API 36 and includes both coarse and fine location. It does not list background location. The next native build blocks fine location, background location and location foreground service permissions; coarse foreground location remains for nearby discovery. Expo introspection confirms the manifest removal directives. Existing Expo native foreground-permission code reports the coarse permission independently of fine permission.
+Version 37's coarse-only build was superseded before upload. Version 38 restores fine location alongside coarse location, and Android one-shot retrieval requests High accuracy. Users can still choose approximate access; background location and location foreground services remain blocked. No continuous/background tracking is introduced.
 
-Android cached fixes now accept accuracy up to 3,000 m rather than 500 m so approximate fixes can be reused. iOS retains the existing 500 m cutoff. Location remains an estimate; this app is not turn-by-turn navigation.
+Nearby search and the map share the location helper. Cache acceptance follows the user's Android permission choice (500 m for fine; 3,000 m for coarse). A fresh fix with better accuracy updates the UI even if its coordinates changed less than 50 m. iOS retains Balanced retrieval and the existing cache threshold.
 
-Validated: mobile TypeScript check; Expo config introspection; mocked runtime checks for coarse cache reuse, iOS cutoff and fresh location retrieval. Still required on a new native Android build: fresh install permission prompt, denied permission behavior, nearby list and map using approximate location, upgrade from an existing precise-location grant, and merged release manifest inspection. An OTA/web update cannot change native manifest permissions. No AAB was built or uploaded in this task.
+The January 2027 minimum-scope policy still requires a product justification for precise location; accurate nearby ordering is the intended reason, not proof of Google approval. Reassess the Android system location button when targeting API 37+. The current target is API 36. Do not represent the app as policy-approved merely because fine access is restored.
 
-The API 37 location-button requirement must be revisited if precise one-shot location is introduced. Do not add fine permission merely to increase distance accuracy without reassessing the policy.
+Device verification required: precise vs approximate grant; permission denied; precise enabled after approximate cache use; nearby order and map recenter; location services disabled; upgrade from version 36 or 37 without loss of login or saved facilities. Native permission changes require a new AAB.
 
 ## Trader declaration: saved in Console
 
