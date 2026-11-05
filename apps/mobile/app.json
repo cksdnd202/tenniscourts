@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.courtskorea.app",
-      "versionCode": 36,
+      "versionCode": 37,
       "intentFilters": [
         {
           "action": "VIEW",
