@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.courtskorea.app",
-      "versionCode": 36,
+      "versionCode": 37,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -39,7 +39,10 @@
       "blockedPermissions": [
         "com.google.android.gms.permission.AD_ID",
         "android.permission.ACCESS_ADSERVICES_AD_ID",
-        "android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
+        "android.permission.ACCESS_ADSERVICES_ATTRIBUTION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#000000",

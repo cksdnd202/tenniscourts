@@ -1,7 +1,10 @@
 import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 
 const RECENT_LOCATION_MAX_AGE_MS = 3 * 60 * 1000;
-const RECENT_LOCATION_REQUIRED_ACCURACY_METERS = 500;
+// Accept coarse Android fixes for nearby discovery instead of repeatedly
+// discarding them because they exceed the precise-location cache cutoff.
+const RECENT_LOCATION_REQUIRED_ACCURACY_METERS = Platform.OS === 'android' ? 3000 : 500;
 const FRESH_LOCATION_TIMEOUT_MS = 8000;
 
 let rememberedLocation: Location.LocationObject | null = null;
