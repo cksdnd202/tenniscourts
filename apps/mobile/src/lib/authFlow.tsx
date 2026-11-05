@@ -7,7 +7,6 @@ import { supabase } from '@/lib/supabase';
 
 const ONBOARDING_STORAGE_PREFIX = 'courtskorea:onboarding-completed';
 const NOTIFICATION_INTRO_STORAGE_PREFIX = 'courtskorea:notification-intro-completed';
-const LOCATION_INTRO_STORAGE_PREFIX = 'courtskorea:location-intro-completed';
 
 type AuthFlowValue = {
   initialized: boolean;
@@ -19,7 +18,6 @@ type AuthFlowValue = {
   completeLegalConsent: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
   completeNotificationIntro: () => Promise<void>;
-  completeLocationIntro: () => Promise<void>;
 };
 
 const AuthFlowContext = createContext<AuthFlowValue | null>(null);
@@ -32,9 +30,7 @@ function notificationIntroStorageKey(userId: string) {
   return `${NOTIFICATION_INTRO_STORAGE_PREFIX}:${userId}`;
 }
 
-function locationIntroStorageKey(userId: string) {
-  return `${LOCATION_INTRO_STORAGE_PREFIX}:${userId}`;
-}
+
 
 export function AuthFlowProvider({ children }: { children: ReactNode }) {
   const syncId = useRef(0);
@@ -44,7 +40,8 @@ export function AuthFlowProvider({ children }: { children: ReactNode }) {
   const [legalConsentCompleted, setLegalConsentCompleted] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [notificationIntroCompleted, setNotificationIntroCompleted] = useState(false);
-  const [locationIntroCompleted, setLocationIntroCompleted] = useState(false);
+  // Retained for existing routing/analytics consumers; location onboarding is retired.
+  const locationIntroCompleted = true;
 
   useEffect(() => {
     let mounted = true;
@@ -54,19 +51,16 @@ export function AuthFlowProvider({ children }: { children: ReactNode }) {
       let consentCompleted = false;
       let completed = false;
       let notificationCompleted = false;
-      let locationCompleted = false;
       if (nextSession) {
         try {
-          const [nextConsentCompleted, onboardingValue, notificationIntroValue, locationIntroValue] = await Promise.all([
+          const [nextConsentCompleted, onboardingValue, notificationIntroValue] = await Promise.all([
             hasCurrentLegalConsent(nextSession.user.id).catch(() => false),
             AsyncStorage.getItem(onboardingStorageKey(nextSession.user.id)),
             AsyncStorage.getItem(notificationIntroStorageKey(nextSession.user.id)),
-            AsyncStorage.getItem(locationIntroStorageKey(nextSession.user.id)),
           ]);
           consentCompleted = nextConsentCompleted;
           completed = onboardingValue === 'true';
           notificationCompleted = notificationIntroValue === 'true';
-          locationCompleted = locationIntroValue === 'true';
         } catch {
           // A damaged or unavailable preference must not discard a valid login.
           // The gated screens can retry their own writes without losing the session.
@@ -81,7 +75,6 @@ export function AuthFlowProvider({ children }: { children: ReactNode }) {
       setLegalConsentCompleted(consentCompleted);
       setOnboardingCompleted(completed);
       setNotificationIntroCompleted(notificationCompleted);
-      setLocationIntroCompleted(locationCompleted);
       setInitialized(true);
     };
 
@@ -124,13 +117,6 @@ export function AuthFlowProvider({ children }: { children: ReactNode }) {
     setNotificationIntroCompleted(true);
   };
 
-  const completeLocationIntro = async () => {
-    const activeSession = sessionRef.current ?? session;
-    if (!activeSession) throw new Error('로그인 세션을 확인하지 못했습니다.');
-    await AsyncStorage.setItem(locationIntroStorageKey(activeSession.user.id), 'true');
-    if (sessionRef.current?.user.id !== activeSession.user.id) return;
-    setLocationIntroCompleted(true);
-  };
 
   return (
     <AuthFlowContext.Provider value={{
@@ -143,7 +129,6 @@ export function AuthFlowProvider({ children }: { children: ReactNode }) {
       completeLegalConsent,
       completeOnboarding,
       completeNotificationIntro,
-      completeLocationIntro,
     }}>
       {children}
     </AuthFlowContext.Provider>

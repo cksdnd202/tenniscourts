@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.courtskorea.app",
-      "versionCode": 38,
+      "versionCode": 39,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -57,6 +57,7 @@
     "plugins": [
       "expo-router",
       "./plugins/with-android-release-optimization",
+      "./plugins/with-location-button",
       [
         "expo-notifications",
         {

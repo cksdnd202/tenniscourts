@@ -1,5 +1,22 @@
+import { requireNativeModule } from 'expo-modules-core';
 import * as Location from 'expo-location';
 import { Platform } from 'react-native';
+
+const nativeLocationButton = Platform.OS === 'android'
+  ? requireNativeModule<{getPermissionScope(): 'fine' | 'coarse' | 'none'}>('CourtsLocationButton')
+  : null;
+
+export async function getForegroundLocationPermissionsAsync() {
+  const permission = await Location.getForegroundPermissionsAsync();
+  if (!nativeLocationButton) return permission;
+  const accuracy = nativeLocationButton.getPermissionScope();
+  return {
+    ...permission,
+    granted: accuracy !== 'none',
+    status: accuracy !== 'none' ? Location.PermissionStatus.GRANTED : permission.status,
+    android: { ...permission.android, accuracy },
+  };
+}
 
 const RECENT_LOCATION_MAX_AGE_MS = 3 * 60 * 1000;
 const PRECISE_CACHE_ACCURACY_METERS = 500;
@@ -45,7 +62,7 @@ export async function getRecentLocationAsync() {
   // Reject a coarse cached fix after the user enables precise location, while
   // still reusing approximate fixes when that is the user's permission choice.
   const permission = Platform.OS === 'android'
-    ? await Location.getForegroundPermissionsAsync()
+    ? await getForegroundLocationPermissionsAsync()
     : null;
   const requiredAccuracy = permission?.android?.accuracy === 'coarse'
     ? APPROXIMATE_CACHE_ACCURACY_METERS
