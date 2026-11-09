@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.courtskorea.app",
-      "versionCode": 35,
+      "versionCode": 39,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -39,7 +39,9 @@
       "blockedPermissions": [
         "com.google.android.gms.permission.AD_ID",
         "android.permission.ACCESS_ADSERVICES_AD_ID",
-        "android.permission.ACCESS_ADSERVICES_ATTRIBUTION"
+        "android.permission.ACCESS_ADSERVICES_ATTRIBUTION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#000000",
@@ -55,6 +57,7 @@
     "plugins": [
       "expo-router",
       "./plugins/with-android-release-optimization",
+      "./plugins/with-location-button",
       [
         "expo-notifications",
         {

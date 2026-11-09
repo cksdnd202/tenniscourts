@@ -1645,6 +1645,7 @@ function MapTestClientContent({
             {mobileMode === "map" ? (
               <Link
                 href="/"
+                data-map-home-link="true"
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-white/95 text-[#111827] shadow-[0_10px_24px_rgba(15,23,42,0.14)] backdrop-blur transition hover:bg-white"
                 aria-label="검색 화면으로 돌아가기"
               >

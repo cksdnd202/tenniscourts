@@ -1,3 +1,4 @@
+import { AndroidLocationButton } from '@/components/AndroidLocationButton';
 import { StatusBar } from 'expo-status-bar';
 import { Image as ExpoImage } from 'expo-image';
 import * as Location from 'expo-location';
@@ -46,6 +47,7 @@ import { SportLoadingIndicator } from '@/components/SportLoadingIndicator';
 import { getAppErrorCopy, type AppErrorCopy } from '@/lib/appError';
 import { trackEvent } from '@/lib/analytics';
 import {
+  getForegroundLocationPermissionsAsync,
   getFreshLocationAsync,
   getLocationCoordinates,
   getRecentLocationAsync,
@@ -248,8 +250,8 @@ export default function SearchScreen() {
   const resolveNearbyLocation = useCallback(async ({ requestPermission = false } = {}) => {
     setLocationState('checking');
     try {
-      let permission = await Location.getForegroundPermissionsAsync();
-      if (!permission.granted && requestPermission && permission.canAskAgain) {
+      let permission = await getForegroundLocationPermissionsAsync();
+      if (!permission.granted && requestPermission && Platform.OS !== 'android' && permission.canAskAgain) {
         trackEvent('location_permission_requested', { source: 'home_nearby' });
         permission = await Location.requestForegroundPermissionsAsync();
         trackEvent(permission.granted ? 'location_permission_granted' : 'location_permission_denied', { source: 'home_nearby' });
@@ -374,7 +376,7 @@ export default function SearchScreen() {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active' && listMode === 'nearby' && (locationState === 'blocked' || locationState === 'services')) {
+      if (state === 'active' && listMode === 'nearby') {
         void resolveNearbyLocation();
       }
     });
@@ -626,6 +628,12 @@ export default function SearchScreen() {
                 <ErrorState description={error.description} onAction={() => void load()} style={styles.state} title={error.title} />
               ) : listMode === 'nearby' && !locationCoords ? (
                 <EmptyState
+                  action={Platform.OS === 'android' && locationState !== 'services'
+                    ? <View style={{alignItems:'center',marginTop:22}}>
+                        <AndroidLocationButton style={{width:190,height:48}} onResult={() => void resolveNearbyLocation()} />
+                        {locationState === 'blocked' ? <Pressable onPress={handleLocationAction} style={{padding:12}}><Text>설정에서 위치 허용</Text></Pressable> : null}
+                      </View>
+                    : undefined}
                   actionLabel={locationState === 'blocked' ? '설정으로 이동' : locationState === 'services' ? '위치 켜기' : '위치 허용'}
                   description={locationState === 'services'
                     ? '휴대폰의 위치 기능을 켜면 가까운 순서대로 보여드릴게요.'

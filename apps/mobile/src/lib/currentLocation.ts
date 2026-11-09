@@ -1,13 +1,32 @@
+import { requireNativeModule } from 'expo-modules-core';
 import * as Location from 'expo-location';
+import { Platform } from 'react-native';
+
+const nativeLocationButton = Platform.OS === 'android'
+  ? requireNativeModule<{getPermissionScope(): 'fine' | 'coarse' | 'none'}>('CourtsLocationButton')
+  : null;
+
+export async function getForegroundLocationPermissionsAsync() {
+  const permission = await Location.getForegroundPermissionsAsync();
+  if (!nativeLocationButton) return permission;
+  const accuracy = nativeLocationButton.getPermissionScope();
+  return {
+    ...permission,
+    granted: accuracy !== 'none',
+    status: accuracy !== 'none' ? Location.PermissionStatus.GRANTED : permission.status,
+    android: { ...permission.android, accuracy },
+  };
+}
 
 const RECENT_LOCATION_MAX_AGE_MS = 3 * 60 * 1000;
-const RECENT_LOCATION_REQUIRED_ACCURACY_METERS = 500;
+const PRECISE_CACHE_ACCURACY_METERS = 500;
+const APPROXIMATE_CACHE_ACCURACY_METERS = 3000;
 const FRESH_LOCATION_TIMEOUT_MS = 8000;
 
 let rememberedLocation: Location.LocationObject | null = null;
 let freshLocationPromise: Promise<Location.LocationObject> | null = null;
 
-function isUsableRecentLocation(location: Location.LocationObject | null) {
+function isUsableRecentLocation(location: Location.LocationObject | null, requiredAccuracy: number) {
   if (!location) return false;
 
   const age = Date.now() - location.timestamp;
@@ -15,7 +34,7 @@ function isUsableRecentLocation(location: Location.LocationObject | null) {
   return age >= 0
     && age <= RECENT_LOCATION_MAX_AGE_MS
     && typeof accuracy === 'number'
-    && accuracy <= RECENT_LOCATION_REQUIRED_ACCURACY_METERS;
+    && accuracy <= requiredAccuracy;
 }
 
 function rememberLocation(location: Location.LocationObject) {
@@ -40,11 +59,19 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
 }
 
 export async function getRecentLocationAsync() {
-  if (isUsableRecentLocation(rememberedLocation)) return rememberedLocation;
+  // Reject a coarse cached fix after the user enables precise location, while
+  // still reusing approximate fixes when that is the user's permission choice.
+  const permission = Platform.OS === 'android'
+    ? await getForegroundLocationPermissionsAsync()
+    : null;
+  const requiredAccuracy = permission?.android?.accuracy === 'coarse'
+    ? APPROXIMATE_CACHE_ACCURACY_METERS
+    : PRECISE_CACHE_ACCURACY_METERS;
+  if (isUsableRecentLocation(rememberedLocation, requiredAccuracy)) return rememberedLocation;
 
   const lastKnownLocation = await Location.getLastKnownPositionAsync({
     maxAge: RECENT_LOCATION_MAX_AGE_MS,
-    requiredAccuracy: RECENT_LOCATION_REQUIRED_ACCURACY_METERS,
+    requiredAccuracy,
   });
   return lastKnownLocation ? rememberLocation(lastKnownLocation) : null;
 }
@@ -52,7 +79,7 @@ export async function getRecentLocationAsync() {
 export async function getFreshLocationAsync() {
   if (!freshLocationPromise) {
     freshLocationPromise = Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
+      accuracy: Platform.OS === 'android' ? Location.Accuracy.High : Location.Accuracy.Balanced,
     })
       .then(rememberLocation)
       .finally(() => {
@@ -91,5 +118,8 @@ export function hasMeaningfulLocationChange(
   next: Location.LocationObject,
   minimumDistanceMeters = 50,
 ) {
-  return getLocationDistanceMeters(previous, next) >= minimumDistanceMeters;
+  const accuracyImproved = typeof previous.coords.accuracy === 'number'
+    && typeof next.coords.accuracy === 'number'
+    && next.coords.accuracy < previous.coords.accuracy;
+  return accuracyImproved || getLocationDistanceMeters(previous, next) >= minimumDistanceMeters;
 }

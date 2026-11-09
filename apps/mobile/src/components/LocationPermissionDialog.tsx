@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Image } from 'expo-image';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -6,6 +7,7 @@ import locationPermissionImage from '@/assets/images/onboarding/location-permiss
 type LocationDialogMode = 'permission' | 'services';
 
 type Props = {
+  action?: ReactNode;
   busy?: boolean;
   mode: LocationDialogMode;
   onCancel: () => void;
@@ -26,10 +28,12 @@ const copy = {
   },
 } satisfies Record<LocationDialogMode, { title: string; description: string; confirm: string }>;
 
-export function LocationPermissionDialog({ busy = false, mode, onCancel, onConfirm, visible }: Props) {
+export function LocationPermissionDialog({ action, busy = false, mode, onCancel, onConfirm, visible }: Props) {
   if (!visible) return null;
 
-  const content = copy[mode];
+  const content = action && mode === 'permission'
+    ? { ...copy.permission, description: '현재 위치를 이용해 가까운 운동 시설을 찾고 지도에서 위치를 확인해 보세요.' }
+    : copy[mode];
 
   return (
     <View style={styles.layer}>
@@ -57,21 +61,26 @@ export function LocationPermissionDialog({ busy = false, mode, onCancel, onConfi
         <Text style={styles.description}>{content.description}</Text>
 
         <View style={styles.actions}>
-          <Pressable
+          {!action ? <Pressable
             disabled={busy}
             onPress={onCancel}
             style={({ pressed }) => [styles.cancelButton, pressed && styles.pressed]}
           >
             <Text style={styles.cancelText}>취소</Text>
-          </Pressable>
-          <Pressable
+          </Pressable> : null}
+          {action ?? <Pressable
             disabled={busy}
             onPress={() => void onConfirm()}
             style={({ pressed }) => [styles.confirmButton, pressed && styles.pressed]}
           >
             {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.confirmText}>{content.confirm}</Text>}
-          </Pressable>
+          </Pressable>}
         </View>
+        {action && mode === 'permission' ? (
+          <Pressable disabled={busy} onPress={() => void onConfirm()} style={{alignItems:'center',paddingTop:14,paddingBottom:4}}>
+            <Text style={{color:'#5F5F5F',fontSize:14}}>설정에서 위치 허용</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
