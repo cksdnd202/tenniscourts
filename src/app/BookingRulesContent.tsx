@@ -35,7 +35,7 @@ export function formatBookingRuleEligibility(value: string | null | undefined) {
     none: "없음",
   };
   const key = value?.trim();
-  return key ? map[key] ?? key : "누구나";
+  return key ? map[key] ?? key : "대상 미확인";
 }
 
 function getBookingRuleLabelTone(value: string | null | undefined): BookingOpenLabelTone {

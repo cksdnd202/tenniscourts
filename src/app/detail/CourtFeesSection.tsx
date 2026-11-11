@@ -12,7 +12,7 @@ function feeEligibilityLabel(eligibility: string | null) {
   if (eligibility === "non_resident") return "타지역";
   if (eligibility === "normal") return "누구나";
   if (eligibility === "none") return "없음";
-  return eligibility || "자격 없음";
+  return eligibility || "대상 미확인";
 }
 
 function formatFee(price: number | null) {

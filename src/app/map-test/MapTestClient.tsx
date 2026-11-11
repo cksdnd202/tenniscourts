@@ -19,6 +19,8 @@ import {
   getPriorityBookingLabel,
   type NextOpenResult,
 } from "@/lib/nextBookingOpen";
+import { getBookingMethodLabel, getBookingRuleTargetText } from "@/lib/bookingRuleDisplay";
+import { getActivePhoneBookingRule, getPhoneReservationHref, isPhoneReservationCourt } from "@/lib/phoneReservation";
 import { getReservationHref } from "@/lib/reservationLink";
 import { supabase } from "@/lib/supabase";
 
@@ -394,6 +396,25 @@ function getCourtUpcomingOpens(court: Court): UpcomingOpen[] {
     });
   }
   return items;
+}
+
+// Display all access methods; only calendar sections require a calculable date.
+function getCourtBookingDisplay(court: Court) {
+  const rules = sortActiveRules(court);
+  if (rules.length > 0) {
+    return rules.map((rule) => ({
+      key: rule.id,
+      badge: getBookingRuleTargetText(rule),
+      label: formatBookingRuleCardText(rule),
+      result: getNextBookingRuleOpen(court, rule),
+      method: getBookingMethodLabel(rule.rule_type),
+    }));
+  }
+  const method = getBookingMethodLabel(court.booking_rule_type);
+  if (method) {
+    return [{ key: `${court.id}-method`, badge: "", label: method, result: null, method }];
+  }
+  return getCourtUpcomingOpens(court).map((item) => ({ ...item, method: null }));
 }
 
 function loadKakaoMapScript() {
@@ -1202,8 +1223,11 @@ function MapTestClientContent({
 
   const selectedOpens = selectedCourt ? getCourtUpcomingOpens(selectedCourt).slice(0, 4) : [];
   const nextSelectedOpen = selectedOpens[0] ?? null;
+  const selectedBookingDisplay = selectedCourt ? getCourtBookingDisplay(selectedCourt) : [];
   const selectedBlogLinks = selectedCourt?.court_blog_links?.slice(0, 3) ?? [];
-  const reservationHref = selectedCourt ? getReservationHref(selectedCourt) : "";
+  const phoneReservation = selectedCourt ? isPhoneReservationCourt(selectedCourt) : false;
+  const reservationHref = selectedCourt ? (phoneReservation ? getPhoneReservationHref(selectedCourt, getActivePhoneBookingRule(selectedCourt)) : getReservationHref(selectedCourt)) : "";
+  const selectedMethodLabels = [...new Set(selectedBookingDisplay.map((item) => item.method).filter(Boolean))];
 
   const moveToCurrentLocation = () => {
     if (isLocating) return;
@@ -1580,6 +1604,7 @@ function MapTestClientContent({
   const renderCourtListItem = (court: Court, onSelect?: (court: Court) => void) => {
     const isSelected = court.id === selectedCourt?.id;
     const courtOpens = getCourtUpcomingOpens(court);
+    const methods = [...new Set(getCourtBookingDisplay(court).map((item) => item.method).filter(Boolean))];
 
     return (
       <button
@@ -1605,9 +1630,12 @@ function MapTestClientContent({
             <p className="truncate text-[12px] font-semibold text-[#111827]">
               {courtOpens[0].result.dateLabel} {courtOpens[0].result.timeLabel} 오픈
             </p>
-          ) : (
+          ) : methods.length === 0 ? (
             <p className="text-[12px] font-medium text-[#9ca3af]">예약 오픈 정보 확인 중</p>
-          )}
+          ) : null}
+          {methods.length > 0 ? (
+            <p className="text-[12px] font-semibold text-[#111827]">{methods.join(" · ")}</p>
+          ) : null}
         </div>
       </button>
     );
@@ -2350,23 +2378,23 @@ function MapTestClientContent({
               <section className="mt-5">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-sm font-semibold text-[#111827]">예약 오픈 정보</h3>
-                  {selectedOpens.length > 0 ? (
-                    <span className="text-xs font-medium text-[#9ca3af]">{selectedOpens.length}개</span>
+                  {selectedBookingDisplay.length > 0 ? (
+                    <span className="text-xs font-medium text-[#9ca3af]">{selectedBookingDisplay.length}개</span>
                   ) : null}
                 </div>
                 <div className="mt-2 space-y-2">
-                {selectedOpens.length > 0 ? (
-                  selectedOpens.map((item) => (
+                {selectedBookingDisplay.length > 0 ? (
+                  selectedBookingDisplay.map((item) => (
                     <div key={item.key} className="rounded-xl bg-[#f4f6f8] px-3 py-3">
                       <div className="flex items-start gap-2">
-                        <span className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-semibold text-[#25764d]">
+                        {item.badge ? <span className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-semibold text-[#25764d]">
                           {item.badge}
-                        </span>
+                        </span> : null}
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-[#111827]">{item.label}</p>
-                          <p className="mt-1 text-xs font-medium text-[#6b7280]">
+                          {item.result ? <p className="mt-1 text-xs font-medium text-[#6b7280]">
                             {item.result.dateLabel} {item.result.timeLabel}
-                          </p>
+                          </p> : null}
                         </div>
                       </div>
                     </div>
@@ -2379,7 +2407,7 @@ function MapTestClientContent({
                 </div>
               </section>
 
-              <section className="mt-5">
+              {nextSelectedOpen || selectedMethodLabels.length === 0 ? <section className="mt-5">
                 <h3 className="text-sm font-semibold text-[#111827]">다음 예약 오픈일</h3>
                 {nextSelectedOpen ? (
                   <div className="mt-2 rounded-2xl border border-[#d6dde5] bg-[#f8fafc] p-4">
@@ -2409,13 +2437,13 @@ function MapTestClientContent({
                     계산 가능한 다음 예약 오픈일이 없습니다.
                   </p>
                 )}
-              </section>
+              </section> : null}
 
               <div className="mt-5">
                 {reservationHref ? (
                   <a
                     href={reservationHref}
-                    target="_blank"
+                    target={phoneReservation ? undefined : "_blank"}
                     rel="noreferrer"
                     data-gtm="reserve_click"
                     data-court-id={selectedCourt.id}
@@ -2423,11 +2451,11 @@ function MapTestClientContent({
                     data-booking-source="map_info_layer"
                     className="block rounded-xl bg-[#25764d] px-4 py-3 text-center text-sm font-semibold text-white"
                   >
-                    예약하러가기
+                    {phoneReservation ? "전화 예약" : "예약하러가기"}
                   </a>
                 ) : (
                   <span className="block rounded-xl bg-[#e5e7eb] px-4 py-3 text-center text-sm font-semibold text-[#9ca3af]">
-                    예약 링크 확인 중
+                    {selectedMethodLabels.length > 0 ? selectedMethodLabels.join(" · ") : "예약 링크 확인 중"}
                   </span>
                 )}
               </div>

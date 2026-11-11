@@ -80,7 +80,7 @@ function formatEligibilityForSeo(value: string | null | undefined): string {
     case "normal":
       return "누구나";
     default:
-      return getPriorityEligibilityLabel(value) || "누구나";
+      return getPriorityEligibilityLabel(value) || "대상 미확인";
   }
 }
 

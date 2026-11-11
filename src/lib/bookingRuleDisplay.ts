@@ -15,8 +15,8 @@ export function getBookingRuleCondition(rule: CourtBookingRule): string {
 }
 
 export function getBookingRuleTargetText(rule: CourtBookingRule): string {
-  const key = rule.eligibility?.trim() || "normal";
-  const eligibility = eligibilityLabels[key] ?? key;
+  const key = rule.eligibility?.trim() || "";
+  const eligibility = key ? eligibilityLabels[key] ?? key : "대상 미확인";
   const condition = getBookingRuleCondition(rule);
   if (condition && (key === "none" || /소속.*클럽/.test(condition))) return condition;
   return condition ? `${eligibility} · ${condition}` : eligibility;
@@ -34,4 +34,11 @@ export function getBookingRuleDisplayContext(rule: CourtBookingRule): string[] {
     : /잔여분/.test(legacyLabel) ? legacyLabel
     : /선착순/.test(legacyLabel) ? "선착순 예약" : "";
   return [...new Set([explicitPhase, method, rule.usage_period_label?.trim()].filter((v): v is string => Boolean(v)))];
+}
+
+export function getBookingMethodLabel(ruleType: string | null | undefined): string | null {
+  if (ruleType === "on_site") return "현장 예약";
+  if (ruleType === "phone") return "전화 예약";
+  if (ruleType === "outdoor_open") return "실외 개방";
+  return null;
 }
