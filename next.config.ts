@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Keep canonical and other SEO metadata in the initial HTML head for every client.
+  htmlLimitedBots: /.*/,
   reactCompiler: true,
   async redirects() {
     return [
