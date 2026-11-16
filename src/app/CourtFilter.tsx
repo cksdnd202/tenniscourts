@@ -133,7 +133,11 @@ function formatPriceRange([minimum, maximum]: PriceRange) {
   return `${formatKoreanPrice(minimum)} ~ ${formatKoreanPrice(maximum)}`;
 }
 
-function PriceFilterInfoTooltip({ tooltipId }: { tooltipId: string }) {
+function FilterInfoTooltip({ tooltipId, label, content }: {
+  tooltipId: string;
+  label: string;
+  content: string;
+}) {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({
@@ -148,7 +152,7 @@ function PriceFilterInfoTooltip({ tooltipId }: { tooltipId: string }) {
 
     const bounds = button.getBoundingClientRect();
     const buttonCenterX = bounds.left + bounds.width / 2;
-    const tooltipHalfWidth = 140;
+    const tooltipHalfWidth = Math.min(window.innerWidth - 24, content.length * 12 + 16) / 2;
     const viewportPadding = 12;
     const tooltipCenterX = Math.min(
       window.innerWidth - tooltipHalfWidth - viewportPadding,
@@ -178,10 +182,11 @@ function PriceFilterInfoTooltip({ tooltipId }: { tooltipId: string }) {
               top: `${position.top}px`,
               transform: "translate(-50%, -100%)",
               width: "max-content",
+              whiteSpace: "normal",
               zIndex: 100,
             }}
           >
-            이용금액은 1시간 기준으로 필터링 됩니다
+            {content}
             <span
               aria-hidden="true"
               style={{
@@ -210,10 +215,14 @@ function PriceFilterInfoTooltip({ tooltipId }: { tooltipId: string }) {
       <button
         ref={buttonRef}
         type="button"
-        aria-label="이용금액 필터 기준 안내"
+        aria-label={label}
         aria-describedby={isOpen ? tooltipId : undefined}
         onFocus={showTooltip}
         onBlur={() => setIsOpen(false)}
+        onClick={showTooltip}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setIsOpen(false);
+        }}
         className="flex h-4 w-4 items-center justify-center rounded-full border border-[#6B7078] text-[10px] font-bold leading-none text-[#8A8F98] outline-none focus-visible:ring-2 focus-visible:ring-[#8A8F98]"
       >
         ?
@@ -1171,7 +1180,6 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
           <>
             <section className="mb-8" aria-label="이용 방식 필터">
               <h3 className="mb-2 text-lg font-bold text-white">이용 방식</h3>
-              <p className="mb-3 text-xs leading-5 text-[#8A8F98]">선택한 방식 중 하나라도 가능한 곳</p>
               <div className="flex flex-col gap-2.5 text-white">
                 {COURT_BOOKING_METHODS.map(({ value, label }) => (
                   <label key={value} className="inline-flex min-h-5 cursor-pointer items-center gap-2.5">
@@ -1190,8 +1198,14 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
               </div>
             </section>
             <section className="mb-8" aria-label="편의시설 필터">
-              <h3 className="mb-2 text-lg font-bold text-white">편의시설</h3>
-              <p className="mb-3 text-xs leading-5 text-[#8A8F98]">선택한 시설이 모두 있는 곳만 보여드려요.<br />미확인 시설은 검색 결과에서 제외돼요.</p>
+              <div className="mb-2 flex items-center gap-1.5">
+                <h3 className="text-lg font-bold text-white">편의시설</h3>
+                <FilterInfoTooltip
+                  tooltipId={`amenity-filter-info-tooltip-${useTemp ? "mobile" : "desktop"}`}
+                  label="편의시설 필터 안내"
+                  content="온라인 자료를 기반으로 한 정보이며, 실제와 다를 수 있습니다."
+                />
+              </div>
               <div className="grid grid-cols-2 gap-x-3 gap-y-3 text-white">
                 {COURT_AMENITIES.map(({ key, label }) => (
                   <label key={key} className="inline-flex min-h-5 cursor-pointer items-center gap-2.5">
@@ -1216,7 +1230,11 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
         <section className="mb-8">
           <div className="mb-2 flex items-center gap-1.5">
             <h3 className="text-lg font-bold text-white">이용금액</h3>
-            <PriceFilterInfoTooltip tooltipId={priceInfoTooltipId} />
+            <FilterInfoTooltip
+              tooltipId={priceInfoTooltipId}
+              label="이용금액 필터 기준 안내"
+              content="이용금액은 1시간 기준으로 필터링 됩니다"
+            />
           </div>
           {sportType === "tennis" ? (
             <>
