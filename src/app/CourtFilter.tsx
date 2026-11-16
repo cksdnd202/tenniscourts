@@ -15,6 +15,8 @@ import { IrregularContent } from "./IrregularContent";
 import { CheckingContent } from "./CheckingContent";
 import { FirstVisitCoachmark } from "./FirstVisitCoachmark";
 import { hasActiveBookingRules } from "./BookingRulesContent";
+import { COURT_AMENITIES, type CourtAmenityKey } from "@/lib/courtAmenities";
+import { COURT_BOOKING_METHODS, matchesCourtAmenities, matchesCourtBookingMethods, type CourtBookingMethod } from "@/lib/courtDiscoveryFilters";
 import { supabase } from "@/lib/supabase";
 import { getCourtDetailPath } from "@/lib/courtPath";
 import { capturePostHogEvent } from "@/lib/posthogClient";
@@ -420,6 +422,8 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
   const [selectedCourtEnvironments, setSelectedCourtEnvironments] = useState<CourtEnvironment[]>([]);
   const [selectedOwnerTypes, setSelectedOwnerTypes] = useState<string[]>([]);
   const [selectedFeeTypes, setSelectedFeeTypes] = useState<CourtFeeFilter[]>([]);
+  const [selectedAmenities, setSelectedAmenities] = useState<CourtAmenityKey[]>([]);
+  const [selectedBookingMethods, setSelectedBookingMethods] = useState<CourtBookingMethod[]>([]);
   const [selectedPriceRange, setSelectedPriceRange] = useState<PriceRange>(DEFAULT_PRICE_RANGE);
   
   // 팝업에서 사용할 임시 필터 상태
@@ -429,6 +433,8 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
   const [tempCourtEnvironments, setTempCourtEnvironments] = useState<CourtEnvironment[]>([]);
   const [tempOwnerTypes, setTempOwnerTypes] = useState<string[]>([]);
   const [tempFeeTypes, setTempFeeTypes] = useState<CourtFeeFilter[]>([]);
+  const [tempAmenities, setTempAmenities] = useState<CourtAmenityKey[]>([]);
+  const [tempBookingMethods, setTempBookingMethods] = useState<CourtBookingMethod[]>([]);
   const [tempPriceRange, setTempPriceRange] = useState<PriceRange>(DEFAULT_PRICE_RANGE);
   
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
@@ -634,6 +640,9 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
         if (!matchesFree && !matchesPaid) return false;
       }
 
+      if (sportType === "badminton" &&
+          (!matchesCourtAmenities(c, selectedAmenities) ||
+           !matchesCourtBookingMethods(c, selectedBookingMethods))) return false;
       return true;
     });
   }, [
@@ -645,6 +654,9 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
     selectedOwnerTypes,
     selectedFeeTypes,
     selectedPriceRange,
+    selectedAmenities,
+    selectedBookingMethods,
+    sportType,
   ]);
   const sortedCourts = useMemo(() => {
     const list = [...filteredCourts];
@@ -685,6 +697,9 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
     selectedOwnerTypes,
     selectedFeeTypes,
     selectedPriceRange,
+    selectedAmenities,
+    selectedBookingMethods,
+    sportType,
     sortMode,
   ]);
 
@@ -792,6 +807,8 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
     setTempOwnerTypes([...selectedOwnerTypes]);
     setTempFeeTypes([...selectedFeeTypes]);
     setTempPriceRange([...selectedPriceRange] as PriceRange);
+    setTempAmenities([...selectedAmenities]);
+    setTempBookingMethods([...selectedBookingMethods]);
     setIsFilterClosing(false);
     setIsFilterOpen(true);
   };
@@ -805,6 +822,8 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
     setSelectedOwnerTypes([...tempOwnerTypes]);
     setSelectedFeeTypes([...tempFeeTypes]);
     setSelectedPriceRange([...tempPriceRange] as PriceRange);
+    setSelectedAmenities([...tempAmenities]);
+    setSelectedBookingMethods([...tempBookingMethods]);
     capturePostHogEvent("main_filter_clicked", {
       filterType: "mobile_filter_apply",
       region: tempRegion,
@@ -814,6 +833,8 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
       ownerTypes: tempOwnerTypes,
       feeTypes: tempFeeTypes,
       priceRange: tempPriceRange,
+      amenities: tempAmenities,
+      bookingMethods: tempBookingMethods,
     });
     handleCloseFilter();
   };
@@ -837,6 +858,8 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
     setSelectedOwnerTypes([]);
     setSelectedFeeTypes([]);
     setSelectedPriceRange(DEFAULT_PRICE_RANGE);
+    setSelectedAmenities([]);
+    setSelectedBookingMethods([]);
     if (isFilterOpen) {
       setTempRegion("");
       setTempCity("");
@@ -845,6 +868,8 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
       setTempOwnerTypes([]);
       setTempFeeTypes([]);
       setTempPriceRange(DEFAULT_PRICE_RANGE);
+      setTempAmenities([]);
+      setTempBookingMethods([]);
     }
     capturePostHogEvent("main_filter_clicked", {
       filterType: "reset",
@@ -940,6 +965,8 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
     const currentOwnerTypes = useTemp ? tempOwnerTypes : selectedOwnerTypes;
     const currentFeeTypes = useTemp ? tempFeeTypes : selectedFeeTypes;
     const currentPriceRange = useTemp ? tempPriceRange : selectedPriceRange;
+    const currentAmenities = useTemp ? tempAmenities : selectedAmenities;
+    const currentBookingMethods = useTemp ? tempBookingMethods : selectedBookingMethods;
     const currentCities = useTemp ? tempCities : cities;
     const badmintonPriceTooltipId = useTemp
       ? "badminton-price-tooltip-mobile"
@@ -1139,6 +1166,51 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
             ))}
           </div>
         </section>
+
+        {sportType === "badminton" ? (
+          <>
+            <section className="mb-8" aria-label="이용 방식 필터">
+              <h3 className="mb-2 text-lg font-bold text-white">이용 방식</h3>
+              <p className="mb-3 text-xs leading-5 text-[#8A8F98]">선택한 방식 중 하나라도 가능한 곳</p>
+              <div className="flex flex-col gap-2.5 text-white">
+                {COURT_BOOKING_METHODS.map(({ value, label }) => (
+                  <label key={value} className="inline-flex min-h-5 cursor-pointer items-center gap-2.5">
+                    <input type="checkbox" className="filter-checkbox"
+                      checked={currentBookingMethods.includes(value)}
+                      onChange={() => {
+                        const update = useTemp ? setTempBookingMethods : setSelectedBookingMethods;
+                        update((previous) => toggleInArray(previous, value));
+                        capturePostHogEvent("main_filter_clicked", { filterType: "booking_method", value, sportType,
+                          action: currentBookingMethods.includes(value) ? "remove" : "add",
+                          source: useTemp ? "mobile_filter" : "desktop_filter" });
+                      }} />
+                    <span className="text-base font-normal leading-5">{label}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+            <section className="mb-8" aria-label="편의시설 필터">
+              <h3 className="mb-2 text-lg font-bold text-white">편의시설</h3>
+              <p className="mb-3 text-xs leading-5 text-[#8A8F98]">선택한 시설이 모두 있는 곳만 보여드려요.<br />미확인 시설은 검색 결과에서 제외돼요.</p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-3 text-white">
+                {COURT_AMENITIES.map(({ key, label }) => (
+                  <label key={key} className="inline-flex min-h-5 cursor-pointer items-center gap-2.5">
+                    <input type="checkbox" className="filter-checkbox"
+                      checked={currentAmenities.includes(key)}
+                      onChange={() => {
+                        const update = useTemp ? setTempAmenities : setSelectedAmenities;
+                        update((previous) => toggleInArray(previous, key));
+                        capturePostHogEvent("main_filter_clicked", { filterType: "amenity", value: key, sportType,
+                          action: currentAmenities.includes(key) ? "remove" : "add",
+                          source: useTemp ? "mobile_filter" : "desktop_filter" });
+                      }} />
+                    <span className="text-base font-normal leading-5">{label}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          </>
+        ) : null}
 
         {/* 이용 요금 필터 */}
         <section className="mb-8">
@@ -1631,7 +1703,12 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
             </p>
             {sportType === "badminton" && courts.length === 0 ? (
               <p className="mt-2 text-sm text-[#8A8F98]">어드민에서 배드민턴장 정보를 추가하면 이곳에 바로 표시됩니다.</p>
-            ) : null}
+            ) : (
+              <button type="button" onClick={handleResetFilter}
+                className="mt-4 rounded-lg border border-[#3C3C3C] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2C2C2C]">
+                필터 초기화
+              </button>
+            )}
           </div>
         ) : viewMode === "list" ? (
           <ul className="grid grid-cols-1 gap-3">

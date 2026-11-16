@@ -61,10 +61,10 @@ export type HomeCourtSearchItem = Pick<
 >;
 
 const COURT_CARD_SELECT =
-  "id, sport_type, created_at, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_latitude, basic_longitude, basic_region, basic_city, booking_site_link, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, has_indoor_courts, has_outdoor_courts, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, booking_rule_type, booking_lottery_desc, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_offset, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, court_surface_counts(id, court_id, surface_type, indoor_count, outdoor_count)";
+  "id, sport_type, created_at, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_latitude, basic_longitude, basic_region, basic_city, booking_site_link, booking_online_reserve_possible, court_amenities(amenity_key, status), booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, has_indoor_courts, has_outdoor_courts, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, booking_rule_type, booking_lottery_desc, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_offset, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, court_surface_counts(id, court_id, surface_type, indoor_count, outdoor_count)";
 
 const COURT_CARD_RULE_SELECT =
-  "id, court_id, label, eligibility, target_condition, rule_type, open_type, open_day_of_month, open_day_of_week, open_ordinal, open_time, open_offset, open_date_adjustment, interval_weeks, anchor_date, lottery_desc, booking_round_label, usage_period_label, is_active, sort_order";
+  "id, court_id, reservation_url, label, eligibility, target_condition, rule_type, open_type, open_day_of_month, open_day_of_week, open_ordinal, open_time, open_offset, open_date_adjustment, interval_weeks, anchor_date, lottery_desc, booking_round_label, usage_period_label, is_active, sort_order";
 
 const COURT_CARD_FEE_SELECT =
   "id, booking_rule_id, is_free, price_basis_hours, outdoor_weekday_price, outdoor_weekend_price, indoor_weekday_price, indoor_weekend_price, lighting_fee_separate, lighting_fee_amount, lighting_fee_basis_hours, lighting_start_time";
@@ -200,7 +200,7 @@ async function fetchHomeCourts(sportType: SportType = "tennis") {
   return attachBookingRulesAndFeeSummary((data as Court[] | null) ?? []);
 }
 
-export const getCachedHomeCourts = unstable_cache(fetchHomeCourts, ["home-courts-v14-name-slugs"], {
+export const getCachedHomeCourts = unstable_cache(fetchHomeCourts, ["home-courts-v15-discovery-filters"], {
   revalidate: HOME_COURTS_REVALIDATE_SECONDS,
   tags: [HOME_COURTS_CACHE_TAG],
 });
