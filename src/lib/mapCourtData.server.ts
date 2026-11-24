@@ -82,25 +82,37 @@ async function attachBlogLinks(courts: Court[]) {
   }));
 }
 
+const MAP_COURTS_PAGE_SIZE = 1_000;
+
 async function fetchMapCourtBase(sportType?: "tennis" | "badminton") {
-  let courtRequest = getSupabaseAdmin()
-    .from("courtinfo")
-    .select(MAP_TEST_COURT_SELECT)
-    .eq("use_or_not", true);
+  const courts: Court[] = [];
 
-  courtRequest = sportType
-    ? courtRequest.eq("sport_type", sportType)
-    : courtRequest.in("sport_type", ["tennis", "badminton"]);
+  for (let offset = 0; ; offset += MAP_COURTS_PAGE_SIZE) {
+    let courtRequest = getSupabaseAdmin()
+      .from("courtinfo")
+      .select(MAP_TEST_COURT_SELECT)
+      .eq("use_or_not", true);
 
-  const { data, error } = await courtRequest.order("created_at", { ascending: false });
+    courtRequest = sportType
+      ? courtRequest.eq("sport_type", sportType)
+      : courtRequest.in("sport_type", ["tennis", "badminton"]);
 
-  if (error) throw new Error(error.message);
+    // A unique tie-breaker keeps page boundaries stable for batch-imported courts.
+    const { data, error } = await courtRequest
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(offset, offset + MAP_COURTS_PAGE_SIZE - 1);
 
-  return (data ?? []) as Court[];
+    if (error) throw new Error(error.message);
+
+    const page = (data ?? []) as Court[];
+    courts.push(...page);
+    if (page.length < MAP_COURTS_PAGE_SIZE) return courts;
+  }
 }
 
 const cacheOptions = { revalidate: 60, tags: [MAP_COURTS_CACHE_TAG] };
-const getCachedMapCourtBase = unstable_cache(fetchMapCourtBase, ["map-court-base-v1"], cacheOptions);
+const getCachedMapCourtBase = unstable_cache(fetchMapCourtBase, ["map-court-base-v2-paginated"], cacheOptions);
 
 // The complete map exceeds Next.js's 2 MiB cache-entry limit. Enrich/cache bounded
 // chunks while preserving the original court order and every field used by the client.
