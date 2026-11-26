@@ -48,6 +48,9 @@ export function BasketballCourtContent({ court }: { court: Court }) {
           // Put lengthy team and mixed-use conditions on their own line.
           const target = getBookingRuleTargetText({ ...rule, target_condition: "" });
           const text = rule.rule_type ? formatBookingRuleCardText(rule) : "예약 방법·오픈 정보 확인 필요";
+          if (!rule.rule_type && target === "대상 미확인") {
+            return <p key={rule.id} className="font-semibold text-[#B0B0B0]">예약 방법 확인중</p>;
+          }
           return (
             <div key={rule.id} className="min-w-0 break-words leading-relaxed">
               <p><span className="font-bold text-[#E6611E]">{target} : </span><span className="font-semibold text-white">{text}</span></p>
