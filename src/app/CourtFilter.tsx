@@ -1641,7 +1641,7 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
                   sortMode === "recent" ? "text-white" : "text-[#6F737B] hover:text-white"
                 }`}
               >
-                최근 등록순
+                전체
               </button>
               <button
                 type="button"
