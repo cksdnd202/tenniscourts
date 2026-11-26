@@ -35,7 +35,7 @@ export default async function Home({
 }) {
   const requestedSport = (await searchParams).sport;
 
-  if (requestedSport === "tennis" || requestedSport === "badminton") {
+  if (requestedSport === "tennis" || requestedSport === "badminton" || requestedSport === "basketball") {
     permanentRedirect(`/${requestedSport}`);
   }
 

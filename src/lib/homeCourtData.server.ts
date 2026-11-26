@@ -415,7 +415,7 @@ export function getHomeCourtSearchIndex(courts: Court[]): HomeCourtSearchItem[] 
 }
 
 async function fetchAllSportCourtSearchIndex(): Promise<HomeCourtSearchItem[]> {
-  const supportedSports: SportType[] = ["tennis", "badminton"];
+  const supportedSports: SportType[] = ["tennis", "badminton", "basketball"];
   const { data, error } = await getSupabaseAdmin()
     .from("courtinfo")
     .select(

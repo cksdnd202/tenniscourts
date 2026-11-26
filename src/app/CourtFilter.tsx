@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import type { Court, CourtBookingRule, SportType } from "./types";
 import { SPORT_CARD_THEMES, SPORT_SURFACES, SPORT_VENUE_LABELS } from "@/lib/sports";
+import { BasketballCourtContent } from "./BasketballCourtContent";
 import { FixedScheduleContent } from "./FixedScheduleContent";
 import { OrdinalContent } from "./ordinal";
 import { RollingContent } from "./RollingContent";
@@ -649,7 +650,7 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
         if (!matchesFree && !matchesPaid) return false;
       }
 
-      if (sportType === "badminton" &&
+      if (sportType !== "tennis" &&
           (!matchesCourtAmenities(c, selectedAmenities) ||
            !matchesCourtBookingMethods(c, selectedBookingMethods))) return false;
       return true;
@@ -894,6 +895,7 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
 
   // booking_rule_type에 따라 적절한 컴포넌트를 반환
   const renderCourtContent = (c: Court) => {
+    if (sportType === "basketball") return <BasketballCourtContent court={c} />;
     if (hasActiveBookingRules(c)) {
       return <FixedScheduleContent court={c} />;
     }
@@ -1101,7 +1103,7 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
         </section>
 
         {/* 코트 종류 필터 */}
-        <section className="mb-8">
+        {surfaceOptions.length > 0 ? <section className="mb-8">
           <h3 className={`mb-2 text-lg font-bold text-white`}>
             코트 종류
           </h3>
@@ -1131,7 +1133,7 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
               </label>
             ))}
           </div>
-        </section>
+        </section> : null}
 
         {/* 실내/실외 필터 */}
         <section className="mb-8">
@@ -1176,7 +1178,7 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
           </div>
         </section>
 
-        {sportType === "badminton" ? (
+        {sportType !== "tennis" ? (
           <>
             <section className="mb-8" aria-label="이용 방식 필터">
               <h3 className="mb-2 text-lg font-bold text-white">이용 방식</h3>
@@ -1236,7 +1238,7 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
               content="이용금액은 1시간 기준으로 필터링 됩니다"
             />
           </div>
-          {sportType === "tennis" ? (
+          {sportType !== "badminton" ? (
             <>
               <div className="flex flex-col gap-2.5 text-white">
                 {([
@@ -1715,12 +1717,12 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
         {sortedCourts.length === 0 ? (
           <div className="w-full rounded-2xl border border-[#2A2D33] bg-[#191B1E] px-6 py-12 text-center">
             <p className="text-base font-semibold text-white">
-              {sportType === "badminton" && courts.length === 0
-                ? "등록된 배드민턴장이 아직 없습니다."
+              {sportType !== "tennis" && courts.length === 0
+                ? `등록된 ${venueLabel}이 아직 없습니다.`
                 : `조건에 맞는 ${venueLabel}이 없습니다.`}
             </p>
-            {sportType === "badminton" && courts.length === 0 ? (
-              <p className="mt-2 text-sm text-[#8A8F98]">어드민에서 배드민턴장 정보를 추가하면 이곳에 바로 표시됩니다.</p>
+            {sportType !== "tennis" && courts.length === 0 ? (
+              <p className="mt-2 text-sm text-[#8A8F98]">공개된 시설이 등록되면 이곳에 표시됩니다.</p>
             ) : (
               <button type="button" onClick={handleResetFilter}
                 className="mt-4 rounded-lg border border-[#3C3C3C] px-4 py-2 text-sm font-semibold text-white hover:bg-[#2C2C2C]">
@@ -1738,7 +1740,7 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
               <li
                 key={c.id}
                 data-coachmark={index === 0 ? "first-court-card" : undefined}
-                className={`${courtitemstyle} ${sportType === "badminton" ? "h-fit self-start" : "min-h-[380px]"}`}
+                className={`${courtitemstyle} ${sportType !== "tennis" ? "h-fit self-start" : "min-h-[380px]"}`}
                 style={cardThemeStyle}
               >
                 {renderCourtContent(c)}
@@ -1758,7 +1760,7 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
             <div>
               <p className="text-lg font-semibold text-white">Courts Korea</p>
               <p className="mt-3 text-sm leading-6">
-                전국 테니스장과 배드민턴장 예약 정보를 더 쉽게 확인할 수 있도록 정리합니다.
+                전국 테니스장, 배드민턴장, 농구장 예약 정보를 더 쉽게 확인할 수 있도록 정리합니다.
               </p>
             </div>
             <nav className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm font-medium">

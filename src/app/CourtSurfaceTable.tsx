@@ -5,7 +5,7 @@ import { getCourtSurfaceRows, normalizeSportType } from "@/lib/sports";
 
 export function CourtSurfaceTable({ court }: { court: Court }) {
   const sportType = normalizeSportType(court.sport_type);
-  if (sportType === "badminton") return null;
+  if (sportType !== "tennis") return null;
 
   const rows = getCourtSurfaceRows(court);
 

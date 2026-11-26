@@ -10,17 +10,19 @@ import { capturePostHogEvent } from "@/lib/posthogClient";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import type { Court, SportType } from "./types";
-import { SPORT_LABELS, SPORT_VENUE_LABELS } from "@/lib/sports";
+import { SPORT_LABELS, SPORT_VENUE_LABELS, normalizeSportType } from "@/lib/sports";
 
 const SELECTED_SPORT_STORAGE_KEY = "courtskorea:selected-sport";
-const SEARCH_SPORTS: SportType[] = ["tennis", "badminton"];
+const SEARCH_SPORTS: SportType[] = ["tennis", "badminton", "basketball"];
 const SEARCH_SPORT_ICONS: Record<SportType, string> = {
   tennis: "/tennis-ball-icon.svg",
   badminton: "/icon/loading_Badminton.svg",
+  basketball: "/icon/basketball.svg",
 };
 const SEARCH_SPORT_COLORS: Record<SportType, string> = {
   tennis: "#30C27C",
   badminton: "#375AE6",
+  basketball: "#E6611E",
 };
 
 /** 헤더 검색에 실제로 쓰이는 필드만 있으면 됨 */
@@ -232,9 +234,9 @@ function SportSearchResults({
 export function CourtSearchHeader({ courts, sportType = "tennis" }: Props) {
   const venueLabel = SPORT_VENUE_LABELS[sportType];
   const isBadminton = sportType === "badminton";
-  const accentHoverClass = isBadminton ? "hover:text-[#337DFF]" : "hover:text-[#6FCF97]";
-  const searchAccentColor = isBadminton ? "#375AE6" : "#2C8B56";
-  const primaryActionClass = isBadminton
+  const accentHoverClass = sportType === "basketball" ? "hover:text-[#E6611E]" : isBadminton ? "hover:text-[#337DFF]" : "hover:text-[#6FCF97]";
+  const searchAccentColor = sportType === "basketball" ? "#E6611E" : isBadminton ? "#375AE6" : "#2C8B56";
+  const primaryActionClass = sportType === "basketball" ? "bg-[#D1500F] text-white hover:bg-[#B9440B]" : isBadminton
     ? "bg-[#375AE6] text-white hover:bg-[#2F4ECC]"
     : "bg-[#2C8B56] text-white hover:bg-[#53A978]";
   const router = useRouter();
@@ -354,9 +356,7 @@ export function CourtSearchHeader({ courts, sportType = "tennis" }: Props) {
           resultSport,
           results
             .filter((court) =>
-              resultSport === "badminton"
-                ? court.sport_type === "badminton"
-                : court.sport_type !== "badminton"
+              normalizeSportType(court.sport_type) === resultSport
             )
             .slice(0, 10),
         ])
@@ -553,7 +553,7 @@ export function CourtSearchHeader({ courts, sportType = "tennis" }: Props) {
               />
             </button>
             <nav className="flex items-center gap-6" aria-label="종목 선택">
-              {(["tennis", "badminton"] as const).map((value) => {
+              {(["tennis", "badminton", "basketball"] as const).map((value) => {
                 const selected = value === sportType;
                 return (
                   <Link
@@ -801,9 +801,9 @@ export function CourtSearchHeader({ courts, sportType = "tennis" }: Props) {
                   홈
                 </button>
                 <div className="ml-1 mt-4 flex flex-col gap-3 border-l border-white/10 pl-4">
-                  {(["tennis", "badminton"] as const).map((value) => {
+                  {(["tennis", "badminton", "basketball"] as const).map((value) => {
                     const selected = value === sportType;
-                    const selectedColor = value === "badminton" ? "text-[#337DFF]" : "text-[#6FCF97]";
+                    const selectedColor = value === "basketball" ? "text-[#E6611E]" : value === "badminton" ? "text-[#337DFF]" : "text-[#6FCF97]";
                     return (
                       <Link
                     key={value}

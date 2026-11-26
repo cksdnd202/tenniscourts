@@ -109,7 +109,7 @@ export async function GET(req: NextRequest) {
   }
 
   const shouldResolveSeoul =
-    typedCourt.sport_type !== "badminton" && (
+    typedCourt.sport_type === "tennis" && (
       typedCourt.source_provider === SEOUL_RESERVATION_PROVIDER ||
       (typedCourt.basic_region === "서울" && typedCourt.booking_booking_provide === "public_site")
     );

@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     .from("courtinfo")
     .select(COURT_CARD_SELECT)
     .in("id", ids)
-    .in("sport_type", ["tennis", "badminton"])
+    .in("sport_type", ["tennis", "badminton", "basketball"])
     .eq("use_or_not", true);
 
   if (error) {

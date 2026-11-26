@@ -23,7 +23,7 @@ export function SportSwitcher({
       className={`inline-flex rounded-full border border-[#2A2D33] bg-[#14161A] p-1 ${className}`}
       aria-label="종목 선택"
     >
-      {(["tennis", "badminton"] as const).map((value) => {
+      {(["tennis", "badminton", "basketball"] as const).map((value) => {
         const selected = value === sportType;
         return (
           <Link
@@ -33,7 +33,9 @@ export function SportSwitcher({
             aria-current={selected ? "page" : undefined}
             className={`inline-flex items-center justify-center min-w-[92px] rounded-full px-4 py-2 text-sm font-bold transition-colors ${
               selected
-                ? value === "badminton"
+                ? value === "basketball"
+                  ? "bg-[#D1500F] text-white"
+                  : value === "badminton"
                   ? "bg-[#375AE6] text-white"
                   : "bg-[#2F9461] text-white"
                 : "text-[#8A8F98] hover:text-white"

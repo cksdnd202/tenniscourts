@@ -5,11 +5,13 @@ export const DEFAULT_SPORT_TYPE: SportType = "tennis";
 export const SPORT_LABELS: Record<SportType, string> = {
   tennis: "테니스",
   badminton: "배드민턴",
+  basketball: "농구",
 };
 
 export const SPORT_VENUE_LABELS: Record<SportType, string> = {
   tennis: "테니스장",
   badminton: "배드민턴장",
+  basketball: "농구장",
 };
 
 /**
@@ -25,6 +27,12 @@ export const SPORT_CARD_THEMES: Record<
     primaryHover: string;
   }
 > = {
+  basketball: {
+    accent: "#E6611E",
+    bookmark: "#E6611E",
+    primary: "#D1500F",
+    primaryHover: "#B9440B",
+  },
   tennis: {
     accent: "#6FCF97",
     bookmark: "#D8D8D8",
@@ -43,6 +51,7 @@ export const SPORT_SURFACES: Record<
   SportType,
   Array<{ value: CourtSurfaceType; label: string }>
 > = {
+  basketball: [],
   tennis: [
     { value: "hard", label: "하드" },
     { value: "grass", label: "잔디" },
@@ -86,6 +95,7 @@ export type CourtSurfaceRow = {
 
 export function getCourtSurfaceRows(court: Court): CourtSurfaceRow[] {
   const sportType = normalizeSportType(court.sport_type);
+  if (sportType === "basketball") return [];
   if (sportType === "badminton") {
     const counts = new Map(
       (court.court_surface_counts ?? []).map((row) => [row.surface_type, row] as const)
@@ -127,7 +137,7 @@ export function getCourtSurfaceRows(court: Court): CourtSurfaceRow[] {
 }
 
 export function normalizeSportType(value: unknown): SportType {
-  return value === "badminton" ? "badminton" : DEFAULT_SPORT_TYPE;
+  return value === "badminton" || value === "basketball" ? value : DEFAULT_SPORT_TYPE;
 }
 
 export function getSportVenueLabel(value: unknown) {

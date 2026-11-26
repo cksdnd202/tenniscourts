@@ -1,6 +1,6 @@
 import type { CourtAmenity } from "@/lib/courtAmenities";
 
-export type SportType = "tennis" | "badminton";
+export type SportType = "tennis" | "badminton" | "basketball";
 
 export type CourtSurfaceType =
   | "hard"
