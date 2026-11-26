@@ -1,3 +1,4 @@
+import { getBookingRuleCondition } from "@/lib/bookingRuleDisplay";
 import type { Court, CourtBookingRuleFee } from "../types";
 import {
   detailDividerSectionStyle,
@@ -59,7 +60,12 @@ export function CourtFeesSection({ court }: { court: Court }) {
     .map((rule) => ({ rule, fee: feesByRuleId.get(rule.id) as CourtBookingRuleFee }))
     .filter(({ fee }) => fee.is_free || feePriceRows(fee).length > 0);
 
-  if (feeRows.length === 0) return null;
+  if (feeRows.length === 0) return court.sport_type === "basketball" ? (
+    <section aria-label="이용요금 정보" data-detail-fees="true" style={detailDividerSectionStyle}>
+      <h2 className={detailSectionTitle} style={{ ...detailSectionTitleStyle, marginBottom: "24px" }}>이용요금 정보</h2>
+      <p className="rounded-xl border border-[#303033] bg-[#18181A] p-5 text-sm text-[#B0B0B0]">이용요금 확인중</p>
+    </section>
+  ) : null;
 
   return (
     <section
@@ -85,6 +91,7 @@ export function CourtFeesSection({ court }: { court: Court }) {
                 <div className="flex min-w-0 items-center gap-2.5">
                   <h3 className="truncate text-sm font-semibold text-white">
                     {feeEligibilityLabel(rule.eligibility)}
+                    {court.sport_type === "basketball" && rule.usage_period_label ? ` · ${rule.usage_period_label}` : ""}
                   </h3>
                   {!fee.is_free ? (
                     <span className="shrink-0 rounded-md bg-[#2B2B2F] px-2 py-1 text-[11px] font-medium text-[#C9C9CE]">
@@ -100,6 +107,7 @@ export function CourtFeesSection({ court }: { court: Court }) {
                 ) : null}
               </header>
 
+              {court.sport_type === "basketball" && getBookingRuleCondition(rule) ? <p className="px-4 pt-3 text-sm text-[#B0B0B0] sm:px-5">{getBookingRuleCondition(rule)}</p> : null}
               {fee.is_free ? (
                 <div className="px-4 py-5 sm:px-5">
                   <strong className="text-lg font-semibold text-white">무료</strong>

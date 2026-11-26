@@ -58,7 +58,11 @@ export function CourtDetailAddress({
   court: Court;
   showNearbyAction?: boolean;
 }) {
-  if (!court.basic_address) return null;
+  const isBasketball = court.sport_type === "basketball";
+  if (!court.basic_address && !isBasketball) return null;
+  const basketballMapHref = typeof court.basic_latitude === "number" && typeof court.basic_longitude === "number"
+    ? `https://map.kakao.com/link/map/${encodeURIComponent(court.basic_court_name ?? "농구장")},${court.basic_latitude},${court.basic_longitude}`
+    : `https://map.kakao.com/link/search/${encodeURIComponent(court.basic_address || court.basic_court_name || "농구장")}`;
   const venueLabel = getSportVenueLabel(court.sport_type);
   const isBadminton = normalizeSportType(court.sport_type) === "badminton";
   const nearbyTextClass = isBadminton ? "text-[#337DFF]" : "text-[#6FCF97]";
@@ -75,17 +79,19 @@ export function CourtDetailAddress({
           height={16}
           className="flex-shrink-0"
         />
-        <span className={`${courtitem_courtaddress} truncate`}>{court.basic_address}</span>
+        <span className={`${courtitem_courtaddress} truncate`}>{court.basic_address || "상세 주소 확인 필요"}</span>
         <a
           data-detail-map-link="true"
-          href={`/map?courtId=${encodeURIComponent(court.id)}`}
+          href={isBasketball ? basketballMapHref : `/map?courtId=${encodeURIComponent(court.id)}`}
+          target={isBasketball ? "_blank" : undefined}
+          rel={isBasketball ? "noopener noreferrer" : undefined}
           className={`${courtitem_courtmaplink} flex-shrink-0`}
         >
           지도에서 보기
         </a>
       </div>
 
-      {showNearbyAction && canOpenNearbyMap ? (
+      {showNearbyAction && canOpenNearbyMap && !isBasketball ? (
         <a
           data-detail-nearby="true"
           href={`/map?nearbyCourtId=${encodeURIComponent(court.id)}`}
@@ -247,7 +253,7 @@ export function CourtDetailMap({
     map.setCenter(center);
   }
 
-  if (!court.basic_address) return null;
+  if (!court.basic_address && court.sport_type !== "basketball") return null;
   if (error) {
     return (
       <div className="w-full min-h-[260px] rounded-2xl border border-[#2C2C2C] bg-[#1A1A1B] flex items-center justify-center">
@@ -267,8 +273,8 @@ export function CourtDetailMap({
             type="button"
             onClick={resetMapPosition}
             disabled={!mapReady}
-            aria-label="테니스장 원래 위치로 이동"
-            title="테니스장 원래 위치로 이동"
+            aria-label={`${getSportVenueLabel(court.sport_type)} 원래 위치로 이동`}
+            title={`${getSportVenueLabel(court.sport_type)} 원래 위치로 이동`}
             className="absolute bottom-3 right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-[#D6D6D6] bg-white text-[#222] shadow-[0_3px_12px_rgba(0,0,0,0.32)] transition hover:bg-[#F2F2F2] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:bottom-4 sm:right-4"
           >
             <svg

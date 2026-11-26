@@ -99,6 +99,8 @@ export type Court = {
   booking_booking_provide: string | null;
   etc_desc: string | null;
 
+  map_coordinate_evidence?: { basis?: string } | null;
+
   /*외부 예약 데이터 원본 매칭 정보*/
   source_provider?: string | null;
   source_service_id?: string | null;

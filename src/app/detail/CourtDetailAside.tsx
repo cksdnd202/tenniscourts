@@ -165,7 +165,7 @@ function buildGoogleCalendarAddUrl(params: {
   return `https://calendar.google.com/calendar/render?${q.toString()}`;
 }
 
-function buildCalendarLinks(params: {
+export function buildCalendarLinks(params: {
   courtName: string;
   badge: string;
   start: Date;
