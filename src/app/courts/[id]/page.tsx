@@ -9,7 +9,7 @@ import type { CSSProperties } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Court, CourtBlogLink } from "../../types";
 import { CourtSearchHeader } from "../../CourtSearchHeader";
-import { BasketballBookingSection, BasketballDetailAside, BasketballMobileBookBar, BasketballFacilityInfo } from "../../detail/BasketballDetail";
+import { BasketballBookingSection, BasketballDetailAside, BasketballMobileBookBar } from "../../detail/BasketballDetail";
 import { CourtDetailBookingSection } from "../../detail/CourtDetailBookingSection";
 import { AppReminderCard } from "../../detail/AppReminderCard";
 import { getNextBookingRuleOpen } from "@/lib/nextBookingOpen";
@@ -56,7 +56,7 @@ const METADATA_COURT_SELECT =
   "id, sport_type, slug, basic_region, basic_city, basic_address, basic_court_name, booking_rule_type, booking_open_type, booking_eligibility_first, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset";
 
 const DETAIL_COURT_SELECT =
-  "id, sport_type, slug, use_or_not, basic_court_name, instagram_hashtag, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_lottery_desc, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, basic_latitude, basic_longitude, has_indoor_courts, has_outdoor_courts, map_coordinate_evidence:court_environment_evidence->map_coordinates, booking_online_reserve_possible, booking_booking_provide, etc_desc, court_surface_counts(id, court_id, surface_type, indoor_count, outdoor_count)";
+  "id, sport_type, slug, use_or_not, basic_court_name, instagram_hashtag, basic_owner_type, basic_address, basic_region, basic_city, time_of_use_same, basic_time_of_use_weekend_from, basic_time_of_use_weekend_to, basic_time_of_use_weekday_from, basic_time_of_use_weekday_to, booking_site_link, booking_reception_time, booking_rule_type, booking_lottery_desc, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, booking_open_offset, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, basic_map_link, basic_latitude, basic_longitude, booking_online_reserve_possible, booking_booking_provide, etc_desc, court_surface_counts(id, court_id, surface_type, indoor_count, outdoor_count)";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -482,7 +482,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
               </div>
 
               <section
-                aria-label={isBasketball ? "예약·이용 안내" : "예약 오픈 정보"}
+                aria-label="예약 오픈 정보"
                 id={isBasketball ? "basketball-booking" : undefined}
                 data-detail-booking="true"
                 style={{ marginTop: "56px" }}
@@ -491,7 +491,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
                   className={detailSectionTitle}
                   style={{ ...detailSectionTitleStyle, marginBottom: "24px" }}
                 >
-                  {isBasketball ? "예약·이용 안내" : "예약 오픈 정보"}
+                  예약 오픈 정보
                 </h2>
                 {isBasketball ? <BasketballBookingSection court={court} /> : <CourtDetailBookingSection court={court} />}
                 {sportType === "tennis" && court.booking_rule_type !== "outdoor_open"
@@ -519,7 +519,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
 
               <CourtFeesSection court={court} />
 
-              {isBasketball ? <BasketballFacilityInfo court={court} /> : <section data-detail-court-types="true" style={detailDividerSectionStyle}>
+              {!isBasketball ? <section data-detail-court-types="true" style={detailDividerSectionStyle}>
                 <h2
                   className={detailSectionTitle}
                   style={{ ...detailSectionTitleStyle, marginBottom: "24px" }}
@@ -527,7 +527,7 @@ export default async function CourtDetailPage({ params }: PageProps) {
                   {sportType === "badminton" ? "바닥 종류" : "코트 종류"}
                 </h2>
                 <CourtDetailTable court={court} />
-              </section>}
+              </section> : null}
 
               {hasVisibleAmenities ? (
                 <CourtAmenitiesSection

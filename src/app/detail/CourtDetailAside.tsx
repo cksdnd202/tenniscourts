@@ -189,7 +189,7 @@ export function buildCalendarLinks(params: {
 }
 
 /** 다음 예약 오픈: 뱃지(구민·시민·일반) + 제목 한 줄, 날짜(좌)·시간(우) 한 줄 */
-function NextOpenPreviewCard({
+export function NextOpenPreviewCard({
   badge,
   badgeTone,
   title = "다음 예약 오픈 일",
@@ -200,6 +200,7 @@ function NextOpenPreviewCard({
   reservationUnavailableText,
   compact = false,
   isBadminton = false,
+  isBasketball = false,
   courtId,
   courtName,
 }: {
@@ -213,11 +214,12 @@ function NextOpenPreviewCard({
   reservationUnavailableText?: string;
   compact?: boolean;
   isBadminton?: boolean;
+  isBasketball?: boolean;
   courtId?: string;
   courtName?: string | null;
 }) {
   const badgeTextClass = getBookingOpenLabelTextClass(badgeTone, badge);
-  const badgeTextColor = getBookingOpenLabelTextColor(badgeTone, badge);
+  const badgeTextColor = isBasketball ? (badgeTone === "normal" || badgeTone === "general" ? "#FFFFFF" : "#E6611E") : getBookingOpenLabelTextColor(badgeTone, badge);
   const accentTextClass = isBadminton ? "text-[#337DFF]" : "text-[#4ADE80]";
   const strongActionClass = isBadminton
     ? "bg-[#375AE6] text-white hover:bg-[#2F4ECC]"
@@ -262,7 +264,7 @@ function NextOpenPreviewCard({
           className={`${accentTextClass} min-w-0 shrink font-bold tracking-tight ${
             compact ? "text-lg" : "text-xl"
           }`}
-          style={{ color: isBadminton ? "#337DFF" : "#4ADE80" }}
+          style={{ color: isBasketball ? "#E6611E" : isBadminton ? "#337DFF" : "#4ADE80" }}
         >
           {dateLabel}
         </span>
@@ -270,7 +272,7 @@ function NextOpenPreviewCard({
           className={`${accentTextClass} shrink-0 text-right font-bold tracking-tight ${
             compact ? "text-lg" : "text-xl"
           }`}
-          style={{ color: isBadminton ? "#337DFF" : "#4ADE80" }}
+          style={{ color: isBasketball ? "#E6611E" : isBadminton ? "#337DFF" : "#4ADE80" }}
         >
           {timeLabel}
         </span>
