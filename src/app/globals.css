@@ -993,3 +993,19 @@ html[data-courts-korea-app="true"] [data-map-home-link="true"] {
 .map-test-marker-basketball.map-test-marker-selected {
   outline-color: rgba(230, 97, 30, 0.3);
 }
+
+/* Show each sport once at a shared location, in tennis/badminton/basketball order. */
+.map-test-marker-multi-sport {
+  width: max-content;
+}
+
+.map-test-marker-multi-sport img {
+  position: relative;
+  flex-shrink: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #ffffff;
+}
+
+.map-test-marker-multi-sport img + img {
+  margin-left: -10px;
+}

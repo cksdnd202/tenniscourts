@@ -972,7 +972,10 @@ function MapTestClientContent({
       const marker = document.createElement("button");
       const isSelected = group.courts.some((court) => court.id === selectedCourtId);
       const groupSportType = normalizeSportType(group.courts[0]?.sport_type);
-      const groupMarkerIcon = getCourtMarkerIcon(group.courts[0]);
+      const markerCourts = (["tennis", "badminton", "basketball"] as const)
+        .map((sport) => group.courts.find((court) => normalizeSportType(court.sport_type) === sport))
+        .filter((court): court is Court => Boolean(court));
+      const hasMultipleSports = markerCourts.length > 1;
       marker.type = "button";
       marker.setAttribute(
         "aria-label",
@@ -983,11 +986,12 @@ function MapTestClientContent({
       marker.className = [
         "map-test-marker",
         `map-test-marker-${groupSportType}`,
+        hasMultipleSports ? "map-test-marker-multi-sport" : "",
         isSelected ? "map-test-marker-selected" : "",
       ].join(" ");
       marker.innerHTML = `
-        <img src="${groupMarkerIcon}" alt="" aria-hidden="true" />
-        ${group.courts.length > 1 ? `<span class="map-test-marker-count">${group.courts.length}</span>` : ""}
+        ${markerCourts.map((court) => `<img src="${getCourtMarkerIcon(court)}" alt="" aria-hidden="true" />`).join("")}
+        ${!hasMultipleSports && group.courts.length > 1 ? `<span class="map-test-marker-count">${group.courts.length}</span>` : ""}
       `;
       const consumeMarkerDrag = createPointerDragGuard(marker);
       marker.addEventListener("click", (event) => {
