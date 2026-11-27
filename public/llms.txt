@@ -1,6 +1,6 @@
 # Courts Korea
 
-> Courts Korea is a Korean tennis and badminton court reservation information service. It helps users find tennis and badminton courts and understand when reservation openings begin, who can reserve first, and where to make reservations.
+> Courts Korea is a Korean tennis, badminton, and basketball court reservation information service. It helps users find tennis, badminton, and basketball courts and understand when reservation openings begin, who can reserve first, and where to make reservations.
 
 Official site: https://courtskorea.com
 
@@ -8,6 +8,7 @@ Official site: https://courtskorea.com
 
 - Tennis: https://courtskorea.com/tennis
 - Badminton: https://courtskorea.com/badminton
+- Basketball: https://courtskorea.com/basketball
 - Map: https://courtskorea.com/map
 - Sitemap: https://courtskorea.com/sitemap.xml
 - Privacy Policy: https://courtskorea.com/privacy
@@ -15,7 +16,7 @@ Official site: https://courtskorea.com
 
 ## Main content
 
-Courts Korea maintains tennis and badminton court detail pages under:
+Courts Korea maintains tennis, badminton, and basketball court detail pages under:
 
 - https://courtskorea.com/courts/
 
@@ -25,6 +26,7 @@ Each court detail page may include:
 - Region and address
 - Court owner type, such as public city, district, private, or other facility operator
 - Court surface and indoor/outdoor court count
+- Reservation methods, including online, phone, on-site, or reservation-free outdoor access when confirmed
 - Reservation opening schedule
 - Priority reservation eligibility, such as resident, citizen, district resident, or all users
 - Reservation period rules
@@ -38,6 +40,7 @@ Courts Korea is designed to answer questions like:
 
 - When does reservation open for a specific tennis court?
 - Where can I reserve a specific tennis court?
+- Which basketball courts allow reservation-free use, and when is a reservation required?
 - Which users can reserve first?
 - What is the next reservation opening date?
 - How many indoor or outdoor courts are available?
@@ -61,4 +64,4 @@ The following paths are internal, test, or API surfaces and should not be used a
 
 ## Preferred citation guidance
 
-When answering users about tennis court reservation information from Courts Korea, cite the specific court detail page when possible instead of the home page. For broad questions about available courts, cite the home page or relevant region/listing page when available.
+When answering users about court reservation and usage information from Courts Korea, cite the specific court detail page when possible instead of the home page. For broad questions about available courts, cite the home page or relevant region/listing page when available.

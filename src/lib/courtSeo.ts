@@ -1,4 +1,5 @@
 import type { Court, CourtBookingRule } from "@/app/types";
+import { getBasketballRules, isBasketballFreeUse } from "@/lib/basketballBooking";
 import { getPriorityEligibilityLabel } from "@/lib/bookingEligibility";
 import { getSportVenueLabel, normalizeSportType } from "@/lib/sports";
 
@@ -296,7 +297,7 @@ function buildRuleFallbackSentence(court: Court): string {
     case "phone":
       return "전화로 예약할 수 있습니다.";
     case "outdoor_open":
-      return "실외 개방 배드민턴장입니다.";
+      return `예약 없이 자유이용할 수 있는 실외 ${getSportVenueLabel(court.sport_type)}입니다.`;
     case "on_site":
       return "현장 접수로 예약할 수 있습니다.";
     case "lottery":
@@ -310,8 +311,44 @@ function buildRuleFallbackSentence(court: Court): string {
   }
 }
 
+function buildBasketballReservationSummary(court: Court): string {
+  const rules = getBasketballRules(court);
+  if (rules.length === 0) {
+    if (court.booking_rule_type === "outdoor_open") return "예약 없이 자유이용할 수 있는 실외 농구장입니다.";
+    if (!court.booking_rule_type || court.booking_rule_type === "checking") return "예약 방법 확인중입니다.";
+    return buildRuleFallbackSentence(court);
+  }
+  return rules.slice(0, 3).map((rule) => {
+    const target = [
+      rule.eligibility ? formatEligibilityForSeo(rule.eligibility) : "",
+      rule.usage_period_label,
+    ].filter(Boolean).join(" · ");
+    const prefix = target ? `${target}: ` : "";
+    switch (rule.rule_type) {
+      case "outdoor_open": return `${prefix}예약 없이 자유이용할 수 있습니다.`;
+      case "phone": return `${prefix}전화 예약으로 이용할 수 있습니다.`;
+      case "on_site": return `${prefix}현장 접수로 이용할 수 있습니다.`;
+      case null:
+      case undefined:
+      case "checking": return `${prefix}예약 방법 확인중입니다.`;
+      case "irregular": return `${prefix}비정기적으로 예약을 받으며, 접수 일정은 운영기관 안내를 확인하세요.`;
+      default: {
+        // A known booking method does not imply a verified opening time.
+        if (rule.rule_type !== "lottery" && !rule.open_time?.trim()) {
+          return `${prefix}예약 오픈 일정을 확인 중입니다.`;
+        }
+        const sentence = buildBookingRuleReservationSentence(rule);
+        return rule.usage_period_label && sentence
+          ? `${rule.usage_period_label}: ${sentence}`
+          : sentence ?? `${prefix}예약 방법 확인중입니다.`;
+      }
+    }
+  }).join(" ");
+}
+
 /** description에 붙는 예약 요약 문장 */
 export function buildReservationSummary(court: Court): string {
+  if (court.sport_type === "basketball") return buildBasketballReservationSummary(court);
   const bookingRulesSummary = buildBookingRulesSummary(court);
   if (bookingRulesSummary) return bookingRulesSummary;
 
@@ -329,8 +366,10 @@ export function buildCourtDetailMetadata(court: Court) {
   const reservationSummary = buildReservationSummary(court);
 
   const region = [court.basic_region, court.basic_city].filter(Boolean).join(" ");
-  const title = `${region ? `${region} ` : ""}${displayName} ${court.booking_rule_type === "outdoor_open" ? "실외 개방·이용 정보" : "예약 방법·오픈 시간"} | ${SITE_NAME}`;
-  const description = `${region ? `${region}에 위치한 ` : ""}${displayName}의 위치, 이용 대상, ${court.sport_type === "badminton" ? "바닥 종류" : "코트 종류"} 및 이용 방법을 확인하세요. ${reservationSummary}`;
+  const isFreeUse = court.sport_type === "basketball" ? isBasketballFreeUse(court) : court.booking_rule_type === "outdoor_open";
+  const title = `${region ? `${region} ` : ""}${displayName} ${isFreeUse ? "실외 개방·이용 정보" : "예약 방법·오픈 시간"} | ${SITE_NAME}`;
+  const facilityInfo = court.sport_type === "basketball" ? "위치, 이용 대상 및 이용 방법" : `위치, 이용 대상, ${court.sport_type === "badminton" ? "바닥 종류" : "코트 종류"} 및 이용 방법`;
+  const description = `${region ? `${region}에 위치한 ` : ""}${displayName}의 ${facilityInfo}을 확인하세요. ${reservationSummary}`;
 
   return { title, description, displayName, reservationSummary };
 }

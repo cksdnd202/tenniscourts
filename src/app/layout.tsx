@@ -11,7 +11,7 @@ const ogImage = "/courtskroea_ogimg.png?v=20260323-1";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "전국 스포츠 시설 예약 정보 | Courts Korea",
-  description: "전국 테니스장과 배드민턴장의 위치, 예약 방법과 오픈 시간, 이용 정보를 한곳에서 확인하세요.",
+  description: "전국 테니스장·배드민턴장·농구장의 위치, 예약 방법과 오픈 시간, 이용 정보를 한곳에서 확인하세요.",
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "전국 스포츠 시설 예약 정보 | Courts Korea",
-    description: "전국 테니스장과 배드민턴장의 위치, 예약 방법과 오픈 시간, 이용 정보를 한곳에서 확인하세요.",
+    description: "전국 테니스장·배드민턴장·농구장의 위치, 예약 방법과 오픈 시간, 이용 정보를 한곳에서 확인하세요.",
     url: "https://courtskorea.com",
     type: "website",
     siteName: "Courts Korea",
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "전국 스포츠 시설 예약 정보 | Courts Korea",
-    description: "전국 테니스장과 배드민턴장의 위치, 예약 방법과 오픈 시간, 이용 정보를 한곳에서 확인하세요.",
+    description: "전국 테니스장·배드민턴장·농구장의 위치, 예약 방법과 오픈 시간, 이용 정보를 한곳에서 확인하세요.",
     images: [ogImage],
     site: "@courtskorea",
     creator: "@courtskorea",
