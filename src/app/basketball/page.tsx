@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { SportHomePage } from "../SportHomePage";
 
-const title = "한국 농구장 예약 정보 | Courts Korea";
+const title = "전국 농구장 예약·자유이용 정보 | Courts Korea";
 const description =
-  "전국 농구장의 위치, 예약 방법과 오픈 시간, 이용 대상 및 이용 정보를 확인하세요.";
+  "전국 실내·실외 농구장의 위치, 예약 방법과 오픈 시간, 예약 없이 자유이용 가능한 시설 및 이용 대상을 확인하세요.";
 const url = "https://courtskorea.com/basketball";
 
 export const metadata: Metadata = {

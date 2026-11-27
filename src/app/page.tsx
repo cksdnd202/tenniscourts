@@ -4,7 +4,7 @@ import { SportHomePage } from "./SportHomePage";
 
 const title = "전국 스포츠 시설 예약 정보 | Courts Korea";
 const description =
-  "전국 테니스장과 배드민턴장의 위치, 예약 방법과 오픈 시간, 이용 정보를 한곳에서 확인하세요.";
+  "전국 테니스장·배드민턴장·농구장의 위치, 예약 방법과 오픈 시간, 이용 정보를 한곳에서 확인하세요.";
 const url = "https://courtskorea.com/";
 
 export const metadata: Metadata = {

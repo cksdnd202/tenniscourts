@@ -51,3 +51,5 @@ Disallow: /api/
 Sitemap: https://courtskorea.com/sitemap.xml
 
 Sitemap: https://courtskorea.com/badminton-sitemap.xml
+
+Sitemap: https://courtskorea.com/basketball-sitemap.xml

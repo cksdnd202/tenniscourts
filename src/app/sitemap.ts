@@ -18,7 +18,7 @@ async function fetchActiveCourts(): Promise<SitemapCourtRow[]> {
     const { data, error } = await supabase
       .from("courtinfo")
       .select("slug, updated_at")
-      .in("sport_type", ["tennis", "badminton"])
+      .in("sport_type", ["tennis", "badminton", "basketball"])
       .eq("use_or_not", true)
       .order("slug", { ascending: true })
       .range(from, from + pageSize - 1);
@@ -106,6 +106,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     homeEntry,
     { ...homeEntry, url: `${siteUrl}/tennis`, priority: 0.9 },
     { ...homeEntry, url: `${siteUrl}/badminton`, priority: 0.9 },
+    { ...homeEntry, url: `${siteUrl}/basketball`, priority: 0.9 },
     ...policyEntries,
     ...courtEntries,
   ];
