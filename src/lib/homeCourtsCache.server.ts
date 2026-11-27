@@ -14,4 +14,8 @@ export function invalidateHomeCourtsCache() {
   revalidatePath("/");
   revalidatePath("/tennis");
   revalidatePath("/badminton");
+  revalidatePath("/basketball");
+  revalidatePath("/sitemap.xml");
+  revalidatePath("/badminton-sitemap.xml");
+  revalidatePath("/basketball-sitemap.xml");
 }

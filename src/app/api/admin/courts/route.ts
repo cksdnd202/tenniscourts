@@ -62,7 +62,7 @@ const editableFields = [
   "source_synced_at",
 ] as const;
 
-const validSportTypes = new Set(["tennis", "badminton"]);
+const validSportTypes = new Set(["tennis", "badminton", "basketball"]);
 const validSurfaceTypes = new Set([
   "hard",
   "grass",
@@ -322,16 +322,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ court }, { headers: { "Cache-Control": "no-store" } });
     }
 
-    const { data, error } = await getSupabaseAdmin()
-      .from("courtinfo")
-      .select("*")
-      .order("basic_court_name", { ascending: true, nullsFirst: false });
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    const allCourts: Record<string, unknown>[] = [];
+    const pageSize = 1000;
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await getSupabaseAdmin()
+        .from("courtinfo")
+        .select("*")
+        .order("basic_court_name", { ascending: true, nullsFirst: false })
+        .order("id", { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      allCourts.push(...(data ?? []));
+      if (!data || data.length < pageSize) break;
     }
-
-    const courts = await attachCourtRelations(data ?? []);
+    const courts = await attachCourtRelations(allCourts);
 
     return NextResponse.json({ courts }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

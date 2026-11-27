@@ -315,6 +315,7 @@ const fields: FieldConfig[] = [
     options: [
       { label: "테니스", value: "tennis" },
       { label: "배드민턴", value: "badminton" },
+      { label: "농구", value: "basketball" },
     ],
   },
   { key: "basic_court_name", label: "시설명" },
@@ -3771,6 +3772,7 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                   ["all", "전체"],
                   ["tennis", "테니스"],
                   ["badminton", "배드민턴"],
+                  ["basketball", "농구"],
                 ] as const).map(([value, label]) => (
                   <button
                     key={value}
@@ -3975,12 +3977,14 @@ function updateBookingRuleDraft(key: keyof CourtBookingRuleDraft, value: unknown
                           <span className="mt-1 flex items-center gap-2 truncate text-xs text-[#a7a7a7]">
                             <span
                               className={`rounded px-1.5 py-0.5 font-semibold ${
-                                (court.sport_type ?? "tennis") === "badminton"
+                                court.sport_type === "basketball"
+                                  ? "bg-[#492411] text-[#E6611E]"
+                                  : (court.sport_type ?? "tennis") === "badminton"
                                   ? "bg-[#253A83] text-[#AFC0FF]"
                                   : "bg-[#173522] text-[#86efac]"
                               }`}
                             >
-                              {(court.sport_type ?? "tennis") === "badminton" ? "배드민턴" : "테니스"}
+                              {court.sport_type === "basketball" ? "농구" : (court.sport_type ?? "tennis") === "badminton" ? "배드민턴" : "테니스"}
                             </span>
                             <span className="truncate">
                               {[court.basic_region, court.basic_city].filter(Boolean).join(" ")}
