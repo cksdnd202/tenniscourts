@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import type { Court, CourtBookingRule, SportType } from "./types";
 import { SPORT_CARD_THEMES, SPORT_SURFACES, SPORT_VENUE_LABELS } from "@/lib/sports";
+import { compareCourtsByBookingAndRecent } from "@/lib/courtListSort";
 import { BasketballCourtContent } from "./BasketballCourtContent";
 import { FixedScheduleContent } from "./FixedScheduleContent";
 import { OrdinalContent } from "./ordinal";
@@ -70,12 +71,6 @@ const FILTER_TOOLTIP_STYLE: CSSProperties = {
   padding: "8px",
   textAlign: "center",
   whiteSpace: "nowrap",
-};
-
-const getDateTime = (value?: string | null) => {
-  if (!value) return 0;
-  const time = new Date(value).getTime();
-  return Number.isFinite(time) ? time : 0;
 };
 
 const compareCourtName = (a: Court, b: Court) =>
@@ -682,11 +677,7 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
       });
     }
 
-    return list.sort((a, b) => {
-      const compared = getDateTime(b.created_at) - getDateTime(a.created_at);
-      if (compared !== 0) return compared;
-      return compareCourtName(a, b);
-    });
+    return list.sort(compareCourtsByBookingAndRecent);
   }, [filteredCourts, sortMode]);
 
   const visibleCourts = useMemo(
