@@ -14,7 +14,6 @@ import { PhoneContent } from "./PhoneContent";
 import { OnSiteContent } from "./OnSiteContent";
 import { IrregularContent } from "./IrregularContent";
 import { CheckingContent } from "./CheckingContent";
-import { FirstVisitCoachmark } from "./FirstVisitCoachmark";
 import { hasActiveBookingRules } from "./BookingRulesContent";
 import { COURT_AMENITIES, type CourtAmenityKey } from "@/lib/courtAmenities";
 import { COURT_BOOKING_METHODS, matchesCourtAmenities, matchesCourtBookingMethods, type CourtBookingMethod } from "@/lib/courtDiscoveryFilters";
@@ -1433,7 +1432,6 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
   return (
     <>
     <div className="flex relative flex-1 overflow-hidden">
-      <FirstVisitCoachmark />
       <div className="pointer-events-none absolute top-0 bottom-0 left-[calc(20px+18rem)] hidden w-px bg-[#24272D] min-[1032px]:block" />
       {/* 좌측 필터 영역 - 1032px 이상에서만 표시 */}
       <aside 
