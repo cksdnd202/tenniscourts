@@ -1,11 +1,11 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
-import type { Court, CourtBlogLink, CourtBookingRule } from "@/app/types";
+import type { Court, CourtBlogLink, CourtBookingRule, SportType } from "@/app/types";
 import { MAP_COURTS_CACHE_TAG } from "@/lib/homeCourtsCache.server";
 
 const MAP_TEST_COURT_SELECT =
-  "id, sport_type, created_at, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, booking_site_link, basic_map_link, basic_latitude, basic_longitude, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, booking_rule_type, booking_lottery_desc, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_offset, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, court_surface_counts(id, court_id, surface_type, indoor_count, outdoor_count)";
+  "id, sport_type, created_at, slug, use_or_not, basic_court_name, basic_owner_type, basic_address, basic_region, basic_city, booking_site_link, booking_online_reserve_possible, map_coordinate_basis:court_environment_evidence->map_coordinates->>basis, basic_map_link, basic_latitude, basic_longitude, court_count_hard_indoor, court_count_hard_outdoor, court_count_grass_indoor, court_count_grass_outdoor, court_count_clay_indoor, court_count_clay_outdoor, booking_rule_type, booking_lottery_desc, booking_open_type, booking_eligibility_first, booking_eligibility_second, booking_open_offset, booking_open_day_of_month, booking_open_day_of_week, booking_open_ordinal, booking_open_day_owner, booking_open_time_owner, booking_open_day_normal, booking_open_time_normal, booking_normal_iscurrentmonth, court_surface_counts(id, court_id, surface_type, indoor_count, outdoor_count)";
 
 function chunkCourtIds(courts: Court[]) {
   const courtIds = courts.map((court) => court.id).filter(Boolean);
@@ -84,7 +84,7 @@ async function attachBlogLinks(courts: Court[]) {
 
 const MAP_COURTS_PAGE_SIZE = 1_000;
 
-async function fetchMapCourtBase(sportType?: "tennis" | "badminton") {
+async function fetchMapCourtBase(sportType?: SportType) {
   const courts: Court[] = [];
 
   for (let offset = 0; ; offset += MAP_COURTS_PAGE_SIZE) {
@@ -95,7 +95,7 @@ async function fetchMapCourtBase(sportType?: "tennis" | "badminton") {
 
     courtRequest = sportType
       ? courtRequest.eq("sport_type", sportType)
-      : courtRequest.in("sport_type", ["tennis", "badminton"]);
+      : courtRequest.in("sport_type", ["tennis", "badminton", "basketball"]);
 
     // A unique tie-breaker keeps page boundaries stable for batch-imported courts.
     const { data, error } = await courtRequest
@@ -112,7 +112,7 @@ async function fetchMapCourtBase(sportType?: "tennis" | "badminton") {
 }
 
 const cacheOptions = { revalidate: 60, tags: [MAP_COURTS_CACHE_TAG] };
-const getCachedMapCourtBase = unstable_cache(fetchMapCourtBase, ["map-court-base-v2-paginated"], cacheOptions);
+const getCachedMapCourtBase = unstable_cache(fetchMapCourtBase, ["map-court-base-v3-basketball"], cacheOptions);
 
 // The complete map exceeds Next.js's 2 MiB cache-entry limit. Enrich/cache bounded
 // chunks while preserving the original court order and every field used by the client.
@@ -122,7 +122,7 @@ const getCachedMapCourtChunk = unstable_cache(async (courts: Court[]) => {
 }, ["map-court-chunk-v1"], cacheOptions);
 
 // Only public data is shared. URL, selection, login and app state remain outside the cache.
-export async function getCachedMapCourts(sportType?: "tennis" | "badminton") {
+export async function getCachedMapCourts(sportType?: SportType) {
   const courts = await getCachedMapCourtBase(sportType);
   const chunks: Court[][] = [];
   for (let index = 0; index < courts.length; index += 100) {

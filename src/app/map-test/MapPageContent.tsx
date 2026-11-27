@@ -1,12 +1,13 @@
 import { getCachedMapCourts } from "@/lib/mapCourtData.server";
-import type { Court } from "../types";
+import type { Court, SportType } from "../types";
 import { MapTestClient } from "./MapTestClient";
 
 type MapPageContentProps = {
-  sportType?: "tennis" | "badminton";
+  sportType?: SportType;
+  initialFilter?: SportType;
 };
 
-export async function MapPageContent({ sportType }: MapPageContentProps = {}) {
+export async function MapPageContent({ sportType, initialFilter }: MapPageContentProps = {}) {
   let courts: Court[];
   try {
     courts = await getCachedMapCourts(sportType);
@@ -19,5 +20,5 @@ export async function MapPageContent({ sportType }: MapPageContentProps = {}) {
       </main>
     );
   }
-  return <MapTestClient courts={courts} initialSportType={sportType} />;
+  return <MapTestClient key={initialFilter ?? sportType ?? "all"} courts={courts} initialSportType={sportType} initialFilter={initialFilter} />;
 }

@@ -40,6 +40,7 @@ export type Court = {
   basic_owner_type: string | null;
   basic_address: string | null;
   basic_map_link: string | null;
+  map_coordinate_basis?: string | null;
   basic_latitude?: number | null;
   basic_longitude?: number | null;
   basic_region: string | null;

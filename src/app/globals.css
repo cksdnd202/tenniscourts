@@ -988,3 +988,8 @@ body:has(.admin-document-surface) {
 html[data-courts-korea-app="true"] [data-map-home-link="true"] {
   display: none;
 }
+
+.map-test-marker-basketball:hover,
+.map-test-marker-basketball.map-test-marker-selected {
+  outline-color: rgba(230, 97, 30, 0.3);
+}

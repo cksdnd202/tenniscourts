@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FavoriteButton } from "@/app/FavoriteButton";
 import { formatBookingRuleCardText, formatBookingRuleEligibility } from "@/app/BookingRulesContent";
-import type { Court } from "@/app/types";
+import { getBasketballAction, isBasketballFreeUse } from "@/lib/basketballBooking";
+import type { Court, SportType } from "@/app/types";
 import { getCourtDetailPath } from "@/lib/courtPath";
 import {
   getCourtSurfaceRows,
@@ -98,7 +99,7 @@ type CourtLocationGroup = {
 type MapMenu = "search" | "schedule" | "favorites";
 type MobileMapMode = "map" | "search" | "schedule" | "favorites" | "detail";
 type MobileDetailReturnMode = Exclude<MobileMapMode, "detail">;
-type MapSportType = "tennis" | "badminton";
+type MapSportType = SportType;
 type MapSportFilter = "all" | MapSportType;
 
 const MAP_SPORT_FILTER_OPTIONS: Array<{
@@ -120,6 +121,7 @@ const MAP_SPORT_FILTER_OPTIONS: Array<{
     icon: "/icon/loading_Badminton.svg",
     selectedBackground: "#375AE6",
   },
+  { value: "basketball", label: "농구장", icon: "/icon/basketball.svg", selectedBackground: "#E6611E" },
 ];
 
 function MapSportFilterBar({
@@ -178,6 +180,7 @@ function getCourtLocationKey(court: Court) {
 }
 
 function getCourtMarkerIcon(court: Court | null | undefined) {
+  if (court?.sport_type === "basketball") return "/icon/basketball.svg";
   return normalizeSportType(court?.sport_type) === "badminton"
     ? "/icon/loading_Badminton.svg"
     : "/tennis-ball-icon.svg";
@@ -404,8 +407,8 @@ function getCourtBookingDisplay(court: Court) {
   if (rules.length > 0) {
     return rules.map((rule) => ({
       key: rule.id,
-      badge: getBookingRuleTargetText(rule),
-      label: formatBookingRuleCardText(rule),
+      badge: court.sport_type === "basketball" ? (!rule.rule_type ? "" : [formatBookingRuleEligibility(rule.eligibility), rule.usage_period_label].filter(Boolean).join(" · ")) : getBookingRuleTargetText(rule),
+      label: court.sport_type === "basketball" && !rule.rule_type ? "예약 방법 확인중" : formatBookingRuleCardText(rule),
       result: getNextBookingRuleOpen(court, rule),
       method: getBookingMethodLabel(rule.rule_type),
     }));
@@ -458,49 +461,25 @@ function loadKakaoMapScript() {
   });
 }
 
-export function MapTestClient({
-  courts,
-  initialSportType,
-}: {
+export function MapTestClient({ courts, initialSportType, initialFilter }: {
   courts: Court[];
   initialSportType?: MapSportType;
+  initialFilter?: MapSportType;
 }) {
-  const [querySportType, setQuerySportType] = useState<MapSportType | null>(null);
-
-  useEffect(() => {
-    if (initialSportType) return;
-
-    const requestedSportType = new URLSearchParams(window.location.search).get("sportType");
-    setQuerySportType(
-      requestedSportType === "tennis" || requestedSportType === "badminton"
-        ? requestedSportType
-        : null
-    );
-  }, [initialSportType]);
-
-  const effectiveSportType = initialSportType ?? querySportType;
-  const visibleCourts = useMemo(
-    () =>
-      effectiveSportType
-        ? courts.filter((court) => normalizeSportType(court.sport_type) === effectiveSportType)
-        : courts,
-    [courts, effectiveSportType]
-  );
-
-  return (
-    <MapTestClientContent
-      courts={visibleCourts}
-      showSportFilter={!effectiveSportType}
-    />
-  );
+  const visibleCourts = useMemo(() => initialSportType
+    ? courts.filter((court) => normalizeSportType(court.sport_type) === initialSportType) : courts,
+    [courts, initialSportType]);
+  return <MapTestClientContent courts={visibleCourts} showSportFilter={!initialSportType} initialFilter={initialFilter ?? initialSportType} />;
 }
 
 function MapTestClientContent({
   courts,
   showSportFilter,
+  initialFilter,
 }: {
   courts: Court[];
   showSportFilter: boolean;
+  initialFilter?: MapSportType;
 }) {
   const venueLabel = "코트";
   const mapRef = useRef<HTMLDivElement | null>(null);
@@ -514,7 +493,7 @@ function MapTestClientContent({
   const lastCapturedMapSearchRef = useRef("");
   const lastCapturedMapDetailScrollRef = useRef<string | null>(null);
   const [query, setQuery] = useState("");
-  const [mapSportFilter, setMapSportFilter] = useState<MapSportFilter>("all");
+  const [mapSportFilter, setMapSportFilter] = useState<MapSportFilter>(initialFilter ?? "all");
   const [selectedCourtId, setSelectedCourtId] = useState<string | null>(null);
   const nearbyCourtRef = useRef<Court | null>(null);
   const [activeLocationKey, setActiveLocationKey] = useState<string | null>(null);
@@ -1226,7 +1205,10 @@ function MapTestClientContent({
   const selectedBookingDisplay = selectedCourt ? getCourtBookingDisplay(selectedCourt) : [];
   const selectedBlogLinks = selectedCourt?.court_blog_links?.slice(0, 3) ?? [];
   const phoneReservation = selectedCourt ? isPhoneReservationCourt(selectedCourt) : false;
-  const reservationHref = selectedCourt ? (phoneReservation ? getPhoneReservationHref(selectedCourt, getActivePhoneBookingRule(selectedCourt)) : getReservationHref(selectedCourt)) : "";
+  const basketballAction = selectedCourt?.sport_type === "basketball" ? getBasketballAction(selectedCourt) : null;
+  const selectedAccent = selectedCourt?.sport_type === "basketball" ? "#E6611E" : undefined;
+  const selectedIsFreeUse = selectedCourt?.sport_type === "basketball" && isBasketballFreeUse(selectedCourt);
+  const reservationHref = basketballAction ? basketballAction.href || "" : selectedCourt ? (phoneReservation ? getPhoneReservationHref(selectedCourt, getActivePhoneBookingRule(selectedCourt)) : getReservationHref(selectedCourt)) : "";
   const selectedMethodLabels = [...new Set(selectedBookingDisplay.map((item) => item.method).filter(Boolean))];
 
   const moveToCurrentLocation = () => {
@@ -1611,6 +1593,7 @@ function MapTestClientContent({
         key={court.id}
         type="button"
         onClick={() => (onSelect ? onSelect(court) : setSelectedCourtId(court.id))}
+        style={isSelected && court.sport_type === "basketball" ? { borderColor: "#E6611E", backgroundColor: "#FFF4ED" } : undefined}
         className={`block w-full rounded-2xl border px-3 py-3 text-left transition md:px-4 md:py-4 ${
           isSelected
             ? "border-[#9ab8a7] bg-[#f2f7f4] shadow-[0_12px_28px_rgba(31,41,55,0.08)]"
@@ -1649,6 +1632,12 @@ function MapTestClientContent({
     (!isMobileViewport || mobileMode === "map");
   const handleMapSportFilterChange = (nextFilter: MapSportFilter) => {
     setMapSportFilter(nextFilter);
+    const url = new URL(window.location.href);
+    if (nextFilter === "all") url.searchParams.delete("sportType");
+    else url.searchParams.set("sportType", nextFilter);
+    url.searchParams.delete("courtId");
+    url.searchParams.delete("nearbyCourtId");
+    window.history.replaceState(null, "", url.toString());
     setSelectedCourtId(null);
     setActiveLocationKey(null);
     capturePostHogEvent("map_sport_filter_changed", {
@@ -1656,6 +1645,7 @@ function MapTestClientContent({
       source: isMobileViewport ? "mobile_map" : "desktop_map",
     });
   };
+  const listHref = mapSportFilter === "all" ? "/" : `/${mapSportFilter}`;
   const mobileHeaderTitle =
     mobileMode === "detail"
       ? selectedCourt?.basic_court_name ?? "상세 정보"
@@ -1809,7 +1799,7 @@ function MapTestClientContent({
                 <div className="inline-flex items-center gap-1 rounded-xl bg-white/[0.06] p-1 text-[12px] font-semibold text-[#9A9EA6]">
                   <button
                     type="button"
-                    onClick={() => goToMobileMenuPath("/")}
+                    onClick={() => goToMobileMenuPath(listHref)}
                     className="rounded-lg px-3 py-2 transition-colors hover:bg-white/[0.08] hover:text-white"
                   >
                     목록으로 보기
@@ -1864,7 +1854,7 @@ function MapTestClientContent({
               <nav className={mobileUserProfile ? "mt-8 flex flex-col gap-7" : "mt-24 flex flex-col gap-7"}>
                 <button
                   type="button"
-                  onClick={() => goToMobileMenuPath("/")}
+                  onClick={() => goToMobileMenuPath(listHref)}
                   className="text-left text-xl font-semibold transition hover:text-[#6FCF97]"
                 >
                   홈
@@ -2024,7 +2014,7 @@ function MapTestClientContent({
               />
             </Link>
             <div className="flex shrink-0 rounded-full bg-[#f1f4f7] p-0.5 text-[9px] font-semibold md:text-[10px]">
-              <Link href="/" className="whitespace-nowrap rounded-full px-2 py-1.5 text-[#6b7280]">
+              <Link href={listHref} className="whitespace-nowrap rounded-full px-2 py-1.5 text-[#6b7280]">
                 목록으로 보기
               </Link>
               <span className="whitespace-nowrap rounded-full bg-[#1f2937] px-2 py-1.5 text-white">
@@ -2313,11 +2303,12 @@ function MapTestClientContent({
                 </p>
               ) : null}
               <p className="mt-4 text-sm font-medium leading-relaxed text-[#374151]">
-                {selectedCourt.basic_address}
+                {selectedCourt.basic_address || "상세 주소 확인 필요"}
               </p>
+              {selectedCourt.sport_type === "basketball" && selectedCourt.map_coordinate_basis && selectedCourt.map_coordinate_basis !== "facility_poi" ? <p className="mt-2 text-xs leading-relaxed text-[#6b7280]">시설·공원 대표 위치로, 개별 코트와 출입구 위치는 다를 수 있습니다.</p> : null}
 
               <div className="mt-4 flex items-center gap-2 [&>button]:h-11 [&>button]:w-11 [&>button]:rounded-xl [&>button>svg]:h-6 [&>button>svg]:w-6 md:[&>button]:h-8 md:[&>button]:w-8 md:[&>button]:rounded-md md:[&>button>svg]:h-5 md:[&>button>svg]:w-5">
-                <FavoriteButton courtId={selectedCourt.id} variant="light" source="map_info_layer" />
+                <FavoriteButton courtId={selectedCourt.id} variant="light" source="map_info_layer" accentColor={selectedAccent} />
                 <button
                   type="button"
                   onClick={handleShareSelectedCourt}
@@ -2387,7 +2378,7 @@ function MapTestClientContent({
                   selectedBookingDisplay.map((item) => (
                     <div key={item.key} className="rounded-xl bg-[#f4f6f8] px-3 py-3">
                       <div className="flex items-start gap-2">
-                        {item.badge ? <span className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-semibold text-[#25764d]">
+                        {item.badge ? <span className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-semibold text-[#25764d]" style={{ color: selectedAccent }}>
                           {item.badge}
                         </span> : null}
                         <div className="min-w-0">
@@ -2407,7 +2398,7 @@ function MapTestClientContent({
                 </div>
               </section>
 
-              {nextSelectedOpen || selectedMethodLabels.length === 0 ? <section className="mt-5">
+              {!selectedIsFreeUse && (nextSelectedOpen || (selectedCourt.sport_type !== "basketball" && selectedMethodLabels.length === 0)) ? <section className="mt-5">
                 <h3 className="text-sm font-semibold text-[#111827]">다음 예약 오픈일</h3>
                 {nextSelectedOpen ? (
                   <div className="mt-2 rounded-2xl border border-[#d6dde5] bg-[#f8fafc] p-4">
@@ -2428,8 +2419,8 @@ function MapTestClientContent({
                       </a>
                     </div>
                     <div className="mt-3 flex items-end justify-between gap-3">
-                      <p className="text-xl font-bold text-[#16824f]">{nextSelectedOpen.result.dateLabel}</p>
-                      <p className="text-lg font-bold text-[#16824f]">{nextSelectedOpen.result.timeLabel}</p>
+                      <p className="text-xl font-bold text-[#16824f]" style={{ color: selectedAccent }}>{nextSelectedOpen.result.dateLabel}</p>
+                      <p className="text-lg font-bold text-[#16824f]" style={{ color: selectedAccent }}>{nextSelectedOpen.result.timeLabel}</p>
                     </div>
                   </div>
                 ) : (
@@ -2450,12 +2441,13 @@ function MapTestClientContent({
                     data-court-name={selectedCourt.basic_court_name ?? undefined}
                     data-booking-source="map_info_layer"
                     className="block rounded-xl bg-[#25764d] px-4 py-3 text-center text-sm font-semibold text-white"
+                    style={{ backgroundColor: selectedCourt.sport_type === "basketball" ? "#D1500F" : undefined }}
                   >
-                    {phoneReservation ? "전화 예약" : "예약하러가기"}
+                    {basketballAction?.label ?? (phoneReservation ? "전화 예약" : "예약하러가기")}
                   </a>
                 ) : (
                   <span className="block rounded-xl bg-[#e5e7eb] px-4 py-3 text-center text-sm font-semibold text-[#9ca3af]">
-                    {selectedMethodLabels.length > 0 ? selectedMethodLabels.join(" · ") : "예약 링크 확인 중"}
+                    {basketballAction?.label ?? (selectedMethodLabels.length > 0 ? selectedMethodLabels.join(" · ") : "예약 링크 확인 중")}
                   </span>
                 )}
               </div>

@@ -60,12 +60,9 @@ export function CourtDetailAddress({
 }) {
   const isBasketball = court.sport_type === "basketball";
   if (!court.basic_address && !isBasketball) return null;
-  const basketballMapHref = typeof court.basic_latitude === "number" && typeof court.basic_longitude === "number"
-    ? `https://map.kakao.com/link/map/${encodeURIComponent(court.basic_court_name ?? "농구장")},${court.basic_latitude},${court.basic_longitude}`
-    : `https://map.kakao.com/link/search/${encodeURIComponent(court.basic_address || court.basic_court_name || "농구장")}`;
   const venueLabel = getSportVenueLabel(court.sport_type);
   const isBadminton = normalizeSportType(court.sport_type) === "badminton";
-  const nearbyTextClass = isBadminton ? "text-[#337DFF]" : "text-[#6FCF97]";
+  const nearbyTextClass = isBasketball ? "text-[#E6611E]" : isBadminton ? "text-[#337DFF]" : "text-[#6FCF97]";
   const canOpenNearbyMap =
     typeof court.basic_latitude === "number" && typeof court.basic_longitude === "number";
 
@@ -82,19 +79,17 @@ export function CourtDetailAddress({
         <span className={`${courtitem_courtaddress} truncate`}>{court.basic_address || "상세 주소 확인 필요"}</span>
         <a
           data-detail-map-link="true"
-          href={isBasketball ? basketballMapHref : `/map?courtId=${encodeURIComponent(court.id)}`}
-          target={isBasketball ? "_blank" : undefined}
-          rel={isBasketball ? "noopener noreferrer" : undefined}
+          href={`/map?courtId=${encodeURIComponent(court.id)}&sportType=${normalizeSportType(court.sport_type)}`}
           className={`${courtitem_courtmaplink} flex-shrink-0`}
         >
           지도에서 보기
         </a>
       </div>
 
-      {showNearbyAction && canOpenNearbyMap && !isBasketball ? (
+      {showNearbyAction && canOpenNearbyMap ? (
         <a
           data-detail-nearby="true"
-          href={`/map?nearbyCourtId=${encodeURIComponent(court.id)}`}
+          href={`/map?nearbyCourtId=${encodeURIComponent(court.id)}&sportType=${normalizeSportType(court.sport_type)}`}
           onClick={() =>
             capturePostHogEvent("nearby_courts_button_clicked", {
               courtId: court.id,
@@ -105,7 +100,7 @@ export function CourtDetailAddress({
           }
           aria-label={`${court.basic_court_name ?? `현재 ${venueLabel}`} 근처 ${venueLabel} 지도에서 보기`}
           className={`${nearbyTextClass} inline-flex h-9 flex-shrink-0 self-end items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-[#343438] bg-[#1A1A1B] px-3 text-xs font-semibold transition hover:border-[#4A4A50] hover:bg-[#222224] active:scale-[0.98] sm:self-auto`}
-          style={{ color: isBadminton ? "#337DFF" : "#6FCF97" }}
+          style={{ color: isBasketball ? "#E6611E" : isBadminton ? "#337DFF" : "#6FCF97" }}
         >
           <svg
             viewBox="0 0 24 24"

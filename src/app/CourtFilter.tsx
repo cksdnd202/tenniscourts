@@ -1593,7 +1593,7 @@ export function CourtFilter({ courts, sportType = "tennis", showViewToggle = fal
           {showViewToggle ? (
             <div className="inline-flex rounded-full bg-[#191B1E] p-1 text-sm font-bold text-[#8A8F98]">
               <span className="rounded-full bg-[#2F9461] px-4 py-2 text-white">목록으로 보기</span>
-              <Link href="/map" className="rounded-full px-4 py-2 transition hover:text-white">
+              <Link href={`/map?sportType=${sportType}`} className="rounded-full px-4 py-2 transition hover:text-white">
                 지도로 보기
               </Link>
             </div>

@@ -13,7 +13,7 @@ export async function generateMetadata({
 
   return {
     title: "코트 지도 | Courts Korea",
-    description: "전국 테니스장과 배드민턴장을 지도에서 검색하고 예약 오픈 정보를 확인하세요.",
+    description: "전국 테니스장, 배드민턴장, 농구장을 지도에서 검색하고 예약 오픈 정보를 확인하세요.",
     alternates: {
       canonical: "https://courtskorea.com/map",
     },
@@ -21,6 +21,8 @@ export async function generateMetadata({
   };
 }
 
-export default function MapPage() {
-  return <MapPageContent />;
+export default async function MapPage({ searchParams }: { searchParams: Promise<{ sportType?: string }> }) {
+  const { sportType } = await searchParams;
+  const initialFilter = sportType === "tennis" || sportType === "badminton" || sportType === "basketball" ? sportType : undefined;
+  return <MapPageContent initialFilter={initialFilter} />;
 }
